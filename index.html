@@ -1,0 +1,2659 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Training Week — v62
+  ============================================================================
+
+  WORKING RULES (ask Claude to follow these on every edit)
+  ---------------------------------------------------------------------------
+  1. VERSION EVERY FILE. Never save over the previous one. The working copy is
+     `training vNN.html`; NN goes up by one per round of changes, and the old
+     file stays on disk so a regression can be bisected against it.
+  2. The deployed file is a COPY named `index.html` (Vercel serves it at the
+     root). It is byte-identical to `training vNN.html` — index.html is never
+     edited directly, or the two silently drift.
+  3. The zip shipped to the user is `training vNN.zip` and contains
+     `training vNN.html` plus the test file. `index.html` is delivered
+     separately, outside the zip.
+  4. Write these rules into this comment in every version.
+  5. Tests are Claude's, not the user's: `test.js` runs under Node + jsdom and
+     Claude runs it. The user is never asked to install anything or run a
+     command. Every bug fixed gets a test that fails on the old file and passes
+     on the new one.
+  6. Say what changed and why. A fix with no note becomes a mystery on the next
+     pass — most of the comments in this file exist because of that.
+
+  v62 — bug fixes only, no behaviour or design changes
+  ---------------------------------------------------------------------------
+  A  loadDaily  · setMonth(m-1) on the 29th–31st landed in the CURRENT month, so
+                  the previous month's shard was never read: the habit grid and
+                  the 30-day density undercounted for three days a month.
+  B  buildDump  · the same arithmetic, 24 times. An export taken on the 31st
+                  covered 14 distinct months out of 24 and silently dropped the
+                  rest — holes in the only backup the app has.
+  C  flushWrites· backgrounding the app called save(), which STARTS a 300ms
+                  timer, so the pending write was rescheduled rather than
+                  issued, and iOS suspends timers on the way out. It also only
+                  looked at aeroTimer; the weight and habit-field timers were
+                  never flushed at all. Now on visibilitychange AND pagehide.
+  D  applyState · shapes are validated, not just defaulted. An imported dump with
+                  weights as a string made every later write a silent no-op, and
+                  a null in the aero list crashed the Aerobic tab outright.
+  E  loadHist   · years are coerced to numbers and deduped. ['2026', 2026] read
+                  one shard twice: history rows appeared twice with a delta of 0,
+                  and phaseEarned() counted each incline week twice, advancing
+                  the ladder at double speed. runImport no longer writes the
+                  duplicate (it sorted the index lexicographically).
+  F  buildAero  · an unrecognised session type painted an empty, undeletable card.
+  G  smaller    · metRange/f1 no longer throw on a null MET · the incline speed
+                  placeholder is formatted like the rung it comes from (5.0, not
+                  5) · a superset with nothing left to tick no longer draws a
+                  dead checkbox · the score row is a role=group, not a <label>
+                  wrapping buttons · the panes carry role=tabpanel.
+
+  Known, deliberate, NOT a bug: a weight typed before the deload switch is
+  flipped is still archived with dl:1 and still prints a delta. The number was
+  real, the row says "deload" beside it, and dropping it would need a second
+  rule about when a logged number stops counting.
+  ============================================================================
+-->
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Training Week</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Thai+Looped:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Thai+Looped:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,600&display=swap" rel="stylesheet"></noscript>
+<style>
+  :root{
+    /* v35 "Midnight Dial" · no monospace, quieter chrome, one accent
+       (v33 note follows)
+       v33 "Midnight Dial": a dark instrument panel, one warm metal accent.
+       Numbers are the content of this app, so they get the mono face and the
+       brass; everything else stays quiet enough for the numbers to read. */
+    --paper:#0A0C0F;
+    --card:#14171B;
+    --card2:#191D22;
+    /* v42 — the light model.
+       --fill: a card is no longer a flat swatch. It carries its own top-to-bottom
+       gradient, so its surface agrees with the overhead source instead of just
+       wearing a lit edge and ignoring it.
+       --edge: the top edge IS the border. Until v41 a card drew a 1px border all
+       round AND a 1px hairline just inside it — two lines stacked, which is why
+       the light read as a sticker rather than an edge. The top border is now
+       transparent and the hairline occupies that row alone.
+       --foot: the dark inset line that closes the card at the bottom. A lit top
+       without a shaded bottom is a highlight; with one, it's an object. */
+    /* v45: the shading lives INSIDE the fill now. A dark bottom border was
+       #0000008C over a #0A0C0F page — measured, it rendered (11,13,16) against a
+       page of (10,12,15): invisible. The bevel is the last 8% of the gradient
+       instead, so the card darkens into its own bottom edge and the light
+       hairline has something to sit on. */
+    /* v47: fill darkened 6 steps (darklab D). The card's foot now lands within
+       ~1 step of the page, so the bottom of a card dissolves into the paper and
+       --edge2 is the only thing closing it — keep that hairline if you retune.
+       --ink dropped D5DCE1 -> CCD3D9 to match: on the darker surface the old
+       value read as a notch too hot. --muted/--dim unchanged; they were already
+       sitting on this side of the range. */
+    --fill:linear-gradient(#13171D 0%,#0E1114 92%,#0B0D10 100%);
+    --fill-done:linear-gradient(#0E1114,#0A0C0F);
+    --edge:#FFFFFF3B;
+    /* v44: the bottom edge is two facts, not one. --foot is the shadow the card
+       casts on itself; --edge2 is the sliver of the same overhead light that a
+       rolled bottom edge would still catch. Opposite polarity, so they read as
+       one bevel rather than as two lines. Set --edge2 to transparent to go back
+       to a purely dark foot. */
+    --edge2:#FFFFFF1C;
+    /* v45: a sub-pixel BOX does not survive. `height:.5px` laid out fine and
+       then snapped away at paint — sampled at DPR8 the row was pure fill, and
+       the same was true of the top hairline, which is why v44's edges went soft
+       and the bottom looked broken. A 1px box scaled on the compositor does
+       render: the GPU antialiases it into a real half-pixel. */
+    --hair:.5;
+    --ink:#CCD3D9;
+    --muted:#8A959C;
+    --dim:#616D75;
+    --line:#FFFFFF12;
+    --brass:#D6B27C;
+    --brass2:#8E7549;
+    --r:18px;     /* card */
+    --rc:10px;    /* control */
+    --s1:19px;
+    --s2:15px;
+    --s3:13px;
+    --s4:11px;
+    --sans:-apple-system,BlinkMacSystemFont,system-ui,"IBM Plex Sans Thai Looped",sans-serif;
+    /* v41: two faces earn a place in the head of a card and nowhere else.
+       --serif is the day's NAME — a name, not a datum, so it is set like prose.
+       --tag is the day's SLOT in the week — a fixed-advance face because that is
+       what a three-letter code in a column of seven wants. Neither leaks into
+       the body: --mono still aliases the sans, as of v35. */
+    --serif:"Newsreader",Georgia,"Times New Roman",serif;
+    --tag:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    /* v35: no monospace anywhere. Tabular figures give the column alignment
+       that the mono face was there for, without the typewriter texture. */
+    --mono:var(--sans);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html{background:var(--paper);}
+  /* one light source, top centre — the page reads as a lit object instead of a
+     flat black rectangle, and the cards below it have something to sit on */
+  body{
+    margin:0 auto;max-width:560px;
+    padding:18px 16px calc(48px + env(safe-area-inset-bottom));
+    background:transparent;
+    color:var(--ink);
+    font-family:var(--sans);font-size:16px;line-height:1.5;letter-spacing:-.01em;
+    -webkit-font-smoothing:antialiased;
+    font-variant-numeric:tabular-nums;
+  }
+  /* v39: the light source is painted on a fixed layer, so its geometry is the
+     viewport's, not the document's. On body it was sized to the page, which meant
+     opening a card re-scaled and repainted the whole gradient. */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+    background:radial-gradient(88% 34% at 50% -6%,#2A3540 0%,rgba(42,53,64,0) 68%);
+  }
+  /* v42: grain. The source is a wide, low-contrast wash over near-black — the
+     exact condition that bands into visible rings on an OLED. Noise at 7% in
+     overlay costs one data-URI and makes the gradient continuous. It sits above
+     everything so the cards are grained too; without that the cards look like
+     cut-outs pasted onto a textured page. */
+  body::after{
+    content:"";position:fixed;inset:0;z-index:9;pointer-events:none;
+    opacity:.07;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='.5'/></svg>");
+  }
+  .brand{position:relative;display:flex;align-items:center;justify-content:center;
+    min-height:30px;padding:0 0 14px;}
+  .bname{
+    font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.34em;
+    text-transform:uppercase;color:var(--brass);opacity:.85;padding-left:4px;
+  }
+
+  .eyebrow{font-family:var(--mono);font-size:var(--s4);letter-spacing:.16em;text-transform:uppercase;
+    color:var(--dim);font-weight:500;}
+  .eyebrow.th{font-size:var(--s3);letter-spacing:0;text-transform:none;}
+
+  /* ---------- tabs ----------
+     v35: the segmented pill was a plastic widget sitting on a metal panel. A
+     row of words under a hairline, with one of them lit and underscored in
+     brass, says the same thing and lets the cards be the only objects. */
+  .tabs{display:flex;margin:2px 2px 20px;border-bottom:1px solid var(--line);}
+  .tab{
+    flex:1;padding:0 0 12px;border:0;background:transparent;font:inherit;
+    font-size:var(--s3);font-weight:500;letter-spacing:.02em;
+    color:var(--dim);cursor:pointer;transition:color .18s;
+  }
+  /* the rule hugs the word, not the third it sits in */
+  .tl{position:relative;display:inline-block;}
+  .tl::after{
+    content:"";position:absolute;left:-6px;right:-6px;bottom:-13px;height:1.5px;border-radius:999px;
+    background:linear-gradient(90deg,var(--brass2),var(--brass));
+    transform:scaleX(0);transition:transform .22s cubic-bezier(.4,0,.2,1);
+  }
+  .tab[aria-selected="true"]{color:var(--ink);font-weight:600;}
+  .tab[aria-selected="true"] .tl::after{transform:scaleX(1);}
+  .pane{display:none;}
+  .pane.on{display:block;}
+
+  .weekbar{display:flex;align-items:center;gap:8px;padding:0 2px 10px;}
+  #pane-aero .weekbar,#pane-daily .weekbar{display:none;}
+  .weekno{font-family:var(--mono);font-size:var(--s4);color:var(--dim);flex:1;letter-spacing:.04em;}
+  .weekno b{color:var(--muted);font-weight:500;}
+
+  /* ---------- day ---------- */
+  .day{
+    position:relative;overflow:hidden;
+    background:var(--fill);border:1px solid var(--line);
+    /* v43: no top border at all. `transparent` still reserved the row, and the
+       card's own fill painted through it (background-clip defaults to
+       border-box) — a 1px band of surface sitting ABOVE the highlight, which is
+       what made the edge look soft. With the row gone the hairline is the
+       topmost pixel of the card. */
+    /* v45: no bottom border either — see --fill. Both lit edges are now the
+       card's own first and last pixel row, with nothing under or over them. */
+    border-top:0;border-bottom:0;
+    border-radius:var(--r);
+    margin-bottom:8px;transition:background .18s;
+  }
+  .day::after{content:"";position:absolute;left:0;right:0;top:0;height:1px;pointer-events:none;
+    transform:scaleY(var(--hair));transform-origin:top;
+    background:linear-gradient(90deg,transparent 8%,var(--edge) 24%,var(--edge) 76%,transparent 92%);}
+  /* v44: the light the bottom edge catches. Sits above `.prog`, so it survives
+     the progress band the way the dark foot (a border) does. */
+  .day::before{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+    transform:scaleY(var(--hair));transform-origin:bottom;
+    z-index:2;pointer-events:none;
+    background:linear-gradient(90deg,transparent 12%,var(--edge2) 29%,var(--edge2) 71%,transparent 88%);}
+  .day.done::before{opacity:.4;}
+  .day.done{background:var(--fill-done);border-color:#FFFFFF08;border-top:0;border-bottom:0;}
+  .day.done::after{opacity:.4;}
+  .day.done .title{color:var(--dim);}
+  .day.open{box-shadow:0 18px 40px -22px #000;}
+  .day.today .title::after{
+    content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
+    background:var(--accent);vertical-align:middle;margin-left:7px;
+    box-shadow:0 0 8px var(--accent);
+  }
+  /* ---------- head (v38 "B1") ----------
+     The day name is the object of the card and sits on the card's true vertical
+     centre. A flow-centred stack would put the STACK's middle there, leaving the
+     title half a dow-block low; the transform lifts it by exactly that half
+     without moving the layout box, so the chevron and the progress rule stay put.
+     v39: 84 → 66px. The stack is 42px tall, so at 66 the dow sits ~2.5px off the
+     top edge and the title still lands on the card's exact middle — the transform
+     is unchanged because it depends on the stack, not the card.
+     v40: lift eased 9.5 → 7px. The dow was reading as flush with the top edge, so
+     the whole stack drops 2.5px; the title now sits 2.5px under true centre, which
+     is under the threshold where the eye calls it off.
+     v41: the label dropped to 10px, so half a dow-block is now (13+5)/2 = 9, and
+     the same 2.5px offset makes the lift 6.5px. The stack grew 1.1px overall; the
+     card stays 66. */
+  .head{
+    position:relative;display:flex;align-items:center;justify-content:center;
+    width:100%;min-height:66px;padding:10px 46px;
+    background:none;border:0;font:inherit;color:inherit;cursor:pointer;
+    touch-action:manipulation;
+  }
+  .stk{display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;
+    transform:translateY(-6.5px);}
+    /* v41: Plex Mono at 10px/.03em. Mono carries its own fixed advance, so the
+     .14em that a proportional face needed to read as an eyebrow made this one
+     look stretched — .03em is the least that still says "label". */
+  .dow{font-family:var(--tag);font-size:10px;letter-spacing:.03em;text-transform:uppercase;
+    color:var(--dim);font-weight:500;line-height:1.3;}
+    /* v41: the title is the one piece of prose on the card — everything else is a
+     number, a code or a state. A serif says that without a rule or a colour. */
+  .title{font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:-.005em;
+    line-height:1.2;text-align:center;}
+  .chev{position:absolute;top:50%;right:16px;transform:translateY(-50%);
+    width:16px;height:16px;color:var(--muted);transition:transform .2s;}
+  .chev svg{width:16px;height:16px;display:block;fill:none;stroke:currentColor;stroke-width:3;}
+  .day.open .chev{transform:translateY(-50%) rotate(180deg);}
+
+  /* v38: the count is gone. Closed, this line is the card's foot; open, it is the
+     rule between the head and the list — same object, same meaning, new position.
+     A number you have to read becomes a shape you only have to see. */
+  /* v45: no track. #FFFFFF0A across the foot of every card was a permanent 2px
+     light band sitting exactly where the bottom edge now is — two bright rows
+     arguing over the same job. An empty card shows nothing; the fill IS the
+     sentence. */
+  .prog{display:block;height:2px;background:none;}
+  .prog i{display:block;height:100%;width:0%;border-radius:0 999px 999px 0;
+    background:linear-gradient(90deg,var(--brass2),var(--brass));
+    transition:width .25s cubic-bezier(.4,0,.2,1);}
+
+  .body{display:none;padding:2px 0 14px;}
+  .day.open .body{display:block;}
+
+  /* ---------- item (v38 "C") ----------
+     One row per exercise. The dose flows straight on from the name (W3) so a
+     long name spends the tail of its second line instead of claiming a row of
+     its own — a full gym day fits one screen, which is the state it is actually
+     read in: phone on the bench, mid-set. */
+  .grp{padding:0 18px;}
+  .sslab{
+    font-size:var(--s4);letter-spacing:.2em;text-transform:uppercase;font-weight:500;
+    color:var(--dim);margin:0;padding:14px 0 3px;
+  }
+  .sslab:empty{display:none;}
+  /* v52: a superset is one decision, so it gets one checkbox — on the label row,
+     level with the pair rather than inside either half of it. The exercises below
+     it keep their weight fields and their detail roundels; they just no longer
+     each ask to be ticked. The BACKEND is unchanged: this box writes state.checks
+     for every id in the group, so history, deltas and rollover still see the
+     individual exercises exactly as before. */
+  .grphead{display:flex;align-items:center;gap:10px;padding:14px 0 3px;}
+  .grphead .sslab{padding:0;}
+  .grphead+.item{border-top:0;}
+  /* nothing to tick on this row, so the name starts where the others' names do */
+  .item.nobox{padding-left:34px;}
+
+  /* the live pair: whichever group holds the next unticked exercise. The tint
+     bleeds to the card edges so the pair reads as one object at arm's length. */
+  .grp.now{position:relative;background:var(--tint);
+    margin:6px 0;padding-bottom:6px;}
+  .grp.now::before{content:"";position:absolute;left:0;top:0;bottom:0;width:1.5px;
+    background:linear-gradient(180deg,var(--accent),color-mix(in srgb,var(--accent),black 55%));}
+  .grp.now .sslab{color:var(--accent);opacity:.7;}
+  .day.done .grp.now{background:none;box-shadow:none;}
+
+  .item{display:flex;align-items:center;gap:10px;padding:10px 0;min-height:52px;}
+  .item+.item{border-top:1px solid #FFFFFF0A;}
+  .sslab+.item{border-top:0;}
+  .item.on .name{color:var(--muted);}
+  .box{
+    width:24px;height:24px;flex:none;padding:0;touch-action:manipulation;
+    border:1px solid #FFFFFF24;border-radius:var(--rc);background:transparent;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .15s,border-color .15s;
+  }
+  .box svg{width:13px;height:13px;fill:none;stroke:#0A0C0D;stroke-width:3.2;opacity:0;transition:opacity .15s;}
+  .box.on{background:var(--accent);border-color:var(--accent);}
+  .box.on svg{opacity:1;}
+  /* no overflow-wrap:anywhere here — it gave the browser permission to break
+     the NAME mid-phrase rather than move the unbreakable dose down a line. */
+  .txt{flex:1;min-width:0;}
+  .name{font-size:var(--s2);font-weight:500;letter-spacing:-.008em;line-height:1.4;}
+  /* W3: the dose flows on from the name and, now that it is only the sets, it
+     stays whole — if it will not fit the tail of the line it drops to the next
+     one entire, rather than snapping "3 × 8 / side" in half. */
+  .dose{font-size:var(--s4);color:var(--dim);margin-left:7px;white-space:nowrap;}
+  .dosefull{font-size:var(--s4);color:var(--muted);margin:0 0 10px;letter-spacing:.01em;}
+  /* Detail shrank to a roundel to buy the row back; 22px keeps it thumbable. */
+  /* v60: the ⓘ is the last thing on the row and the weight box sits before it.
+     With the old order the button landed in a different place on a row with a
+     kg field than on one without, so the column of circles zig-zagged down the
+     day. Now every row ends with it, at the same x. */
+  .idet{
+    width:22px;height:22px;flex:none;padding:0;border-radius:50%;margin-left:auto;
+    border:1px solid #FFFFFF1A;background:transparent;color:var(--dim);
+    font:inherit;font-size:11px;font-style:italic;line-height:1;cursor:pointer;touch-action:manipulation;
+    display:flex;align-items:center;justify-content:center;transition:color .15s,border-color .15s;
+  }
+  .item.det .idet{color:var(--accent);border-color:var(--accent);opacity:.9;}
+  .drop{display:none;padding:0 8px 12px 34px;}
+  .item.det + .drop{display:block;}
+
+  /* weight */
+  .wtwrap{display:flex;align-items:baseline;gap:4px;flex:none;align-self:center;margin-left:auto;}
+  .wtwrap+.idet{margin-left:0;}
+  /* v31: no spin buttons anywhere. Every one of these fields is typed, and the
+     arrows only ever stole a tap target and nudged a logged number by accident. */
+  input[type=number]{-moz-appearance:textfield;appearance:textfield;}
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .wtin{
+    width:52px;height:32px;padding:0 2px;text-align:center;
+    border:1px solid #FFFFFF14;border-radius:var(--rc);background:#12161B;
+    font:inherit;font-family:var(--mono);font-size:15px;color:var(--brass);
+    outline:none;letter-spacing:-.01em;
+    box-shadow:0 1px 2px #00000080 inset;
+    transition:border-color .15s;
+  }
+  .wtin::placeholder{color:#4E5B60;}
+  .wtin:focus{border-color:var(--brass2);}
+  .unit{font-family:var(--mono);font-size:var(--s4);color:var(--dim);}
+
+  /* metric fields (runs, rowing) — stacked under the row, not squeezed into it */
+  .mtwrap{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 10px;margin:2px 0 12px 34px;}
+  .mt{display:flex;flex-direction:column;gap:4px;}
+  .mtlab{font-family:var(--mono);font-size:var(--s4);color:var(--dim);font-weight:500;
+    letter-spacing:.08em;text-transform:uppercase;}
+  .mtbox{display:flex;align-items:baseline;gap:5px;}
+  .mtin{width:58px;}
+/* v60: .derived and .aday .derived removed with derivedText */
+
+  /* disclosures */
+  /* v36: Detail is a continuation of the dose line — same size, weight and
+     colour, sat right underneath it. It is a way in, not a second heading. */
+  details{margin:2px 0 0 0;}
+  summary{
+    list-style:none;display:inline-block;cursor:pointer;padding:1px 0 3px;
+    font-size:var(--s4);font-weight:400;color:var(--dim);letter-spacing:0;
+    border-bottom:1px dotted #FFFFFF24;line-height:1.4;transition:color .15s;
+  }
+  summary::-webkit-details-marker{display:none;}
+  details[open] summary{color:var(--muted);}
+  .note{
+    font-size:var(--s2);line-height:1.65;color:#AEB8BF;
+    border-left:1px solid var(--line);padding:2px 0 2px 13px;margin:2px 0 4px;
+  }
+  .note b{font-weight:600;color:var(--ink);}
+  .note .tl,.note .tn{margin:0 0 9px;}
+  .note .tl:last-child,.note .tn:last-child{margin-bottom:0;}
+  .note .lab{
+    display:block;font-family:var(--mono);font-size:var(--s4);font-weight:500;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--brass2);margin-bottom:4px;
+  }
+  .histbody{border-left:1px solid var(--line);padding:4px 0 2px 13px;margin:2px 0 4px;}
+  .histsplit{border-top:1px solid var(--line);margin:12px 0 10px;}
+  .histbody .eyebrow{display:block;margin-bottom:7px;}
+  .histcap{font-size:var(--s3);color:var(--dim);margin:0 0 8px;line-height:1.45;}
+  table.h{border-collapse:collapse;width:100%;max-width:240px;}
+  table.h.m{max-width:none;}
+  table.h.m td.kg{font-size:var(--s3);font-weight:400;}
+  table.h td{font-family:var(--mono);font-size:var(--s3);padding:4px 0;}
+  td.w{color:var(--dim);width:58px;}
+  td.kg{color:var(--ink);font-weight:400;}
+  td.d{text-align:right;color:var(--dim);}
+  td.d.up{color:#7FCBA9;}
+  td.d.dn{color:#E0899A;}
+  tr.skip td{color:#4C585C;}
+
+  [hidden]{display:none!important;}
+  /* rest is printed, not timed: the watch on the wrist counts better than a tab
+     that iOS is free to throttle the moment the screen goes dark. */
+  .rst{font-family:var(--mono);font-size:var(--s4);color:var(--dim);letter-spacing:.02em;}
+
+  /* ---------- body weight ---------- */
+  .bwcard{
+    display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+    background:none;border:0;border-radius:0;
+    padding:0;margin:0 auto 0 0;
+  }
+  .bwlab{font-size:var(--s4);font-weight:400;color:#586369;flex:none;}
+  .bwcard .wtin{height:28px;width:60px;font-size:var(--s3);}
+  .bwd{
+    width:100%;font-family:var(--mono);font-size:var(--s4);color:var(--dim);margin-top:2px;
+  }
+  .bwcard details{margin:0;flex:none;}
+  .bwcard details[open]{flex-basis:100%;}
+  .bwcard .wtin{background:#0B0D10;}
+
+  /* ---------- deload tab ---------- */
+  .prbox{
+    background:var(--fill);border:1px solid var(--line);border-top:0;border-bottom:0;
+    border-radius:var(--r);
+    padding:14px 16px;margin-bottom:14px;
+  }
+  .pr{margin-bottom:13px;}
+  .pr:last-child{margin-bottom:0;}
+  .prh{
+    display:block;font-family:var(--mono);font-size:var(--s4);font-weight:500;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--brass2);margin-bottom:4px;
+  }
+  .prt{margin:0;font-size:var(--s2);line-height:1.6;color:#AEB8BF;}
+  .prt b{font-weight:600;color:var(--ink);}
+  .dltag{
+    display:inline-block;margin-left:6px;padding:1px 6px;border-radius:5px;
+    background:var(--soft);color:var(--accent);
+    font-size:var(--s4);font-weight:700;vertical-align:1px;
+  }
+  /* a cut exercise keeps its slot in the day so the shape of the week is still
+     legible — it just carries no checkbox, because there is nothing to tick */
+  .item.cut .txt{margin-left:36px;}
+  .item.cut .name{text-decoration:line-through;color:#5A676C;font-weight:400;}
+  .item.cut .dose{color:#5A676C;}
+  .dose b{color:var(--accent);font-weight:600;}
+  .dltoggle{
+    flex:none;padding:5px 11px;border:1px solid var(--line);border-radius:999px;
+    background:transparent;font:inherit;font-size:var(--s3);font-weight:600;
+    color:var(--muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s;
+  }
+  .dltoggle[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:#0A0C0D;}
+  .prbox{margin-bottom:8px;}
+  .prbox summary{padding:0;}
+  .prbox .pr{margin-top:12px;}
+
+  /* ---------- daily tab ---------- */
+  .hab{
+    background:var(--fill);border:1px solid var(--line);border-top:0;border-bottom:0;
+    border-radius:var(--r);
+    padding:16px;margin-bottom:8px;position:relative;overflow:hidden;
+  }
+  .habtop{display:flex;align-items:baseline;gap:10px;}
+  .habname{font-size:var(--s1);font-weight:600;letter-spacing:-.015em;flex:1;line-height:1.25;}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:14px;}
+  .gcell{display:flex;flex-direction:column;align-items:center;gap:5px;}
+  .gdow{font-family:var(--mono);font-size:var(--s4);color:var(--dim);font-weight:500;}
+  .gbox{
+    width:100%;height:38px;padding:0;
+    border:1px solid #FFFFFF1A;border-radius:var(--rc);background:#FFFFFF05;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .15s,border-color .15s;
+  }
+  .gbox svg{width:13px;height:13px;fill:none;stroke:#0A0C0D;stroke-width:3.2;opacity:0;transition:opacity .15s;}
+  .gbox.on{background:var(--brass);border-color:var(--brass);}
+  .gbox.on svg{opacity:1;}
+  .gcell.today .gdow{color:var(--ink);}
+  .gcell.today .gbox{border-color:var(--muted);}
+  .gcell.future .gbox{opacity:.35;}
+  .todayrow{
+    display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 12px;
+    margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
+  }
+  .todaylab{font-family:var(--mono);font-size:var(--s4);letter-spacing:.14em;text-transform:uppercase;
+    color:var(--dim);font-weight:500;align-self:center;}
+  .scoreset{display:flex;gap:4px;}
+  .sc{
+    width:32px;height:34px;padding:0;border:1.5px solid var(--line);border-radius:var(--rc);
+    background:transparent;font:inherit;font-size:var(--s3);color:var(--muted);
+    cursor:pointer;font-variant-numeric:tabular-nums;transition:background .15s,color .15s,border-color .15s;
+  }
+  .sc.on{background:var(--brass);border-color:var(--brass);color:#0A0C0D;font-weight:600;}
+  /* v54: the 30-day count belongs on the title line — it is the card's summary,
+     not a footnote under it */
+  .density{font-family:var(--mono);font-size:var(--s4);color:var(--dim);letter-spacing:.02em;
+    white-space:nowrap;flex:none;}
+  .hab details{margin:12px 0 0;}
+
+  /* ---------- footer ---------- */
+  textarea{
+    width:100%;min-height:96px;padding:14px;resize:none;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    font:inherit;font-size:var(--s2);color:var(--ink);outline:none;line-height:1.5;letter-spacing:-.01em;
+  }
+  textarea:focus{border-color:var(--brass2);}
+  footer{display:flex;justify-content:flex-end;gap:18px;margin-top:16px;padding:0 2px;}
+  .link{background:none;border:0;padding:8px 2px;font:inherit;font-size:var(--s4);color:#586369;
+    cursor:pointer;text-decoration:underline;text-decoration-color:#FFFFFF1F;text-underline-offset:3px;
+    transition:color .15s;}
+  .link[aria-expanded="true"],.link[aria-pressed="true"]{color:var(--brass);text-decoration-color:var(--brass2);}
+  footer{flex-wrap:wrap;gap:16px;}
+
+  /* ---------- transfer panel ----------
+     No download, no file picker, no alert: the artifact runs in a sandboxed
+     iframe where all three are silently ignored — the button appears dead. Text
+     in a textarea is the one channel that cannot be blocked. */
+  .io{
+    background:var(--fill);border:1px solid var(--line);border-top:0;border-bottom:0;
+    border-radius:var(--r);
+    padding:14px 16px;margin-top:12px;
+  }
+  .iohead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+  .iota{
+    width:100%;height:120px;resize:vertical;box-sizing:border-box;
+    border:1px solid var(--line);border-radius:var(--rc);background:var(--paper);
+    padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:11px;line-height:1.4;color:var(--muted);
+  }
+  .iota:focus{outline:2px solid var(--brass2);outline-offset:1px;}
+  .iorow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .btn{
+    padding:9px 14px;border:1px solid var(--brass);border-radius:999px;background:var(--brass);
+    color:#0A0C0D;font:inherit;font-size:var(--s3);font-weight:600;cursor:pointer;
+  }
+  .btn.ghost{background:transparent;color:var(--ink);border-color:#FFFFFF24;}
+  .btn.warn{background:#C4677C;border-color:#C4677C;color:#0A0C0D;}
+  .iomsg{font-size:var(--s3);color:var(--muted);margin-top:10px;line-height:1.5;}
+  .iomsg b{color:var(--ink);font-weight:600;}
+
+
+  /* ---------- v28: session subtitle ---------- */
+    /* v41: AM/PM is another word in the label, not a footnote on it — so it
+     inherits every property rather than restating any. */
+  .dow .sub{display:inline;font:inherit;letter-spacing:inherit;text-transform:inherit;
+    color:inherit;white-space:nowrap;}
+
+  /* ---------- v28: aerobic tab ---------- */
+  .atot{background:var(--fill);border:1px solid var(--line);border-top:0;border-bottom:0;
+    border-radius:var(--r);
+    padding:14px 16px;margin-bottom:8px;}
+  #aprog{background:none;border:0;border-radius:0;padding:0 2px;margin-bottom:14px;}
+  #aprog::after,#aprog::before{display:none;}
+  .atotsub{font-family:var(--mono);font-size:var(--s4);color:var(--dim);margin-top:7px;line-height:1.55;}
+  .atotsub b{color:var(--ink);font-weight:600;}
+  .atot details{margin:10px 0 0;}
+  .aday{position:relative;overflow:hidden;background:var(--fill);
+    border:1px solid var(--line);border-top:0;border-bottom:0;
+    border-radius:var(--r);padding:12px 16px 14px;margin-bottom:8px;}
+  /* v34: one card treatment everywhere — a hairline of light on the top edge.
+     Coloured spines were the last piece of the old flat look. */
+  .aday::after,.atot::after,.hab::after{
+    content:"";position:absolute;left:0;right:0;top:0;height:1px;pointer-events:none;
+    transform:scaleY(var(--hair));transform-origin:top;
+    background:linear-gradient(90deg,transparent 8%,var(--edge) 24%,var(--edge) 76%,transparent 92%);}
+  .aday::before,.atot::before,.hab::before{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+    transform:scaleY(var(--hair));transform-origin:bottom;
+    z-index:2;pointer-events:none;
+    background:linear-gradient(90deg,transparent 12%,var(--edge2) 29%,var(--edge2) 71%,transparent 88%);}
+  .atot{position:relative;overflow:hidden;}
+  .ahead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .adow{font-size:var(--s2);font-weight:600;flex:1;min-width:64px;}
+  .aday.today .adow::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
+    background:var(--brass);vertical-align:middle;margin-left:7px;box-shadow:0 0 8px var(--brass);}
+  .aadd{display:flex;gap:6px;}
+  .apill{padding:5px 11px;border:1px solid #FFFFFF1F;border-radius:999px;background:transparent;
+    font:inherit;font-family:var(--mono);font-size:var(--s4);font-weight:500;color:var(--dim);
+    cursor:pointer;letter-spacing:.04em;transition:border-color .15s,color .15s;}
+  .apill:hover{border-color:var(--brass2);color:var(--brass);}
+  .arow{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
+  .arow.first{border-top:0;margin-top:0;padding-top:0;}
+  .arh{display:flex;align-items:center;gap:9px;}
+  .aname{font-size:var(--s2);font-weight:500;flex:1;min-width:0;}
+  /* v60: one colour. The dot used to be green for Z2 and orange for the 4×4,
+     which read as a verdict on the session before it had been logged — the same
+     reason the bars and the delta column are uncoloured. Brass says "this is a
+     session", and the card already says which kind in words. */
+  .adot{width:8px;height:8px;border-radius:50%;background:var(--brass);flex:none;margin-left:8px;}
+  .ax{width:28px;height:28px;padding:0;flex:none;border:0;background:none;
+    font:inherit;font-size:18px;line-height:1;color:#5A676C;cursor:pointer;}
+  .ax:hover{color:#E0899A;}
+  .anone{font-size:var(--s3);color:var(--dim);margin:8px 0 0;}
+  /* v35: six identical cards saying "nothing here" was most of this tab. An
+     empty day gets one quiet line; a card is what having logged something
+     looks like. */
+  .aday.empty{background:none;border-color:transparent;box-shadow:none;
+    padding:7px 4px;margin-bottom:0;}
+  .aday.empty::after,.aday.empty::before{display:none;}
+  .aday.empty .ahead{gap:6px;}
+  .aday.empty .adow{font-size:var(--s3);font-weight:500;color:var(--muted);}
+  .aday.empty .apill{padding:3px 9px;opacity:.55;transition:opacity .15s,border-color .15s,color .15s;}
+  .aday.empty .apill:hover{opacity:1;}
+  .aemptywrap{border:1px solid var(--line);border-radius:var(--r);background:#FFFFFF04;
+    padding:5px 12px;margin-bottom:8px;}
+  .aemptywrap .aday.empty+.aday.empty{border-top:1px solid #FFFFFF08;}
+  .aday .mtwrap{margin:8px 0 0 33px;}
+  /* v54: one field per line, label and value on the same line — the fields are
+     read one at a time while typing, not scanned as a row. */
+  #pane-aero .mtwrap{flex-direction:column;align-items:stretch;gap:0;}
+  #pane-aero .mt{flex-direction:row;align-items:center;gap:10px;padding:3px 0;}
+  /* the label is a fixed column, so the value sits right beside it instead of
+     being pushed out to the card edge */
+  #pane-aero .mtlab{letter-spacing:.1em;flex:none;width:74px;}
+  #pane-aero .mtbox{flex:none;}
+  /* a logged number here is a record, not a headline — brass was shouting */
+  #pane-aero .mtin{color:var(--ink);}
+  #pane-aero .mtbox .unit{min-width:34px;}
+
+  /* ---------- v55: incline ladder ---------- */
+  .phcard{margin-bottom:14px;padding:14px 16px 10px;}
+  .phrow{display:flex;align-items:baseline;gap:10px;}
+  .phrow .aplab{flex:1;}
+  .phmeta{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    margin-top:10px;font-family:var(--mono);font-size:var(--s4);color:var(--dim);}
+  .phbtns{display:flex;gap:6px;flex:none;}
+  .phbtns .apill{padding:3px 12px;font-size:var(--s3);line-height:1.4;}
+  .phcard details{margin:8px 0 0;}
+  /* the ladder. `now` is a marker, not a grade — same uncoloured logic as the
+     history table: no row here is a pass or a fail. */
+  table.ph{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:var(--s4);}
+  table.ph td{padding:6px 6px 6px 0;color:var(--dim);vertical-align:top;
+    border-top:1px solid var(--line);}
+  table.ph tr:first-child td{border-top:0;}
+  table.ph td.w{white-space:nowrap;width:64px;}
+  table.ph td.g{white-space:nowrap;width:38px;color:var(--ink);}
+  table.ph td.s{white-space:nowrap;width:54px;}
+  table.ph td.m{white-space:nowrap;width:78px;}
+  table.ph td.n{padding-right:0;line-height:1.5;}
+  table.ph tr.now td{color:var(--ink);}
+  table.ph tr.now td.w{position:relative;padding-left:9px;}
+  table.ph tr.now td.w::before{content:"";position:absolute;left:0;top:8px;
+    width:4px;height:4px;border-radius:50%;background:var(--brass);}
+  .phsub{font-size:var(--s4);letter-spacing:.2em;text-transform:uppercase;
+    color:var(--dim);margin:16px 0 10px;padding-top:14px;
+    border-top:1px solid var(--line);}
+  /* session menu */
+  .ms+.ms{margin-top:11px;padding-top:11px;border-top:1px solid var(--line);}
+  .msh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
+  .mk{font-family:var(--mono);font-size:var(--s4);font-weight:600;flex:none;
+    width:19px;height:19px;border-radius:var(--rc);display:inline-flex;
+    align-items:center;justify-content:center;
+    background:#FFFFFF0F;color:var(--dim);}
+  .mk.hard{background:color-mix(in srgb,var(--brass),transparent 82%);color:var(--brass);}
+  .mn{font-size:var(--s3);font-weight:600;color:var(--ink);}
+  .md{font-family:var(--mono);font-size:var(--s4);color:var(--dim);flex:1;min-width:0;}
+  .mm{font-family:var(--mono);font-size:var(--s4);color:var(--muted);flex:none;}
+  .mb{font-family:var(--mono);font-size:var(--s4);color:var(--dim);
+    line-height:1.65;margin-top:5px;}
+  .mb b{color:var(--ink);font-weight:600;}
+  .mr{color:var(--muted);}
+
+  /* ---------- v30: aerobic progression ---------- */
+  .aprow{display:flex;align-items:baseline;gap:10px;}
+  .aplab{font-size:var(--s3);color:var(--muted);font-weight:600;flex:1;min-width:0;}
+  .apval{font-family:var(--mono);font-size:20px;font-weight:500;letter-spacing:-.02em;color:var(--brass);}
+  .apbar{position:relative;height:12px;border-radius:999px;background:#FFFFFF0F;
+    margin:10px 0 8px;overflow:hidden;}
+  .apfill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;
+    background:linear-gradient(90deg,var(--brass2),var(--brass));transition:width .18s;}
+  .aptick{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--ink);opacity:.45;}
+  .aptick.soft{opacity:.3;background:repeating-linear-gradient(to bottom,var(--ink) 0 3px,transparent 3px 6px);}
+  .apsubrow{display:flex;align-items:baseline;gap:10px;}
+  .apsubrow details{margin:0;}
+  .apsub{font-family:var(--mono);font-size:var(--s4);color:var(--dim);line-height:1.55;}
+  .apsub b{color:var(--ink);font-weight:600;}
+
+  /* ---------- v53: two-bar strip + bottom add bar ---------- */
+  .apblk+.apblk{margin-top:15px;padding-top:14px;border-top:1px solid var(--line);}
+  .apblk .apbar{margin:9px 0 7px;}
+  .apsubrow{margin-top:12px;justify-content:space-between;}
+  /* the four session types, where a thumb already is after training */
+  .aaddbar{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:12px 0 16px;}
+  .aaddbtn{
+    padding:14px 4px;border:1px dashed #FFFFFF2B;border-radius:var(--rc);background:#FFFFFF05;
+    font:inherit;font-size:var(--s3);font-weight:600;letter-spacing:-.005em;line-height:1.3;color:var(--brass);
+    text-wrap:balance;
+    cursor:pointer;touch-action:manipulation;transition:border-color .15s,background .15s,color .15s;
+  }
+  .aaddbtn:hover{border-color:var(--brass2);background:#FFFFFF0A;}
+  .adaysel{
+    flex:none;padding:4px 6px;border:1px solid #FFFFFF1A;border-radius:var(--rc);background:#12161B;
+    font:inherit;font-family:var(--mono);font-size:var(--s4);color:var(--muted);cursor:pointer;
+  }
+  .adaysel:focus{outline:none;border-color:var(--brass2);}
+
+  :focus-visible{outline:2px solid var(--brass);outline-offset:2px;}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+
+<header class="brand">
+  <span class="bname">Training Week</span>
+</header>
+<div class="tabs" role="tablist" id="tabs"></div>
+
+<section class="pane" id="pane-week" role="tabpanel" tabindex="0" aria-labelledby="tab-week">
+  <div class="weekbar" id="weekbar" hidden><span class="weekno" id="weekno"></span></div>
+  <div id="dlintro"></div>
+  <main id="days"></main>
+  <footer>
+    <section class="bwcard" id="bwcard"></section>
+    <button class="link" id="dltoggle" type="button" aria-pressed="false">deload week</button>
+    <button class="link" id="export" aria-expanded="false">export json</button>
+    <button class="link" id="import" aria-expanded="false">import json</button>
+  </footer>
+  <section class="io" id="io" hidden></section>
+</section>
+
+<section class="pane" id="pane-aero" role="tabpanel" tabindex="0" aria-labelledby="tab-aero">
+  <div class="weekbar"><span class="weekno" id="aerono"></span></div>
+  <main id="aero"></main>
+</section>
+
+<section class="pane" id="pane-daily" role="tabpanel" tabindex="0" aria-labelledby="tab-daily">
+  <div class="weekbar"><span class="weekno" id="dailyno"></span></div>
+  <main id="habits"></main>
+</section>
+
+<script>
+/* ================= config ================= */
+const KEY    = 'trainweek:v11';         /* v21: ids remapped Mon–Sun → clean reset */
+const HIDX   = 'trainweek:hist:index';
+const HSHARD = y  => `trainweek:hist:${y}`;
+const DSHARD = m  => `daily:log:${m}`;  /* m = 'YYYY-MM' */
+const UITAB  = 'ui:tab';
+const PKEY   = 'aero:phase';           /* v55: {wk, adj} — outlives the weekly rollover */
+const ROLL_HOUR = 4;                    /* day + week boundary, local time */
+
+/* v33: on a near-black field a mid-tone hue reads as mud, so every accent is
+   lifted toward its metal — brass, jade, copper, amethyst, gold, steel. The
+   check glyph is dark on all six, which is why .box svg strokes the paper. */
+const KIND={
+  strength:{accent:'#D6B27C',soft:'#D6B27C1A',tint:'#D6B27C0A'},
+  z2      :{accent:'#6FBFA0',soft:'#6FBFA01A',tint:'#6FBFA00A'},
+  interval:{accent:'#E08A66',soft:'#E08A661A',tint:'#E08A660A'},
+  mobility:{accent:'#9B8AE6',soft:'#9B8AE61A',tint:'#9B8AE60A'},
+  play    :{accent:'#E0BC6B',soft:'#E0BC6B1A',tint:'#E0BC6B0A'},
+  rest    :{accent:'#7F8D92',soft:'#7F8D9224',tint:'#7F8D920E'}
+};
+
+const Z2NOTE =
+ '<b>อยู่ที่ขอบของ VT1</b> · หา VT1 (เพดานของ "เบา") ได้เองโดยไม่ต้องใช้อุปกรณ์ · '+
+ '<b>Talk test:</b> ระหว่างค่อยๆ เพิ่มความหนัก ให้อ่านประโยคออกเสียงทุก 5 นาที · '+
+ 'VT1 คือจุดที่<b>เริ่มต้องหยุดกลางประโยคเพื่อหายใจ</b> · '+
+ 'งานเบาทั้งหมดให้อยู่ต่ำกว่าจุดนั้นลงมาหนึ่งขั้น';
+
+/* 0=Mon … 6=Sun, and the two names for it that the UI needs */
+const DOWI={MON:0,TUE:1,WED:2,THU:3,FRI:4,SAT:5,SUN:6};
+const DOW_TH=['M','T','W','T','F','S','S'];
+const DOW_FULL=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+/* ================= plan · sessions, not days =================
+   v28: a session carries its own `dow` instead of being found at PLAN[dow].
+   Wednesday holds two — 4×4 in the morning, the full-gym session in the
+   evening — and they are different KINDS, so one card with a divider inside
+   would have had to pick one accent, one icon and one count for both. Two
+   cards, two counts.
+   v53: this tab is RESISTANCE ONLY. The 4×4, the long run and pickleball are
+   aerobic work, and aerobic work is now logged in one place — the Aerobic tab —
+   where a session carries its own day and its own numbers.
+   Skater bounds stayed: it is a plyometric warm-up for the gym day, not cardio. */
+const PLAN=[
+ {dow:'MON',title:'Home gym',kind:'strength',items:[
+   {id:'wu1',noWeight:1,rest:'rest 60s',name:'Warm-up',dose:'10 นาที · ก่อนเวททุกครั้ง',
+    target:'เตรียมร่างกาย 10 นาที — <b>ไม่ใช่การยืดค้าง</b> · ไล่จากปั๊มเลือด → เปิดช่วงการเคลื่อนไหว → ปลุกกล้ามที่มักหลับ → เร่งจังหวะ เพื่อให้เซ็ตแรกของท่าหลักไม่ใช่เซ็ตอุ่นเครื่องกลายๆ',
+    note:'<b>1 · ปั๊มเลือด 3 นาที</b> — jumping jack สลับ step-up ต่อเนื่อง ไม่ต้องพัก จบแล้วควรอุ่นและหายใจแรงขึ้นเล็กน้อย<br><b>2 · Dynamic</b> — leg swing หน้า-หลัง <b>×8 /ข้าง</b> · leg swing ด้านข้าง <b>×8 /ข้าง</b> · world&#39;s greatest stretch <b>×4 /ข้าง</b> · cat-cow <b>×6</b> · ankle dorsiflexion rock <b>×8 /ข้าง</b> · bodyweight squat <b>×5</b><br><b>3 · Activation</b> — glute bridge <b>×10</b> · band walk <b>×10 /ข้าง</b> · scapular pull-up <b>×5</b> — ปลุกก้นกับสะบักให้ทำงานก่อน ไม่ใช่ให้หลังล่างกับคอไปรับแทน<br><b>4 · Pogo hop 3 × 15</b> — กระโดดสั้นๆ ที่ข้อเท้า เข่าแทบไม่งอ <b>แตะพื้นให้สั้นที่สุด</b> ยางในเอ็นร้อยหวายคือสิ่งที่ฝึกอยู่ ไม่ใช่ความสูง',
+    mistake:'ยืดค้างนานๆ ก่อนเวท (ลดแรงได้จริงในชั่วโมงถัดมา) · ข้ามไปเลยเพราะรีบ แล้วใช้เซ็ตแรกของท่าหลักเป็นวอร์ม · pogo hop กระโดดสูงจนเท้าอยู่บนพื้นนาน — ผิดทั้งจุดประสงค์'},
+   {id:'m1',rest:'rest 90s',noWeight:1,name:'Skater Bounds (stick landing)',dose:'3 × 6 /side · ต่อจาก warm-up',
+    target:'กำลังด้านข้าง + การรับแรงลงพื้น — งานจริงคือ<b>หยุดให้นิ่ง</b> ไม่ใช่กระโดดให้ไกล · ตัวเดียวในโปรแกรมที่เตรียมข้อเท้ากับเข่าสำหรับ pickleball โดยตรง',
+    note:'<b>v58: ต่อจาก Warm-up ทันที แล้วจึงเริ่มเวท</b> — pogo hop ท้ายวอร์มอัพเป็นงานแนวดิ่งที่ข้อเท้า ท่านี้เป็นงานด้านข้างที่ต้องหยุดให้อยู่ คนละแกนกัน ไม่ซ้ำซ้อน · กระโดดออกด้านข้าง ลงด้วยขาเดียว แล้ว<b>ค้างนิ่ง 1–2 วินาทีก่อนกระโดดกลับ</b> · เข่าชี้ตรงแนวปลายเท้า ไม่บิดเข้าใน · ลงเบาผ่านกลางเท้า งอสะโพก-เข่าซับแรง · <b>ทำก่อนท่าอื่นทั้งหมด ตอนขายังสด</b> — เป็นงานประสาท ไม่ใช่งานพลังงาน 4 นาทีนี้ไม่กินเซ็ตหลัง · <b>v57: ย้ายมาวันจันทร์</b> วันพุธเหลือ Smith squat กับ RDL เป็น straight set สองท่า ขาจึงไม่มีทางสดพอสำหรับงานลงพื้น วันจันทร์เปิดด้วยท่านี้แล้วต่อ Bulgarian ทันที — ขาข้างเดียวทั้งคู่ ท่าหนึ่งเตรียมอีกท่าหนึ่ง',
+    mistake:'ลงแล้วเซหรือต้องแตะเท้าอีกข้าง (ยังไม่ถือว่า stick) · เข่าบิดเข้าใน · ทำรัวเป็นจังหวะเร็วจนกลายเป็นคาร์ดิโอ · ทำเยอะจนกินแรงช่วง work'},
+   {id:'h2',rest:'rest 2–3 min',name:'Bulgarian Split Squat',dose:'3 × 8 /side',
+    target:'ขาข้างเดียว + ความมั่นคงสะโพก · <b>ท่าหลักของรูปแบบ squat ในวันบ้าน</b> — แก้ความต่างซ้าย-ขวาที่สควอทสองขาซ่อนไว้',
+    note:'วางหลังเท้าหลังบนม้านั่ง ก้าวหน้าให้ยาวพอที่<b>เข่าหน้าไม่ล้ำปลายเท้ามาก</b> · น้ำหนักลงที่ขาหน้า ขาหลังแค่ช่วยทรงตัว · ลงจนเข่าหลังเกือบแตะพื้น · ถือดัมเบลข้างลำตัวสองข้าง · <b>ช่องน้ำหนัก = ต่อข้าง</b> · v28 เพิ่มโดสจาก 2 เป็น 3 เซ็ต เพราะย้ายมาห่างวัน 4×4 สองวันแล้ว · <b>v57: ทำเป็น straight set</b> — ท่านี้กินแรงทั้งตัว จับคู่ซูเปอร์เซ็ตแล้วเซ็ตหลังตกทุกครั้ง เวลาที่ประหยัดได้ไม่คุ้มกับน้ำหนักที่หายไป',
+    mistake:'ก้าวสั้นจนเข่าหน้ารับแรงเฉือน · เอนตัวไปหน้าจนกลายเป็น hinge · ลงไม่สุดช่วง'},
+   {id:'t2',rest:'rest 2 min',noWeight:1,name:'Nordic Hamstring Curl (low dose)',dose:'2 × 3–5 · once a week',
+    target:'แฮมสตริงช่วงยืด — หลักฐานเรื่องกันแฮมสตริงฉีกแน่นที่สุดในบรรดาท่าทั้งหมด',
+    note:'คุกเข่า ให้คนหรือของหนักล็อกข้อเท้าไว้ · <b>ปล่อยตัวลงหน้าให้ช้าที่สุดเท่าที่ต้านไหว</b> แล้วใช้มือรับพื้น ดันตัวกลับขึ้นด้วยแขน · <b>โดสน้อยตั้งใจ</b> — ท่านี้ทำให้ปวดกล้ามเนื้อ 2–3 วัน วันจันทร์คือจุดที่ยังเหลือเวลาให้หายก่อน RDL วันพุธ · ก้าวหน้าด้วยการยืดช่วงที่ต้านได้ ไม่ใช่จำนวนครั้ง',
+    mistake:'ทำ 3 เซ็ต × 10 ในสัปดาห์แรก (ปวดจนซ้อมไม่ได้ทั้งสัปดาห์) · ปล่อยตัวร่วงเร็ว · งอสะโพกจนกลายเป็นก้มตัว ไม่ใช่ทั้งตัวเป็นเส้นตรง'},
+   {id:'e4',ss:'A',name:'Incline DB Press',dose:'3 × 8–10',
+    target:'อกบน + ไหล่หน้า · ท่าดันหลักของวันบ้าน',
+    note:'<b>ตั้งเบาะ ~30° เท่านั้น</b> ชันกว่านี้กลายเป็นท่าไหล่ · บีบสะบักลงกับเบาะตลอดเซ็ต · ศอกทำมุม ~45° กับลำตัว ไม่กางฉาก · ลงจนรู้สึกตึงอก แล้วดันขึ้นให้ดัมเบลเข้าหากันเล็กน้อย ไม่ต้องชนกัน · ช่องน้ำหนัก = ต่อข้าง',
+    mistake:'ตั้งเบาะ 45–60° (กลายเป็น shoulder press ซ้ำกับ OHP วันศุกร์) · ศอกกางฉาก · ลงลึกเกินจนไหล่หน้าตึง'},
+   {id:'e3',ss:'A',rest:'rest 2 min',name:'Chest-supported Row',dose:'3 × 10–12',
+    target:'หลังกลาง โดย<b>ไม่โหลดหลังล่างเลย</b> — เลือกแทน barbell row เพราะวันนี้มี Bulgarian กับ Nordic กินหลังล่างอยู่แล้ว',
+    note:'ตั้งม้านั่งเอียง ~30–45° นอนคว่ำ อกแนบเบาะ เท้ายันพื้น · <b>พาศอกไปหลัง ไม่ใช่ดึงด้วยมือ</b> · บีบสะบักค้าง 1 วินาทีตอนสุด · <b>อกห้ามยกออกจากเบาะแม้แต่ครั้งเดียว</b> — นั่นคือทั้งหมดที่ท่านี้มีไว้ป้องกัน · ช่องน้ำหนัก = ต่อข้าง · <b>v57: ซูเปอร์เซ็ตกับ Incline DB Press</b> ดันกับดึงไม่แย่งกล้ามกัน เซ็ตหนึ่งจึงเป็นช่วงพักของอีกเซ็ตจริง',
+    mistake:'ยกอกออกจากเบาะเพื่อเหวี่ยง · ยักไหล่แทนการบีบสะบัก · ตั้งเบาะชันเกินจนกลายเป็นท่าไหล่'},
+   {id:'h3',ss:'B',name:'Lateral Raise',dose:'3 × 12–15',
+    target:'ไหล่ด้านข้าง',
+    note:'ยกถึงระดับไหล่พอ ไม่ต้องเลยขึ้นไป · เอนตัวไปหน้าเล็กน้อย · ลงช้ากว่าขึ้น (~3 วินาที) · ช่องน้ำหนัก = ต่อข้าง',
+    mistake:'ยกสูงเกินระดับไหล่ · เหวี่ยงจากสะโพก · น้ำหนักเกินจนฟอร์มพัง'},
+   {id:'e5',ss:'B',rest:'rest 90s',name:'Preacher Curl',dose:'2 × 10–12',
+    target:'ไบเซปส์ในช่วงยืด — เบาะล็อกต้นแขนไว้จึงเหวี่ยงไม่ได้ · คู่ตรงข้ามกับ incline curl วันศุกร์ที่ดึงต้นแขนไปหลัง',
+    note:'ต้นแขนแนบเบาะตลอด รักแร้ชิดขอบบน · <b>ปล่อยลงจนแขนเกือบเหยียดสุด</b> — ช่วงล่างคือส่วนที่ท่านี้มีค่า · ขึ้นไม่ต้องสุดจนศอกงอเต็ม แรงตึงหายไปแล้วตรงนั้น · EZ bar หรือดัมเบลทีละข้างก็ได้ · <b>v58: ลดเหลือ 2 เซ็ต</b> — ไบเซปส์ได้งานจากท่าดึงทั้งวันพุธอยู่แล้ว เซ็ตที่สามคือปริมาณที่ต้องฟื้นโดยไม่ได้อะไรเพิ่ม',
+    mistake:'ปล่อยลงไม่สุดเพราะกลัวตึง · ยกก้นออกจากเบาะเพื่อดันน้ำหนัก · น้ำหนักมากจนตกช่วงล่างเร็ว (เสี่ยงศอก)'},
+   {id:'t9',rest:'rest 90s · no rest between sides',name:'Single-leg Heel Raise · towel under toes',dose:'3 × 12 /side · 3-2-3 tempo',
+    target:'gastrocnemius + <b>พังผืดฝ่าเท้า</b> — ผ้าหนุนใต้นิ้วทำให้ windlass ทำงาน พังผืดจึงถูกโหลดจริง (ท่าเท้าราบไม่โหลดเลย) · กัน plantar fasciitis จาก pickleball · คู่กับท่านั่งวันพุธจึงครบทั้งน่อง',
+    note:'ม้วนผ้าขนหนูหนาพอให้<b>นิ้วเท้ากระดกขึ้น ~30–40°</b> วางใต้นิ้ว ส้นและกลางเท้าอยู่บนขอบแท่น · <b>ยืนขาเดียว เข่าเหยียด</b> · ขึ้น 3 วิ ค้างบนสุด 2 วิ ลง 3 วิ — <b>ช้าและหนักคือสิ่งที่สร้างความทนของเนื้อเยื่อ ไม่ใช่เร็ว</b> ถึงกีฬาจะเร็วก็ตาม · ลงจนส้นต่ำกว่าระดับแท่น · <b>ก้าวหน้าด้วยน้ำหนัก ไม่ใช่จำนวนครั้ง:</b> 3×12 → 4×10 → 5×8 พร้อมเป้สะพายหลัง · ช่องน้ำหนักคือน้ำหนักที่เพิ่ม (ว่าง = ตัวเปล่า)',
+    mistake:'วางเท้าราบไม่มีผ้าหนุน (พังผืดไม่ถูกโหลด กลายเป็นท่าน่องเฉยๆ) · ทำสองขาพร้อมกันจนเบาเกินกว่าจะเป็น high-load · เด้งขึ้นลงเร็ว · ช่วงลงไม่สุด'},
+   {id:'h5',rest:'rest 90s',noWeight:0,name:'Suitcase Carry',dose:'3 เที่ยว × 30–40 ม. /ข้าง',
+    target:'ลำตัวต้านการหักข้าง (anti-lateral flexion) + แรงบีบมือ + ความมั่นคงสะโพกขณะเดิน · <b>งานคือเดินให้ตรงทั้งที่มีน้ำหนักอยู่ข้างเดียว</b> ไม่ใช่ถือให้หนักที่สุด · ใกล้เคียงกับสิ่งที่เกิดขึ้นจริงตอนวิ่งและตอนเล่น pickleball มากกว่าท่าคอร์บนพื้น',
+    note:'ถือดัมเบลหรือ kettlebell ข้างเดียว ปล่อยแขนห้อยข้างลำตัว · <b>ไหล่สองข้างต้องอยู่ระดับเดียวกัน ห้ามเอียงหนี</b> และห้ามเอนไปทางตรงข้ามเพื่อถ่วง · กดสะบักลง อกเปิด เดินก้าวปกติ ไม่ต้องซอยเท้า · หายใจตลอด อย่ากลั้น · <b>เดินครบระยะแล้วค่อยสลับข้าง นับเป็นหนึ่งเที่ยวเมื่อครบสองข้าง</b> · ก้าวหน้าด้วยน้ำหนัก ไม่ใช่ระยะ — ถ้าเดินได้เกิน 40 ม. สบายๆ แปลว่าเบาไป · ช่องน้ำหนัก = ต่อข้าง · <b>v58: เพิ่มเข้ามาแทนงานคอร์บนพื้นที่หายไปวันพุธ</b>',
+    mistake:'เอียงตัวไปฝั่งตรงข้ามเพื่อถ่วงน้ำหนัก (เท่ากับยกเลิกทั้งท่า) · ไหล่ฝั่งที่ถือตก · เดินเร็วจนกลายเป็นคาร์ดิโอ · เลือกน้ำหนักจากมือที่บีบไหว แทนที่จะเลือกจากลำตัวที่ยังตรงอยู่'}
+
+ ]},
+
+ {dow:'WED',title:'Full gym',kind:'strength',items:[
+   {id:'wu2',noWeight:1,rest:'rest 60s',name:'Warm-up',dose:'10 นาที · ก่อนเวททุกครั้ง',
+    target:'เตรียมร่างกาย 10 นาที — <b>ไม่ใช่การยืดค้าง</b> · ไล่จากปั๊มเลือด → เปิดช่วงการเคลื่อนไหว → ปลุกกล้ามที่มักหลับ → เร่งจังหวะ เพื่อให้เซ็ตแรกของท่าหลักไม่ใช่เซ็ตอุ่นเครื่องกลายๆ',
+    note:'<b>1 · ปั๊มเลือด 3 นาที</b> — jumping jack สลับ step-up ต่อเนื่อง ไม่ต้องพัก จบแล้วควรอุ่นและหายใจแรงขึ้นเล็กน้อย<br><b>2 · Dynamic</b> — leg swing หน้า-หลัง <b>×8 /ข้าง</b> · leg swing ด้านข้าง <b>×8 /ข้าง</b> · world&#39;s greatest stretch <b>×4 /ข้าง</b> · cat-cow <b>×6</b> · ankle dorsiflexion rock <b>×8 /ข้าง</b> · bodyweight squat <b>×5</b><br><b>3 · Activation</b> — glute bridge <b>×10</b> · band walk <b>×10 /ข้าง</b> · scapular pull-up <b>×5</b> — ปลุกก้นกับสะบักให้ทำงานก่อน ไม่ใช่ให้หลังล่างกับคอไปรับแทน<br><b>4 · Pogo hop 3 × 15</b> — กระโดดสั้นๆ ที่ข้อเท้า เข่าแทบไม่งอ <b>แตะพื้นให้สั้นที่สุด</b> ยางในเอ็นร้อยหวายคือสิ่งที่ฝึกอยู่ ไม่ใช่ความสูง',
+    mistake:'ยืดค้างนานๆ ก่อนเวท (ลดแรงได้จริงในชั่วโมงถัดมา) · ข้ามไปเลยเพราะรีบ แล้วใช้เซ็ตแรกของท่าหลักเป็นวอร์ม · pogo hop กระโดดสูงจนเท้าอยู่บนพื้นนาน — ผิดทั้งจุดประสงค์'},
+   {id:'c1',rest:'rest 2 min',name:'Smith Squat · CAT',dose:'3 × 3 @ 70%',
+    target:'ปลุกความเร็วของระบบประสาทก่อนเซ็ตหนัก — <b>ท่าเดียวกับ Smith Squat แต่คนละงาน</b> จึงแยกเป็นคนละบรรทัดและคนละช่องน้ำหนัก ตัวเลขสองอันนี้ห้ามเอามาเทียบกัน',
+    note:'ใช้น้ำหนัก <b>70% ของ working set ปัจจุบัน</b> (ไม่ใช่ 70% ของ 1RM) · <b>ช่วงลงคุมให้ปกติ ช่วงขึ้นเร่งให้เร็วที่สุดเท่าที่ทำได้ทุกครั้ง</b> — น้ำหนักเบา แต่ความตั้งใจต้องเท่าเซ็ตหนักที่สุด นั่นคือทั้งหมดของท่านี้ · <b>พักให้เต็มระหว่างเซ็ต</b> เป้าหมายคือปลุกหน่วยประสาทให้ยิงเร็ว ไม่ใช่สะสมความล้า · <b>ถ้าเหนื่อยหรือล้าหลังทำจบ แปลว่าทำผิด</b> — หนักไป ครั้งเยอะไป หรือพักสั้นไป · 3 ครั้งต่อเซ็ตเท่านั้น ครั้งที่ 4 ไม่มีวันเร็วเท่าครั้งแรกอยู่แล้ว · <b>ทำจบแล้วต่อด้วย Cable Rotational Chop</b> — ระบบประสาทถูกปลุกไว้แล้ว งานความเร็วจึงได้ประโยชน์ตรงช่วงนี้ที่สุด แล้วค่อยกลับมาที่ working set ของสควอท · ช่องน้ำหนัก = น้ำหนักบาร์ที่ใช้ทำ CAT',
+    mistake:'ยกด้วยจังหวะปกติเพราะน้ำหนักเบา (เท่ากับไม่ได้ทำ CAT เลย ได้แค่วอร์ม) · ใช้น้ำหนักใกล้เคียง working set · เพิ่มจำนวนครั้ง · พักสั้นจนกลายเป็นงานความทน · ทำจนหอบแล้วเข้า working set ด้วยขาที่ล้าแล้ว'},
+   {id:'t3',rest:'rest 90s',name:'Cable Rotational Chop',dose:'3 × 5 /side · เร่งเต็มที่',
+    target:'กำลังในการหมุนลำตัว — <b>ท่าเดียวในโปรแกรมที่ฝึกความเร็วของการบิด</b> ซึ่งคือสิ่งที่ตีลูกจริงๆ · แทนที่ Pallof Press: ท่านั้นฝึก<b>ต้าน</b>การบิด ท่านี้ฝึก<b>สร้าง</b>การบิด · แรงยังออกจากสะโพก ลำตัวเป็นตัวส่งต่อ ไม่ใช่ตัวสร้าง',
+    note:'ตั้งสายสูงระดับไหล่ขึ้นไป ยืนตั้งฉากกับเสา จับด้วยสองมือ · <b>เริ่มจากหมุนสะโพกและหมุนส้นเท้าหลัง แล้วลำตัวจึงตามมา แขนแทบไม่ออกแรงเอง</b> · <b>ทุกครั้งต้องเร่งเต็มที่ตั้งแต่วินาทีแรก</b> — เป้าหมายคือความเร็ว ไม่ใช่ความหนัก ถ้าครั้งที่ 5 ช้าลงกว่าครั้งแรกอย่างเห็นได้ชัด แปลว่าหนักไปหรือควรจบเซ็ต · กลับตำแหน่งช้าๆ ไม่ต้องรีบ ช่วงกลับไม่ใช่ส่วนที่ฝึก · <b>v59: แทรกระหว่าง CAT กับ working set ของ Smith Squat</b> — CAT ปลุกระบบประสาทไว้ ท่านี้ใช้ประโยชน์ตรงนั้นทันที และเวลาที่ใช้ก็กลายเป็นเวลาพักของสควอทไปในตัว · <b>ไม่ใช่ซูเปอร์เซ็ต</b> อย่ารีบสลับไปมา ทั้งสองท่าต้องการความสดเท่ากัน ทำ chop ให้ครบสามเซ็ตแล้วค่อยกลับไปที่บาร์ · <b>ครั้งน้อยและพักยาวคือลักษณะของงาน power</b> ทำจนล้าเมื่อไหร่ก็ไม่ใช่ power อีกต่อไป · ช่องน้ำหนัก = น้ำหนักสาย',
+    mistake:'ทำช้าและควบคุมแบบท่ากล้ามเนื้อ (กลายเป็นท่าคนละชนิด) · ดึงด้วยแขนโดยสะโพกไม่หมุน · เพิ่มจำนวนครั้งเพราะรู้สึกว่าน้อยไป · ส้นเท้าหลังตรึงพื้นจนเข่าบิดรับแทน · เอาไปไว้ท้ายวันตอนล้าแล้ว · รีบสลับกับสควอทจนไม่ได้พักทั้งคู่'},
+   {id:'t1',rest:'rest 3 min',name:'Smith Machine Squat',dose:'3 × 6–8',
+    target:'ขาและสะโพกทั้งชุด · ท่าหลักของรูปแบบ squat — รางบังคับแนวบาร์ จึงกดหนักได้โดยไม่ต้องมีคนช่วยดู',
+    note:'วางเท้าออกไปข้างหน้าบาร์เล็กน้อย (ต่างจากสควอทอิสระ) · <b>เข่าเคลื่อนตามแนวปลายเท้า</b> · ลงลึกเท่าที่ยังคุมหลังให้ตรงได้ · เกร็งท้องก่อนลงทุกครั้ง · ตั้ง safety pin ไว้ใต้จุดต่ำสุดเสมอ · <b>v28: ท่านี้ย้ายมาอยู่เย็นวันที่เช้าวิ่ง 4×4</b> น้ำหนักจะลงจากเดิม นั่นคือ context ที่เปลี่ยน ไม่ใช่การถดถอย · <b>v57: ทำเป็น straight set</b> — ท่านี้กินแรงทั้งตัว จับคู่ซูเปอร์เซ็ตแล้วเซ็ตหลังตกทุกครั้ง เวลาที่ประหยัดได้ไม่คุ้มกับน้ำหนักที่หายไป · <b>v59: CAT แยกเป็นบรรทัดของตัวเองแล้ว</b> — บรรทัดนี้คือ working set ล้วน และมาหลัง Chop ขาจะรู้สึกตื่นกว่าปกติ นั่นคือสิ่งที่ตั้งใจ',
+    mistake:'วางเท้าใต้บาร์พอดีจนเข่าล้ำมากและหลังล่างงอ · ส้นเท้าลอย · ลงเร็วแล้วเด้งขึ้น · ใช้รางเป็นที่พิงแทนการเกร็งแกนกลาง'},
+   {id:'h1',rest:'rest 3 min',name:'Romanian Deadlift',dose:'3 × 8',
+    target:'สะโพก–แฮมสตริง–หลังล่าง · ท่าหลักของรูปแบบ hinge',
+    note:'<b>ดันสะโพกไปข้างหลัง ไม่ใช่ย่อตัวลง</b> · หลังตรงตลอดช่วง บาร์เลียดต้นขา · ลงจนรู้สึกตึงแฮมสตริงแล้วหยุด ไม่ต้องแตะพื้น · เกร็งท้องก่อนออกแรงทุกครั้ง · <b>ห่างจาก Nordic วันจันทร์ 2 วัน</b> ถ้าแฮมยังปวดอยู่ให้ลดน้ำหนักลง อย่าข้ามท่า · <b>v57: ทำเป็น straight set</b> — ท่านี้กินแรงทั้งตัว จับคู่ซูเปอร์เซ็ตแล้วเซ็ตหลังตกทุกครั้ง เวลาที่ประหยัดได้ไม่คุ้มกับน้ำหนักที่หายไป',
+    mistake:'หลังงอช่วงล่าง · ย่อเข่ามากจนกลายเป็นสควอท · แอ่นหลังแรงตอนยืนขึ้นสุด · ฝืนน้ำหนักเดิมทั้งที่แฮมยังปวดจากวันจันทร์'},
+   {id:'h4',ss:'A',invert:1,name:'Assisted Pull-up',dose:'3 × 6–10',
+    target:'หลังกว้าง — งานดึงแนวดิ่ง ที่แถวดึงแนวนอนวันจันทร์ไม่ครอบคลุม',
+    note:'เริ่มจากแขนเหยียดสุด กดสะบักลงก่อนแล้วค่อยดึง · ลดแรงช่วยลงทีละน้อยเมื่อทำครบเซ็ตได้สบาย · <b>ช่วงลงช้า (~3 วินาที) คือส่วนที่ให้ผลมากที่สุด</b> · ช่องน้ำหนักคือ<b>แรงช่วย</b> — ตัวเลขลดลง = เก่งขึ้น',
+    mistake:'เหวี่ยงขาช่วย · ไม่ลงสุดช่วง · ลดแรงช่วยเร็วเกินจนฟอร์มพัง'},
+   {id:'e1',ss:'A',rest:'rest 2–3 min',name:'Dip',dose:'3 × 8–10',
+    target:'อกล่าง + ไตรเซปส์ + ไหล่หน้า · ท่าดันแนวดิ่งลง คู่กับ pull-up ในวันเดียวกัน',
+    note:'เอนตัวไปหน้าเล็กน้อยเพื่อเข้าอก ตั้งตัวตรงเพื่อเข้าไตรเซปส์ — เลือกอย่างใดอย่างหนึ่งแล้วอยู่กับมัน · <b>กดสะบักลงก่อนเริ่ม อย่าปล่อยให้ไหล่ยกขึ้นชนหู</b> · ลงจนต้นแขนขนานพื้นพอ ไม่ต้องลึกกว่านั้น · ช่องน้ำหนักคือน้ำหนักที่เพิ่ม (ว่าง = ตัวเปล่า) · ยังไม่ไหวให้ใช้ขาแตะพื้นช่วย แล้วค่อยเลิกช่วยเมื่อครบเซ็ตได้สบาย',
+    mistake:'ลงลึกเกินจนไหล่หน้าเจ็บ (จุดพลาดที่แพงที่สุดของท่านี้) · ไหล่ยกขึ้นชนหู · เด้งขึ้นจากจุดต่ำสุด'},
+   {id:'h6',ss:'B',name:'Face Pull',dose:'3 × 12–15',
+    target:'ไหล่หลัง + rotator cuff — งานถ่วงดุลท่าดันทั้งหมดของสัปดาห์',
+    note:'ตั้งสายไว้ระดับหน้าผาก · <b>ดึงเข้าหาหน้าผากพร้อมหมุนฝ่ามือขึ้น</b> ศอกสูงกว่าข้อมือ · ค้าง 1 วินาทีตอนสุด · เบาไว้ ท่านี้ไม่ใช่ท่าแข่งน้ำหนัก · <b>v58: Cable Pull Down ถูกตัด</b> — Assisted Pull-up ยังเป็นงานดึงแนวดิ่งของวัน ปริมาณส่วนเกินตัดออกเพื่อให้วันพุธสั้นลง',
+    mistake:'ดึงต่ำลงมาระดับอก · ยักไหล่ขึ้นหู · น้ำหนักมากจนต้องเอนตัวถ่วง'},
+   {id:'h7',ss:'B',rest:'rest 90s',name:'Seated Calf Raise',dose:'3 × 12–15 · 2s hold at top',
+    target:'soleus โดยเฉพาะ — มัดที่รับแรงเอ็นร้อยหวายโดยตรง · กันเอ็นร้อยหวายอักเสบ · คู่กับท่ายืนวันจันทร์จึงครบทั้งน่อง',
+    note:'<b>ต้องนั่ง เข่างอ 90° เท่านั้น</b> ท่ายืนจะไปเข้า gastrocnemius แทน ไม่ตรงเป้า · <b>v31 ย้ายมาวันพุธเย็นเพื่อใช้เครื่อง seated calf</b> — เวอร์ชันบ้าน (ดัมเบลบนต้นขา) ตันที่ ~30–40 กก. ซึ่งน้อยกว่าที่ soleus ต้องการมาก · ปลายเท้าบนแท่น ส้นลอย · ขึ้นสุดแล้วค้าง 2 วินาที · <b>ลงช้าจนส้นต่ำกว่าระดับแท่น</b> ช่วงยืดคือส่วนที่ป้องกันเอ็นอักเสบ · ต้องทำต่อเนื่องอย่างน้อย 8–12 สัปดาห์จึงเห็นผล · <b>ตัวเลขน้ำหนักจะกระโดดขึ้นจากเดิมทันทีที่เปลี่ยนมาใช้เครื่อง</b> นั่นคือคนละอุปกรณ์ ไม่ใช่ความก้าวหน้าในสัปดาห์เดียว · <b>v59: กลับเข้าโปรแกรม จับคู่กับ Face Pull</b> — น่องกับไหล่หลังไม่แย่งกำลังกันเลย เซ็ตหนึ่งจึงเป็นช่วงพักของอีกเซ็ตจริง',
+    mistake:'เด้งขึ้นลงเร็วๆ ไม่ค้าง · ช่วงลงไม่สุด · ใช้ท่ายืนแทนท่านั่ง · เอาน้ำหนักเครื่องไปเทียบกับตัวเลขดัมเบลเดิม'}
+
+ ]},
+
+ {dow:'FRI',title:'Home gym',kind:'strength',items:[
+   {id:'wu3',noWeight:1,rest:'rest 60s',name:'Warm-up',dose:'10 นาที · ก่อนเวททุกครั้ง',
+    target:'เตรียมร่างกาย 10 นาที — <b>ไม่ใช่การยืดค้าง</b> · ไล่จากปั๊มเลือด → เปิดช่วงการเคลื่อนไหว → ปลุกกล้ามที่มักหลับ → เร่งจังหวะ เพื่อให้เซ็ตแรกของท่าหลักไม่ใช่เซ็ตอุ่นเครื่องกลายๆ',
+    note:'<b>1 · ปั๊มเลือด 3 นาที</b> — jumping jack สลับ step-up ต่อเนื่อง ไม่ต้องพัก จบแล้วควรอุ่นและหายใจแรงขึ้นเล็กน้อย<br><b>2 · Dynamic</b> — leg swing หน้า-หลัง <b>×8 /ข้าง</b> · leg swing ด้านข้าง <b>×8 /ข้าง</b> · world&#39;s greatest stretch <b>×4 /ข้าง</b> · cat-cow <b>×6</b> · ankle dorsiflexion rock <b>×8 /ข้าง</b> · bodyweight squat <b>×5</b><br><b>3 · Activation</b> — glute bridge <b>×10</b> · band walk <b>×10 /ข้าง</b> · scapular pull-up <b>×5</b> — ปลุกก้นกับสะบักให้ทำงานก่อน ไม่ใช่ให้หลังล่างกับคอไปรับแทน<br><b>4 · Pogo hop 3 × 15</b> — กระโดดสั้นๆ ที่ข้อเท้า เข่าแทบไม่งอ <b>แตะพื้นให้สั้นที่สุด</b> ยางในเอ็นร้อยหวายคือสิ่งที่ฝึกอยู่ ไม่ใช่ความสูง',
+    mistake:'ยืดค้างนานๆ ก่อนเวท (ลดแรงได้จริงในชั่วโมงถัดมา) · ข้ามไปเลยเพราะรีบ แล้วใช้เซ็ตแรกของท่าหลักเป็นวอร์ม · pogo hop กระโดดสูงจนเท้าอยู่บนพื้นนาน — ผิดทั้งจุดประสงค์'},
+   {id:'e6',ss:'A',name:'Single-leg Step Down',dose:'3 × 8–10 /side',
+    target:'ควอดข้างเดียว + คุมเข่าช่วงเยื้อง — <b>งานอยู่ที่ช่วงลง ไม่ใช่ช่วงขึ้น</b> · คู่กับ Bulgarian วันจันทร์ในระนาบตรง',
+    note:'ยืนขาเดียวบนกล่องสูง ~20–30 ซม. อีกขาห้อยข้างหน้า · <b>ค่อยๆ ย่อลงจนส้นเท้าอีกข้างแตะพื้นเบาๆ นับ 3 วินาที</b> แล้วดันกลับขึ้น · เข่าชี้ตรงแนวปลายเท้า ไม่บิดเข้าใน · เพิ่มน้ำหนักด้วยดัมเบลข้างลำตัว · เริ่มจากกล่องเตี้ยแล้วค่อยเพิ่มความสูง · ช่องน้ำหนัก = ต่อข้าง',
+    mistake:'ทิ้งตัวลงเร็วแล้วเด้งขึ้น (ทิ้งทั้งท่าไปเลย) · เข่าบิดเข้าใน — จุดที่ต้องเฝ้าดูที่สุด · ใช้ขาที่ห้อยแตะพื้นช่วยดัน'},
+   {id:'e7',ss:'A',rest:'rest 2 min',name:'DB Chest Fly',dose:'3 × 12–15',
+    target:'อกในช่วงยืด · <b>ตัวเลขเทียบกับ cable fly เดิมไม่ได้</b> — ดัมเบลไม่มีแรงตึงเลยที่จุดบนสุด จึงเป็นคนละท่าและคนละ id',
+    note:'นอนราบหรือเอียงเล็กน้อย · ศอกงอค้างไว้ ~15° ตลอด ไม่งอเพิ่มไม่เหยียดออก · <b>กางแขนลงจนรู้สึกตึงอก แล้วโอบกลับ</b> · หยุดออกแรงเมื่อดัมเบลอยู่เหนืออก ขึ้นสูงกว่านั้นไม่มีน้ำหนักเหลือแล้ว · ช่องน้ำหนัก = ต่อข้าง',
+    mistake:'งอ-เหยียดศอกจนกลายเป็นท่าดัน · ลงลึกเกินจนไหล่หน้าเจ็บ · น้ำหนักมากจนต้องใช้แรงเหวี่ยง'},
+   {id:'c2',rest:'rest 2 min',name:'Single-leg Hip Thrust · CAT',dose:'3 × 3 @ 70% /side',
+    target:'ปลุกความเร็วของก้นก่อนเซ็ตหลัก — <b>ท่าเดียวกับ Single-leg Hip Thrust แต่คนละงาน</b> จึงแยกบรรทัดและแยกช่องน้ำหนัก',
+    note:'ใช้น้ำหนัก <b>70% ของ working set ปัจจุบัน</b> (ไม่ใช่ 70% ของ 1RM) · <b>ช่วงลงคุมให้ปกติ ช่วงขึ้นเร่งให้เร็วที่สุดเท่าที่ทำได้ทุกครั้ง</b> — น้ำหนักเบา แต่ความตั้งใจต้องเท่าเซ็ตหนักที่สุด นั่นคือทั้งหมดของท่านี้ · <b>พักให้เต็มระหว่างเซ็ต</b> เป้าหมายคือปลุกหน่วยประสาทให้ยิงเร็ว ไม่ใช่สะสมความล้า · <b>ถ้าเหนื่อยหรือล้าหลังทำจบ แปลว่าทำผิด</b> — หนักไป ครั้งเยอะไป หรือพักสั้นไป · 3 ครั้งต่อเซ็ตเท่านั้น ครั้งที่ 4 ไม่มีวันเร็วเท่าครั้งแรกอยู่แล้ว · <b>ทำให้จบก่อน แล้วค่อยเข้าซูเปอร์เซ็ต</b> — งานความเร็วต้องพักเต็ม ถ้าเอาไปสลับกับ Overhead Press จะไม่มีทางเร็วจริง ซูเปอร์เซ็ตข้างล่างจึงเป็นเฉพาะ working set · ช่องน้ำหนัก = ดัมเบลที่วางบนสะโพกตอนทำ CAT',
+    mistake:'ยกด้วยจังหวะปกติเพราะน้ำหนักเบา (เท่ากับไม่ได้ทำ CAT เลย ได้แค่วอร์ม) · ใช้น้ำหนักใกล้เคียง working set · เพิ่มจำนวนครั้ง · พักสั้นจนกลายเป็นงานความทน · ทำจนหอบแล้วเข้า working set ด้วยขาที่ล้าแล้ว'},
+   {id:'e8',ss:'B',name:'Single-leg Hip Thrust',dose:'3 × 10–12 /side',
+    target:'กล้ามก้นข้างเดียว — ตัวที่กันสะโพกทรุดตอนวิ่งและกันปวดเข่าด้านนอก · งาน hinge ของวันบ้าน',
+    note:'สะบักพาดขอบม้านั่ง เท้าข้างที่ทำวางราบ เข่างอ ~90° · ยกอีกขาลอยงอเข้าหาอก · <b>ดันสะโพกขึ้นจนลำตัวขนานพื้น บีบก้นค้าง 1–2 วินาที</b> · <b>สะโพกสองข้างต้องอยู่ระดับเดียวกัน ห้ามเอียง</b> · วางดัมเบลบนสะโพกเพื่อเพิ่มน้ำหนัก · <b>v59: CAT แยกเป็นบรรทัดของตัวเองแล้ว และทำจบก่อนซูเปอร์เซ็ตนี้</b> — บรรทัดนี้คือ working set ล้วน',
+    mistake:'สะโพกข้างที่ลอยตกลง (ตัวบอกว่าน้ำหนักเกิน ลดลงทันที) · แอ่นหลังล่างแทนการบีบก้น · ดันด้วยปลายเท้าแทนส้น'},
+   {id:'t5',ss:'B',rest:'rest 2 min',name:'Overhead Press',dose:'3 × 6–8',
+    target:'ไหล่ + ความมั่นคงของลำตัวขณะยืน',
+    note:'บีบก้นและเกร็งท้องเพื่อไม่ให้แอ่นหลัง · <b>ขยับหัวหลบบาร์เล็กน้อยแล้วดันขึ้นเป็นเส้นตรง</b> · จบด้วยแขนเหยียดอยู่เหนือศีรษะ ไม่ใช่หน้าศีรษะ · ใช้ดัมเบลแทนได้ ถ้าเปลี่ยนให้บันทึกน้ำหนักต่อข้างและอย่าสลับไปมา ตัวเลขจะเทียบไม่ได้ · <b>v32: ย้ายมาวันศุกร์</b> เพื่อให้มีท่าดันหนักวันละท่า ไม่ใช่สองท่าในวันจันทร์แล้วว่างทั้งวันศุกร์ · ห่างจาก Dip วันพุธแค่ 2 วัน น้ำหนักจะลงจากเดิมช่วงแรก นั่นคือ context ที่เปลี่ยน ไม่ใช่การถดถอย',
+    mistake:'แอ่นหลังล่างแทนการใช้ไหล่ · ดันบาร์ออกไปข้างหน้า · ย่อขาช่วย (กลายเป็น push press)'},
+   {id:'e9',ss:'C',name:'DB Overhead Extension',dose:'2 × 10–12',
+    target:'ไตรเซปส์หัวยาว — มัดเดียวที่ข้ามข้อไหล่ จึงถูกโหลดเฉพาะตอนแขนอยู่เหนือหัว ท่าดันอื่นทั้งสัปดาห์ไม่โดนมัดนี้',
+    note:'ถือดัมเบลตัวเดียวสองมือ หรือทีละข้าง · <b>ศอกชี้ขึ้นฟ้าและอยู่กับที่ตลอด</b> · ลงจนดัมเบลอยู่หลังท้ายทอย รู้สึกตึงไตรเซปส์ · เกร็งท้องกันแอ่นหลัง · <b>v58: ลดเหลือ 2 เซ็ต</b> — ไตรเซปส์ได้งานจาก Dip กับ OHP อยู่แล้ว ท่านี้มีไว้เก็บหัวยาวที่ท่าอื่นไม่โดน ซึ่ง 2 เซ็ตก็พอ',
+    mistake:'ศอกกางออกและเคลื่อนไปมา · ลงเร็วจนกระชากข้อศอก · แอ่นหลังเพราะน้ำหนักเกิน'},
+   {id:'e10',ss:'C',rest:'rest 90s',name:'Incline DB Curl',dose:'3 × 10–12',
+    target:'ไบเซปส์ในช่วงยืดที่สุด — เบาะเอียงดึงต้นแขนไปหลังลำตัว ซึ่ง preacher curl วันจันทร์ทำตรงข้ามพอดี',
+    note:'ตั้งเบาะ ~45–60° นั่งพิงให้หลังแนบ · <b>ปล่อยแขนห้อยลงหลังลำตัว เหยียดสุด</b> · ต้นแขนไม่ขยับไปหน้า · หงายข้อมือขึ้นตอนงอ · <b>น้ำหนักจะเบากว่าท่ายืนมาก เป็นเรื่องปกติ</b> · ช่องน้ำหนัก = ต่อข้าง',
+    mistake:'ยกต้นแขนไปหน้าเพื่อช่วย · ไม่ปล่อยเหยียดสุด (เท่ากับทิ้งจุดเด่นของท่าไปทั้งอัน) · เอาน้ำหนักเท่าท่ายืนมาใช้'},
+   {id:'t8',noWeight:1,name:'Side Plank',dose:'8–10s hold · 6→4→2 /side',
+    target:'ลำตัวด้านข้าง (QL + obliques) — งานคือ<b>กันตัวหักข้าง</b> · <b>v58: คู่กับ Suitcase Carry วันจันทร์</b> — ท่าหนึ่งค้างนิ่ง อีกท่าต้านขณะเดิน · Pallof ถูกแทนด้วย Cable Chop ซึ่งเป็นงานสร้างแรงบิด ไม่ใช่งานต้าน · กันปวดหลัง',
+    note:'เริ่มจากท่าคุกเข่าก่อน ค่อยขยับเป็นเหยียดขาตรงเมื่อไหว · ศอกอยู่ใต้ไหล่พอดี ดันสะโพกขึ้นจนเป็นเส้นตรงจากหูถึงเข่า/ข้อเท้า · <b>ค้างสั้น 8–10 วินาทีเท่านั้น</b> นานกว่านี้กล้ามเนื้อขาดออกซิเจน ได้ผลน้อยลง · เพิ่มความยากด้วยจำนวนครั้ง ไม่ใช่เวลาค้าง',
+    mistake:'ค้างนานเป็นนาที · สะโพกตกหรือหมุนไปข้างหน้า · กลั้นหายใจ'}
+
+ ]}
+];
+
+/* ================= daily habits ================= */
+const DAILY=[
+ {id:'x1',name:'Isometric Neck',dose:'2 min · 4 directions × ~30s',
+  target:'กันปวดคอจากท่านั่ง — <b>ความถี่รายวันสำคัญกว่าความหนัก</b> ทำสั้นๆ ทุกวันได้ผลกว่าทำหนักสัปดาห์ละ 2 ครั้ง',
+  note:'ใช้ฝ่ามือดันต้าน <b>โดยศีรษะไม่ขยับ</b> (isometric) · ทำครบ 4 ทิศ: หน้าผาก → ท้ายทอย → ขมับซ้าย → ขมับขวา ทิศละ ~30 วินาที · ออกแรงประมาณ 30–50% ของแรงสูงสุดก็พอ · หายใจปกติตลอด อย่ากลั้น',
+  mistake:'ออกแรงเต็มที่จนเกร็งทั้งตัว · ปล่อยให้คอขยับตามแรงดัน · กลั้นหายใจ · ทำแค่หน้า-หลัง ข้ามด้านข้าง'},
+ {id:'x3',name:'Light Therapy',dose:'10–30 min · within 1h of waking',
+  target:'ตรึงนาฬิกาชีวภาพ — ตัวกำหนดคุณภาพการนอนคืนถัดไป และเป็นฐานของทุกอย่างที่เหลือในลิสต์นี้',
+  note:'<b>เวลาสำคัญกว่าความนาน</b> — เช้าตรู่สม่ำเสมอทุกวันได้ผลกว่านานๆ ครั้ง · แสงแดดจริงตอนเช้าแรงกว่ากล่องไฟหลายเท่า ออกไปข้างนอกได้ให้ออก · <b>ห้ามมองดวงอาทิตย์ตรงๆ</b> · วันเมฆครึ้มให้เพิ่มเวลาเป็น ~30 นาที · ไม่ใส่แว่นกันแดดช่วงนี้',
+  mistake:'ทำผ่านกระจกหน้าต่าง (กรองแสงไปเกือบหมด) · เลื่อนไปทำตอนบ่าย · ควบไปกับการเล่นมือถือจนก้มหน้าไม่โดนแสง'},
+ {id:'x4',name:'Meditation',dose:'10 min · same time daily',
+  fields:[{k:'min',label:'Time',unit:'min',step:1},{k:'score',label:'Quality',type:'score',max:5}],
+  target:'ลดการตอบสนองอัตโนมัติต่อความเครียด — <b>สั้นแต่ทุกวัน</b> ชนะยาวแต่นานๆ ครั้ง',
+  note:'นั่งหลังตรง ตามลมหายใจ · <b>ใจลอยคือส่วนหนึ่งของการฝึก ไม่ใช่ความล้มเหลว</b> — รู้ตัวแล้วพากลับมา นับเป็นหนึ่งครั้งที่ได้ฝึก · จับเวลาไว้ จะได้ไม่ต้องคอยเช็ค · คะแนน 1–5 คือ<b>ความรู้สึกหลังจบ ไม่ใช่คะแนนความสามารถ</b> ให้ต่ำได้โดยไม่ต้องรู้สึกผิด',
+  mistake:'ตั้งเป้า 30 นาทีตั้งแต่สัปดาห์แรกแล้วเลิกใน 5 วัน · ให้คะแนนตัวเองสูงไว้ก่อนจนตัวเลขไม่มีความหมาย · ข้ามวันที่ยุ่งซึ่งคือวันที่ต้องการมากที่สุด'}
+];
+
+/* flat id → item lookups, so an event handler never has to walk PLAN */
+const ITEM={}; for(const d of PLAN) for(const it of d.items) ITEM[it.id]=it;
+const HABIT={}; for(const h of DAILY) HABIT[h.id]=h;
+
+/* ================= aerobic =================
+   v28. Everything light — easy runs and the row erg — used to be pinned to a
+   weekday it did not belong to: one easy run slot on Saturday, one rowing slot
+   on Wednesday, one tick each per week. Three easy runs in a week could only be
+   recorded as one.
+
+   The unit here is a SESSION, not a checkbox. A week holds a list of them, each
+   with a day and its own numbers, and the thing the tab reports is the weekly
+   TOTAL — which is the number the 10%-per-week rule is actually about, and which
+   the app never had before.
+
+   The two structured sessions (4×4 and the long run) stay in PLAN and keep their
+   own ids and their own week-over-week history: they are the same session every
+   week, so comparing them is meaningful. They are only MIRRORED here, reading and
+   writing the same state.metrics. Easy runs and rows are not comparable one to
+   the next, so they get no per-session history at all — only the total. */
+const AERO=[
+ {t:'incline',label:'Incline walk',staple:1,
+  fields:[{k:'min',label:'Time',unit:'min',step:1},
+          {k:'kmh',label:'Speed',unit:'km/h',step:0.1,ph:'5.5'},
+          {k:'grade',label:'Incline',unit:'%',step:0.5,ph:'12'}],
+  note:Z2NOTE+' · <b>ตั้งลู่ชัน 8–15% เดินเร็ว 5–6 กม./ชม.</b> — ได้ MET ใกล้วิ่งเบาโดยไม่มีแรงกระแทกที่เข่าและเอ็นร้อยหวาย จึงเป็นงานเบาหลักของสัปดาห์ · <b>ห้ามจับราว</b> จับแล้วโหลดหายไปเกือบครึ่ง ชันที่ตั้งไว้จึงไม่ใช่ชันที่ขารับจริง · <b>ชันขึ้นดีกว่าเร็วขึ้น</b> · ทำได้ทุกวัน สั้นได้ ไม่ต้องยาว',
+  mistake:'จับราวหรือเอนพิงหน้าจอ · เร่งจนต้องวิ่งเหยาะ (กลายเป็นโซน 3) · ชัน 0% แล้วเดินเรื่อยๆ (MET ต่ำเกินกว่าจะนับเป็นงาน)'},
+ {t:'run',label:'Run',speed:1,
+  fields:[{k:'min',label:'Time',unit:'min',step:1},{k:'km',label:'Distance',unit:'km',step:0.1}],
+  note:Z2NOTE+' · พูดเป็นประโยคเต็มได้ตลอดทั้งเส้น · สั้นได้ ไม่ต้องยาว · <b>ไม่ทำเลยก็ถูกต้อง</b> — ช่องเปล่าคือช่องว่างของแผน ไม่ใช่หนี้ที่ต้องใช้คืน · ถ้าขายังล้าจากวันเวท ให้เปลี่ยนไปเดินชันแทน',
+  mistake:'วิ่งเร็วเพราะระยะสั้น (กลายเป็นวันหนักวันที่สามของสัปดาห์) · ใส่ให้ครบทุกวันจนไม่มีวันไหนเบาจริง'},
+ {t:'row',label:'Row',split:1,
+  fields:[{k:'min',label:'Time',unit:'min',step:1},{k:'m',label:'Distance',unit:'m',step:50}],
+  note:Z2NOTE+' · <b>ลำดับแรง: ขา → ลำตัว → แขน</b> แล้วย้อนกลับตอนกลับ · จังหวะดึง 1 ส่วน ปล่อยกลับ 2 ส่วน · SPM 20–24 · ดึงหนักขึ้นดีกว่าซอยถี่ · หลังตรง ไม่งุ้ม · <b>ปริมาณโดยไม่ลงแรงกระแทกที่ขา</b>',
+  mistake:'ซอยถี่จน SPM เกิน 26 เพื่อไล่ระยะ (กลายเป็นโซน 3) · ดึงด้วยแขนก่อนขา · แอ่นหลังจนปวดหลังล่าง'},
+ {t:'x4',label:'4×4',hard:1,
+  fields:[{k:'sets',label:'Intervals',unit:'× 4 min',step:1,ph:'4'},
+          {k:'kmh',label:'Avg speed, work',unit:'km/h',step:0.1}],
+  note:'วอร์มอัพ 10 นาที · <b>4 นาทีหนักระดับพูดได้ทีละ 2–3 คำ × 4 รอบ</b> สลับพักเคลื่อนไหวเบา 3 นาที · คูลดาวน์ 5 นาที · กด lap ทุกช่วง work แล้วกรอกความเร็วเฉลี่ยของช่วง work เท่านั้น · <b>ช่องรอบคือจำนวนช่วง 4 นาทีที่ทำจริง</b> ทำได้ 3 รอบก็กรอก 3 แล้วนาทีรวมจะลดตามเอง',
+  mistake:'อัดเต็มที่ตั้งแต่รอบแรกจนรอบ 3–4 ตก · พักด้วยการนั่งนิ่ง · วางชิดวันวิ่งยาวหรือวันเวทหนัก'}
+];
+const AEROT={}; for(const a of AERO) AEROT[a.t]=a;
+
+/* ================= v55: the incline ladder =================
+   The cheat sheet this replaces was a printed table with a METs column typed
+   into it by hand. Every one of those numbers is already computable from the
+   grade and the speed beside it — speedMet() reproduces all four rows to within
+   0.1 — so the column is gone and the app derives it. Two sources of truth for
+   the same number is how they drift.
+
+   Phase advances on WEEKS THAT HAD AN INCLINE SESSION, not on the calendar. The
+   whole point of the first phase is "ให้ tendon ปรับตัว", and a tendon does not
+   adapt during a week off. Counting calendar weeks would walk a deload week, a
+   week with flu and a week of travel straight up to 12%.
+
+   The last rung has no week threshold on purpose. Going past 5.8 km/h at 12% is
+   a judgement about whether the walk is still a walk, so it is reached only by
+   pressing +, never by arriving. */
+const PHASES=[
+  {lab:'1',  need:0, grade:8,  lo:5.0, hi:5.4, min:'45–55 นาที',
+   note:'ไม่เกิน 3 ครั้ง/สัปดาห์ · ให้ tendon ปรับตัว'},
+  {lab:'2',  need:3, grade:10, lo:5.4, hi:5.4, min:'60–70 นาที',
+   note:'ยืด duration ก่อน ค่อยขยับชัน'},
+  {lab:'3',  need:7, grade:12, lo:5.4, hi:5.8, min:'60–75 นาที',
+   note:'ถึงเพดานเครื่อง · เริ่มใส่ 4×4 ได้'},
+  {lab:'4',  need:null, grade:12, lo:6.0, hi:6.4, min:'60–75 นาที',
+   note:'แล้วค่อย + vest 5 kg · <b>ห้ามเร่งจนต้องวิ่ง</b>'}
+];
+const PHASE_ORDER='duration → grade → speed → vest';   /* เปลี่ยนทีละตัวแปร */
+
+/* the weekly menu. Structure only — the grade and speed for "เดินชัน" come from
+   the phase above, which is why they are not written into these strings. The
+   three that are written in (E 8–10%, C 12%/8%, F 12%) are the ones that
+   deliberately depart from the current phase. */
+const SESSIONS=[
+  {k:'A',day:'อังคาร',name:'เดินล้วน',   min:'50–60',kind:'z2',
+   s:'เดิน 5% <b>8′</b> → เดินชัน <b>45′</b> → cool <b>5′</b>'},
+  {k:'B',day:'พฤหัส', name:'Hybrid',     min:'70–75',kind:'z2',rows:2,
+   s:'เดิน 5% <b>10′</b> → row r18–20 <b>22′</b> → เดินชัน <b>38′</b> → cool <b>5′</b>'},
+  {k:'E',day:'เสาร์', name:'Run + walk', min:'75–85',kind:'z2',rows:2,alt:1,
+   s:'วิ่ง easy นอกบ้าน flat <b>30–40′</b> → เดินชัน 8–10% <b>35–40′</b>'},
+  {k:'C',day:'เสาร์', name:'Long hybrid',min:'85–95',kind:'z2',rows:2,alt:1,
+   s:'เดิน 5% <b>10′</b> → row <b>25′</b> → เดิน 12% <b>30′</b> → row <b>10′</b> → เดิน 8% <b>15′</b>'},
+  {k:'F',day:'เสาร์', name:'4×4 ลู่ชัน', min:'45–50',kind:'hard',alt:1,every:'ทุก 10–14 วัน',
+   s:'warm-up <b>12′</b> → <b>4×</b> [12% ที่ 6.4–7.0 <b>4′</b> · พัก 5% ช้า <b>3′</b>] → cool <b>8′</b>'}
+];
+const SESS_FUEL='ทุก session: น้ำ 450–500 ml + กล้วยก่อนออก · <b>A/B งดคาเฟอีน</b> · C เติม whey 20 g · <b>F ห้าม fasted</b>';
+
+/* ---- the 4×4's duration ----
+   It is the one session with no Time field: 10 warm-up + n × 4 work +
+   (n−1) × 3 rest + 5 cool is fixed by the protocol, so the rounds are the only
+   thing worth asking for and the minutes follow from them. */
+const X4={warm:10,work:4,rest:3,cool:5};   /* v60: the MET constants went with metOf */
+/* v60: MET-min/week is gone, and so is the machinery under it — metOf, rowMet,
+   metMinOf, bwKg, MET_TARGET, MET_FLOOR, BW_DEFAULT and the body-weight thread
+   through aeroTotals. It was a population target (500–1000) sitting next to a
+   personal one, scored from estimates layered three deep: an equation picked by
+   speed, a wattage curve, a body weight that might be last month's. Minutes are
+   measured, and the minutes bar was already the one being read.
+   speedMet survives because the incline ladder still quotes a MET per rung —
+   that is a single number from a single equation, not a weekly score. */
+function x4Sets(e){ const n=num(e.sets); return (n==null||n<=0)?4:Math.max(1,Math.min(8,Math.round(n))); }
+function x4Parts(e){ const n=x4Sets(e); return {work:n*X4.work, easy:X4.warm+X4.cool+Math.max(0,n-1)*X4.rest}; }
+/* total time the session occupies — for the 4×4 this is derived from the rounds,
+   which is why it has no Time field to disagree with */
+function aeroMinOf(e){
+  if(e.t==='x4'){ const p=x4Parts(e); return p.work+p.easy; }
+  const v=num(e.min); return v==null?0:v;
+}
+/* v54: ONE equation picker for everything done on legs, so the same speed can
+   never mean two different things depending on which card it was typed into.
+   The ACSM walking equation is only valid to ~6 km/h and the running one only
+   from ~8 km/h; the old code chose by CARD (incline → always walking, run →
+   always running), so a 6 km/h jog logged as a run was credited 6.7 MET instead
+   of 3.9, and a 8 km/h treadmill climb logged as an incline walk used the wrong
+   equation the other way. It now chooses by SPEED, with 7 km/h as the crossover
+   in the middle of the gap where neither equation is validated. */
+function speedMet(kmh, grade){
+  if(kmh==null||kmh<=0) return null;
+  const S=kmh*16.6667, G=(grade||0)/100;
+  const vo2 = kmh<7 ? (0.1*S + 1.8*S*G + 3.5)     /* ACSM walking */
+                    : (0.2*S + 0.9*S*G + 3.5);    /* ACSM running */
+  return Math.round(vo2/3.5*10)/10;
+}
+
+/* v36: nothing is pre-placed on the aerobic tab. The planned sessions live on
+   the Exercises tab, where they are logged; mirroring them here filled the week
+   with rows that were not choices. This tab is now only what actually happened.
+   v51: the empty AEROFIX list and the whole mirroring machinery it fed —
+   aeroFixHTML, the [data-acheck] handler, the [data-mt] branch of the aerobic
+   input listener — are deleted. The 4×4 and the long run still COUNT toward the
+   weekly total through aeroNow(); they are just logged on the Exercises tab and
+   nowhere else. */
+
+/* ================= PURE ================= */
+/* no DOM, no storage — extracted verbatim and unit-tested in node */
+const p2 = n => String(n).padStart(2,'0');
+
+/* wind the clock back ROLL_HOUR so 00:00–03:59 still belongs to the previous day */
+function shifted(d){ const x=new Date(d.getTime()); x.setHours(x.getHours()-ROLL_HOUR); return x; }
+
+function dayKeyOf(d){ const x=shifted(d); return `${x.getFullYear()}-${p2(x.getMonth()+1)}-${p2(x.getDate())}`; }
+function monthKeyOf(d){ const x=shifted(d); return `${x.getFullYear()}-${p2(x.getMonth()+1)}`; }
+/* v62 FIX: n months back, as a month KEY, without setMonth's clamp.
+   `setMonth(getMonth()-1)` on the 31st does not land in the previous month — it
+   lands in THIS one, because 31 Feb overflows forward to 3 Mar. Two callers
+   depended on it: loadDaily (so on the 29th–31st the previous month's ticks were
+   never read, and the 30-day density undercounted) and buildDump (so an export
+   taken on the 31st walked 14 distinct months out of 24 and silently dropped the
+   rest — a backup with holes in it). Anchor on day 1 and the arithmetic is exact
+   for every month length. */
+function monthKeyBack(d,n){
+  const x=shifted(d);
+  const t=new Date(x.getFullYear(), x.getMonth()-(n||0), 1);
+  return `${t.getFullYear()}-${p2(t.getMonth()+1)}`;
+}
+
+/* ISO-8601 week. The week-YEAR can differ from the calendar year at both ends. */
+function isoOf(d){
+  const x=shifted(d); x.setHours(0,0,0,0);
+  const t=new Date(x.getTime());
+  t.setDate(t.getDate()+3-((t.getDay()+6)%7));          /* → Thursday of this week */
+  const y=t.getFullYear();
+  const jan4=new Date(y,0,4);
+  const wk=1+Math.round(((t-jan4)/864e5-3+((jan4.getDay()+6)%7))/7);
+  return {year:y,week:wk};
+}
+function weekKeyOf(d){ const {year,week}=isoOf(d); return `${year}-W${p2(week)}`; }
+
+/* Monday of the (shifted) week, as YYYY-MM-DD */
+function weekStartOf(d){
+  const x=shifted(d); x.setHours(0,0,0,0);
+  x.setDate(x.getDate()-((x.getDay()+6)%7));
+  return `${x.getFullYear()}-${p2(x.getMonth()+1)}-${p2(x.getDate())}`;
+}
+/* 0=Mon … 6=Sun */
+function dowOf(d){ const x=shifted(d); return (x.getDay()+6)%7; }
+
+/* a value that a user typed and might not have finished typing */
+function num(v){ return (v===''||v==null||isNaN(Number(v))) ? null : Number(v); }
+/* speed/split maths — always DERIVED, never stored. Storing a number that can be
+   computed from two others makes a third source of truth that can disagree. */
+/* v60: speedOf, splitOf, fmtSpeed and fmtPace are gone. They were written for
+   cardio items that lived in the week grid, which moved to the Aerobic tab in
+   v53; aeroDerived — their last caller in that tab — went in v54; and metOf,
+   the only thing still asking for a split, went with MET-min above. Nothing in
+   the app has needed a speed or a pace string since. */
+/* Freeze a week into an archive record.
+   omitted id = skipped · {done:1} = did it, logged nothing
+   {done:1,w} = strength weight · {done:1,m:{…}} = cardio metrics
+   No item ever carries both: an exercise is measured in kg or in time/distance. */
+function makeRecord(st, weekKey, endedDay){
+  const items={};
+  for(const id of Object.keys(st.checks||{})){
+    if(!st.checks[id]) continue;
+    const rec={done:1};
+    const w=num((st.weights||{})[id]);
+    if(w!=null) rec.w=w;
+    const src=(st.metrics||{})[id];
+    if(src){
+      const m={};
+      for(const k of Object.keys(src)){ const v=num(src[k]); if(v!=null) m[k]=v; }
+      if(Object.keys(m).length) rec.m=m;
+    }
+    items[id]=rec;
+  }
+  const rec={week:weekKey, ended:endedDay, items};
+  /* aerobic sessions: a list, not a map. An entry with no numbers at all was a
+     row the user opened and never filled — it is not a session that happened. */
+  const ae=[];
+  for(const e of (st.aero||[])){
+    const o={t:e.t,d:e.d}; let any=false;
+    for(const k of ['min','km','m','kmh','grade','sets']){ const v=num(e[k]); if(v!=null){ o[k]=v; any=true; } }
+    /* v54: the numbers test alone dropped the 4×4 at rollover. A 4×4 with no
+       rounds typed carries no numbers at all, so `any` stayed false and the
+       session was not archived — while the LIVE week counted it, because
+       aeroCounts whitelists it. The identical week therefore read 40 min and
+       368 MET-min on Sunday and 0 on Monday. Same whitelist, both sides. */
+    if(any || AERO_NUMLESS[e.t]) ae.push(o);
+  }
+  if(ae.length) rec.aero=ae;
+  const bw=num(st.bw);            /* one number a week, archived with the week */
+  if(bw!=null) rec.bw=bw;
+  if(st.deload) rec.dl=1;         /* so history can say why the week is bare */
+  return rec;
+}
+/* ---- aerobic ----
+   One flat list of sessions for a week, from either the live state or an
+   archived record. The retired ids (s2, u2, w1) are read HERE and nowhere else:
+   that is the entire migration, and it never rewrites what is already on disk.
+   v54: the comment here used to say the 4×4 carries no minutes. It has since
+   v53: aeroMinOf derives 40 minutes from its rounds, and those minutes count. */
+function aeroList(src){
+  const out=[];
+  for(const e of (src.aero||[])) out.push(e);
+  const I=src.items||{};
+  for(const p of [['m2','run'],['s2','run'],['u2','run'],['w1','row']]){
+    const m=I[p[0]]&&I[p[0]].m;
+    if(m) out.push(Object.assign({t:p[1]},m));
+  }
+  if(I.f1) out.push(Object.assign({t:'x4'}, I.f1.m||{}));
+  return out;
+}
+/* v50: the same test makeRecord applies at rollover, applied here too. Pressing
+   "+ run" creates an empty row; counting it as a session meant the live week said
+   "3 sessions" and the archived version of the identical week said "2", and the
+   %-of-peak strip moved when nothing had been done. The 4×4 is the one deliberate
+   exception — it carries no numbers because its duration is fixed by the
+   protocol, so it is whitelisted rather than counted by accident. */
+const AERO_NUMLESS={x4:1};
+/* v55: > 0, not merely present. A row left at 0 minutes counted as a session,
+   which mattered little for a bar and a lot for the ladder — a week of zeroes
+   would have earned a rung. Zero of something is not some of it. */
+function aeroCounts(e){
+  if(AERO_NUMLESS[e.t]) return true;
+  const pos=k=>{ const v=num(e[k]); return v!=null && v>0; };
+  return pos('min')||pos('km')||pos('m');
+}
+/* ---- v55: which rung of the ladder the week is on ----
+   `phase` is stored under its own key, not inside `state`, because the weekly
+   rollover blanks `state` — a program that forgot where it was every Monday
+   would be worse than the printed table it replaces.
+   `adj` is a manual offset in weeks, not an absolute index, so pressing + once
+   does not freeze the count: the automatic advance keeps running underneath. */
+let phase = null;    /* {wk:'YYYY-Www', adj:0} · null = program not started */
+function phaseOn(){ return !!(phase && phase.wk); }
+function hasIncline(list){ for(const e of list) if(e.t==='incline' && aeroCounts(e)) return true; return false; }
+/* weeks since the start that actually contained an incline session. Week keys
+   are zero-padded, so the string compare is a date compare. */
+function phaseEarned(){
+  if(!phaseOn()) return 0;
+  let n=0;
+  for(const r of histRecs){ if(r.week>=phase.wk && hasIncline(aeroList(r))) n++; }
+  const liveWk=weekKeyOf(new Date(state.weekStart+'T12:00:00'));
+  if(liveWk>=phase.wk && hasIncline(aeroNow())) n++;
+  return n;
+}
+/* the automatic rung tops out at index 2. Rung 4 has no `need`, so it is only
+   ever reached through adj — see the note on PHASES. */
+function phaseAuto(e){ let i=0; for(let k=0;k<PHASES.length;k++){ if(PHASES[k].need!=null && e>=PHASES[k].need) i=k; } return i; }
+function phaseIdx(){
+  if(!phaseOn()) return 0;
+  return Math.max(0, Math.min(PHASES.length-1, phaseAuto(phaseEarned()) + (phase.adj||0)));
+}
+function phaseCur(){ return PHASES[phaseIdx()]; }
+async function phaseSave(){ await store.set(PKEY, phase); }
+
+function aeroTotals(list){
+  let n=0,min=0,km=0,m=0;
+  for(const e of list){
+    if(!aeroCounts(e)) continue;
+    n++;
+    min+=aeroMinOf(e);
+    const b=num(e.km);  if(b!=null) km+=b;
+    const c=num(e.m);   if(c!=null) m+=c;
+  }
+  return {n,min:Math.round(min),km:Math.round(km*10)/10,m:Math.round(m)};
+}
+/* the ceiling the 10%-per-week rule is measured against: the HIGHEST weekly
+   total minutes in the archive, not the most recent week. One easy week — or a
+   deload — must not lower the bar the next week is compared to, otherwise the
+   ratchet resets every time life gets in the way.
+   No history at all → 120 minutes. v51 dropped the `def` flag that came with it:
+   no caller ever read it, so the promise in this comment that the UI would say
+   the denominator is an assumption was never kept. */
+const AERO_BASE=120;
+function aeroPeak(recs){
+  let best=null;
+  for(const r of (recs||[])){
+    const min=aeroTotals(aeroList(r)).min;
+    if(min>0 && (best==null || min>best.min)) best={min,week:r.week};
+  }
+  return best || {min:AERO_BASE,week:null};
+}
+/* the number a history row is keyed on. 'w' = strength weight · 'm:min' = a metric */
+function valOf(it,key){
+  if(!it) return null;
+  if(!key||key==='w') return it.w==null?null:it.w;
+  const k=key.slice(2);
+  return (it.m&&it.m[k]!=null)?it.m[k]:null;
+}
+/* merge without ever clobbering a week that is already archived */
+function mergeWeek(shard, rec){
+  const s=(shard&&shard.weeks)?shard:{v:1,weeks:{}};
+  if(!s.weeks[rec.week]) s.weeks[rec.week]=rec;
+  return s;
+}
+/* newest recorded value for an id · recs must be newest-first.
+   key defaults to 'w', so every v20 caller keeps its old meaning. */
+function lastRecorded(recs,id,key){
+  for(const r of recs){
+    const v=valOf((r.items||{})[id],key);
+    if(v!=null) return {w:v,week:r.week};
+  }
+  return null;
+}
+/* history rows, newest first. delta compares to the previous week THAT HAS DATA */
+function histRows(recs,id,limit,key){
+  const out=[];
+  for(const r of recs){
+    const it=(r.items||{})[id];
+    const v=valOf(it,key);
+    if(!it)          out.push({week:r.week,skip:true,dl:!!r.dl});
+    else if(v==null) out.push({week:r.week,done:true,m:it.m,dl:!!r.dl});
+    else             out.push({week:r.week,w:v,m:it.m,dl:!!r.dl});
+    if(out.length>=limit) break;
+  }
+  let prev=null;
+  for(let i=out.length-1;i>=0;i--){
+    const row=out[i];
+    if(row.w==null) continue;
+    row.delta = prev==null ? null : +(row.w-prev).toFixed(2);
+    prev=row.w;
+  }
+  return out;
+}
+/* consecutive days ending today. today still unticked must not break the streak */
+function streakOf(days,id,nowD){
+  let n=0, d=new Date(nowD.getTime());
+  if(!(days[dayKeyOf(d)]||{})[id]) d.setDate(d.getDate()-1);
+  while((days[dayKeyOf(d)]||{})[id]){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+function densityOf(days,id,nowD,span){
+  let n=0;
+  for(let i=0;i<span;i++){ const x=new Date(nowD.getTime()); x.setDate(x.getDate()-i); if((days[dayKeyOf(x)]||{})[id]) n++; }
+  return n;
+}
+/* the stored week is no longer the current week */
+function isStale(weekStart,nowD){ return !!weekStart && weekStart!==weekStartOf(nowD); }
+/* ================= /PURE ================= */
+
+/* ================= perf (v20) =================
+   Boot is latency-bound, not CPU-bound: every store.get is a round trip to the
+   host. Measure it rather than guess. `window.__perf()` prints the ledger. */
+const perf={t0:(typeof performance!=='undefined'?performance.now():0),ops:[],marks:[],
+  mark(label){ perf.marks.push({label,at:Math.round(perf.el())}); },
+  el(){ return (typeof performance!=='undefined'?performance.now():0)-perf.t0; },
+  dump(){
+    const rows=perf.ops.map(o=>({op:o.op,key:o.key,ms:Math.round(o.ms),via:o.via}));
+    /* eslint-disable no-console */
+    console.log('%c[v28 boot]','font-weight:700', Math.round(perf.el())+'ms total');
+    if(console.table) console.table(rows); else console.log(rows);
+    console.log('marks',perf.marks);
+    const bridge=rows.filter(r=>r.via==='fallback').length;
+    if(bridge) console.warn(bridge+' op(s) fell back to localStorage — window.storage threw or is absent');
+    return {total:Math.round(perf.el()),ops:rows,marks:perf.marks};
+  }};
+if(typeof window!=='undefined') window.__perf=()=>perf.dump();
+
+/* ================= storage (async) ================= */
+const store={
+  has:()=>!!(typeof window!=='undefined'&&window.storage&&typeof window.storage.get==='function'),
+  /* `st` is per-call, not shared: v20 runs reads in parallel, so a module-level
+     flag would let one call's fallback mislabel another's. */
+  async try(fn,fallback,st){
+    st=st||{};
+    if(store.has()){ try{ return await fn(window.storage); }catch(e){ st.fell=true; } }
+    else st.fell=true;
+    return fallback();
+  },
+  async get(k){
+    const t=perf.el(), st={};
+    const r=await store.try(s=>s.get(k,false),()=>{
+      try{ const v=localStorage.getItem(k); return v==null?null:{key:k,value:v}; }catch(e){ return null; }
+    },st);
+    perf.ops.push({op:'get',key:k,ms:perf.el()-t,via:st.fell?'fallback':'bridge'});
+    if(!r||r.value==null) return null;
+    try{ return JSON.parse(r.value); }catch(e){ return null; }
+  },
+  async set(k,v){
+    const t=perf.el(), st={};
+    const s=JSON.stringify(v);
+    const r=await store.try(x=>x.set(k,s,false),()=>{
+      try{ localStorage.setItem(k,s); return {key:k,value:s}; }catch(e){ return null; }
+    },st);
+    perf.ops.push({op:'set',key:k,ms:perf.el()-t,via:st.fell?'fallback':'bridge'});
+    return !!r;
+  },
+  /* --- sync localStorage mirror, for tiny UI-only values on the critical path.
+     Never the source of truth: store.set still writes the real backend. When
+     window.storage is absent the fallback writes the same key with the same
+     JSON, so the two can never disagree. --- */
+  mirrorGet(k){
+    try{ const v=localStorage.getItem(k); return v==null?null:JSON.parse(v); }catch(e){ return null; }
+  },
+  mirrorSet(k,v){
+    try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){}
+  }
+};
+
+/* ================= state ================= */
+const now = () => new Date();
+let state    = {weekStart:weekStartOf(now()),checks:{},weights:{},metrics:{},aero:[],bw:'',deload:false};
+let histRecs = [];     /* newest first */
+let dayLog   = {};     /* dayKey → {x1:1,…} */
+let histOK   = true;   /* false ⇒ the shard rollover would write into failed to read */
+let histGaps = [];     /* years the index promised that did not come back */
+
+/* applyState is separate from the read so init can fetch KEY in parallel with
+   HIDX and still funnel through one place. */
+/* v62 FIX: validate, do not merely default.
+   `s.checks || {}` catches null and nothing else. Import accepts arbitrary JSON
+   off the clipboard, so a hand-edited or truncated dump could set weights to a
+   STRING — after which `state.weights[id]=v` is a silent no-op in sloppy mode and
+   every weight typed for the rest of the session vanished with no error — or put
+   a null in the aero list, which crashed the whole Aerobic tab in the sort. Each
+   field is now checked for the shape the rest of the app assumes it has. */
+const plainObj = v => (v && typeof v==='object' && !Array.isArray(v)) ? v : {};
+function applyState(s){
+  if(s&&typeof s==='object'){
+    state={
+      weekStart : (typeof s.weekStart==='string' && s.weekStart) ? s.weekStart : weekStartOf(now()),
+      checks    : plainObj(s.checks),
+      weights   : plainObj(s.weights),
+      metrics   : plainObj(s.metrics),
+      /* an entry needs a session id and a type to be renderable or countable */
+      aero      : (Array.isArray(s.aero)?s.aero:[]).filter(e=>e&&typeof e==='object'&&e.t),
+      bw        : (typeof s.bw==='number'||typeof s.bw==='string') ? s.bw : '',
+      deload    : !!s.deload
+    };
+  }
+}
+async function loadState(){ applyState(await store.get(KEY)); }
+
+/* idxPre: a pre-fetched HIDX, so init can read it in the same wave as KEY.
+   Pass nothing and it fetches its own (rollIfStale still does). */
+async function loadHist(idxPre){
+  histOK=true;
+  const idx = (idxPre===undefined) ? await store.get(HIDX) : idxPre;
+  /* v62 FIX: normalise to numbers and dedupe.
+     `['2026', 2026]` — which an import could produce, because the index was
+     written with a default lexicographic sort over a Set that treats the string
+     and the number as different members — mapped to the SAME shard key. The
+     shard was fetched twice, every week in it entered histRecs twice, and the
+     damage was not cosmetic: the history table repeated a week with a delta of
+     0, and phaseEarned() counted each incline week twice, walking the ladder up
+     at double speed. */
+  const rawYears=(idx&&Array.isArray(idx.years))?idx.years:[];
+  const years=[...new Set(rawYears.map(Number).filter(y=>Number.isFinite(y)))];
+  /* newest year first, stop once there is enough to fill the 8-row table and the
+     anchor. NOT a fixed 2-year window: after a long break the last recorded weight
+     may be several years old and must still surface.
+     v20: the shards are fetched in one parallel wave instead of a serial chain,
+     but they are CONSUMED in the old order and the old break condition still
+     applies — a shard past the break is never inspected, so it can never flip
+     histOK and block a rollover that v19 would have allowed. */
+  const want=years.sort((a,b)=>b-a).slice(0,5);
+  /* the year the next rollover would archive into */
+  const guardYear=Number(weekKeyOf(new Date((state&&state.weekStart?state.weekStart:weekStartOf(now()))+'T12:00:00')).slice(0,4));
+  histGaps=[];
+  const shards=await Promise.all(want.map(y=>store.get(HSHARD(y))));
+  const recs=[];
+  for(let i=0;i<want.length;i++){
+    if(recs.length>=12) break;
+    const sh=shards[i];
+    /* v49: a missing shard used to set histOK=false whatever year it was, and
+       histOK=false blocks rollIfStale forever — so one unreadable 2024 shard
+       could silently freeze the current week open indefinitely, with the next
+       tick landing in a week that should already have been archived.
+       Only the year the rollover would WRITE into is worth failing closed for;
+       an older gap just means the history table is short, and mergeWeek already
+       refuses to overwrite a week that is on disk. The gap is recorded so the
+       UI can say it out loud instead of the table quietly being wrong. */
+    if(!sh||!sh.weeks){
+      histGaps.push(want[i]);
+      if(want[i]===guardYear) histOK=false;
+      continue;
+    }
+    for(const k of Object.keys(sh.weeks)) recs.push(sh.weeks[k]);
+  }
+  recs.sort((a,b)=> a.week<b.week?1:(a.week>b.week?-1:0));
+  /* v62: one record per week key, whatever the shards contained. The year dedupe
+     above is the fix; this is the invariant, held where every reader can rely on
+     it — histRows, aeroPeak and phaseEarned all assume weeks are unique. */
+  const seen=new Set();
+  histRecs=recs.filter(r=>{ if(!r||!r.week||seen.has(r.week)) return false; seen.add(r.week); return true; });
+}
+async function loadDaily(){
+  const d=now();
+  const out={};
+  /* v62 FIX: monthKeyBack, not setMonth — see the note on monthKeyBack. The two
+     keys must also be DISTINCT, or one shard is fetched twice and the other not
+     at all, which is exactly what happened on the 31st. */
+  const mks=[...new Set([monthKeyBack(d,1),monthKeyOf(d)])];
+  const shards=await Promise.all(mks.map(mk=>store.get(DSHARD(mk))));   /* v20: one wave */
+  for(const sh of shards){ if(sh&&sh.days) Object.assign(out,sh.days); }
+  dayLog=out;
+}
+/* v50: read-modify-write, one shard, fire-and-forget callers. Two taps inside
+   one round trip both read the same pre-tap shard and the second write erased the
+   first. The fix is a per-shard promise chain: writes to the same month queue
+   behind each other, so every read sees the previous write. Different months
+   still run in parallel — they cannot collide.
+   The chain is also COALESCED: dayLog is already the source of truth in memory,
+   so five queued writes to one month would each persist the same final object.
+   One pending write per shard is enough, and it is scheduled to run after the
+   in-flight one lands. */
+const dailyChain={};   /* monthKey → {p: promise in flight, queued: bool} */
+function saveDaily(dayKey){
+  const mk=dayKey.slice(0,7);
+  const slot=dailyChain[mk]||(dailyChain[mk]={p:Promise.resolve(),queued:false});
+  if(slot.queued) return slot.p;        /* a write is already scheduled; it will see dayLog */
+  slot.queued=true;
+  slot.p=slot.p.then(async()=>{
+    slot.queued=false;                  /* anything after this point needs its own write */
+    const sh=(await store.get(DSHARD(mk)))||{v:1,days:{}};
+    sh.days=sh.days||{};
+    /* persist every day of this month from memory, not just dayKey: a coalesced
+       write may be standing in for taps on more than one day. */
+    for(const dk of Object.keys(dayLog)){
+      if(dk.slice(0,7)!==mk) continue;
+      const row=dayLog[dk];
+      if(row&&Object.keys(row).length) sh.days[dk]=row; else delete sh.days[dk];
+    }
+    await store.set(DSHARD(mk),sh);
+  }).catch(()=>{ slot.queued=false; });
+  return slot.p;
+}
+
+/* ---- rollover: archive the stale week, then start clean ---- */
+async function rollIfStale(){
+  if(!histOK) return false;                              /* never write after a failed read */
+  if(!isStale(state.weekStart,now())) return false;
+  const prevKey=weekKeyOf(new Date(state.weekStart+'T12:00:00'));
+  const rec=makeRecord(state,prevKey,dayKeyOf(now()));
+  /* v49: rec.aero counts. A week whose only content was easy runs or rows —
+     nothing ticked, nothing weighed — used to fail this test and be discarded,
+     which also meant aeroPeak() could never see it and the 10%-per-week ceiling
+     stayed permanently below what had actually been done. */
+  if(Object.keys(rec.items).length||(rec.aero&&rec.aero.length)||rec.bw!=null||rec.dl){
+    const y=Number(prevKey.slice(0,4));
+    const sh=mergeWeek(await store.get(HSHARD(y)),rec);
+    if(!(await store.set(HSHARD(y),sh))) return false;    /* write failed → keep week open */
+    const idx=(await store.get(HIDX))||{years:[]};
+    if(!Array.isArray(idx.years)) idx.years=[];
+    if(!idx.years.includes(y)){ idx.years.push(y); await store.set(HIDX,idx); }
+  }
+  state={weekStart:weekStartOf(now()),checks:{},weights:{},metrics:{},aero:[],bw:'',deload:false};
+  await store.set(KEY,state);
+  await loadHist();
+  return true;
+}
+
+/* ================= save (debounced) ================= */
+/* v51: the saving/saved indicator is gone with the #status element it wrote to —
+   the element had not existed since the memo block was removed, so every write
+   was already silent. */
+let timer=null;
+function save(){
+  clearTimeout(timer);
+  timer=setTimeout(()=>{ timer=null; store.set(KEY,state); },300);
+}
+/* v62 FIX: a real flush.
+   v54 claimed to protect the last keystroke when the tab is backgrounded, and
+   did not: the handler called save(), and save() STARTS a fresh 300ms timer. So
+   backgrounding 100ms after typing replaced one pending write with another
+   pending write, and iOS suspends timers the moment the app leaves the screen.
+   It also only looked at aeroTimer — the weight/body-weight timer and every
+   habit-field timer were never touched at all.
+   flushWrites issues the writes immediately instead of rescheduling them.
+   Declared here but it also reaches habTimers/aeroTimer, which are defined
+   further down; it is only ever CALLED from an event, long after parse. */
+function flushWrites(){
+  if(timer){ clearTimeout(timer); timer=null; store.set(KEY,state); }
+  if(typeof aeroTimer!=='undefined' && aeroTimer){ clearTimeout(aeroTimer); aeroTimer=null; store.set(KEY,state); }
+  if(typeof habTimers!=='undefined'){
+    for(const k of Object.keys(habTimers)){
+      const t=habTimers[k]; if(!t) continue;
+      clearTimeout(t); delete habTimers[k];
+      const fn=habFlush[k]; if(fn) fn();     /* run the write the timer was holding */
+    }
+  }
+}
+
+/* ================= render ================= */
+const CHECK='<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>';
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* v38: the kind icon left the header with the count — the card is a day name
+   and a progress line now. KIND still supplies the accent colour used by the
+   checkboxes and the up-next tint. */
+function noteHTML(it){
+  let h='';
+  if(it.target)  h+=`<p class="tl"><span class="lab">Why</span>${it.target}</p>`;
+  if(it.note)    h+=`<p class="tn"><span class="lab">How</span>${it.note}</p>`;
+  if(it.mistake) h+=`<p class="tn"><span class="lab">Watch for</span>${it.mistake}</p>`;
+  return h;
+}
+/* Delta colour. `invert` = a lower number is the better number — the assisted
+   pull-up box holds ASSISTANCE, so -5 kg is progress, not a loss. v22 painted it
+   red while the note in the same box said the opposite. */
+function dcls(d,inv){ if(d==null||d===0) return ''; return (d>0)!==!!inv ? 'up' : 'dn'; }
+function histHTML(it){
+  const mode=itemMode(it);
+  if(mode==='none') return '';
+  const rows=histRows(histRecs,it.id,8,'w');
+  if(!rows.length) return `<p class="histcap">No history yet — the first row lands when the week rolls over</p>`;
+  let h=`<p class="histcap">Weight · last 8 weeks</p><table class="h">`;
+  for(const r of rows){
+    const wk=r.week.slice(5);
+    if(r.skip){ h+=`<tr class="skip"><td class="w">${wk}</td><td class="kg">skipped</td><td class="d"></td></tr>`; continue; }
+    if(r.w==null){ h+=`<tr><td class="w">${wk}</td><td class="kg">${r.dl?'deload':'done'}</td><td class="d"></td></tr>`; continue; }
+    const d=r.delta;
+    const cls=dcls(d,it.invert);
+    const txt=d==null?'—':(d>0?`+${d}`:(d<0?`${d}`:'—'));
+    h+=`<tr><td class="w">${wk}</td><td class="kg">${r.w} kg</td><td class="d ${cls}">${txt}</td></tr>`;
+  }
+  return h+`</table>`;
+}
+/* v21: what an item is measured in is a property OF THE ITEM, not of its day.
+   v20 keyed this off `kind==='strength'`, which breaks the moment a day mixes
+   a lift with a run — and Mon now does exactly that. */
+/* v60: the 'metric' mode is gone. No exercise in PLAN has carried a `metrics`
+   array since v53 moved the cardio out, so metricHTML, derivedText, metricLine
+   and the [data-mt] listener were three code paths and a listener kept alive by
+   a branch that could not be reached. state.metrics itself stays — archived
+   weeks from before v53 still hold one, and aeroList reads it. */
+function itemMode(it){ return it.noWeight ? 'none' : 'weight'; }
+/* A cut exercise still occupies its slot: seeing what was removed is the point
+   of a deload week. No checkbox — there is nothing to tick. */
+function cutHTML(it,why){
+  return `<div class="item cut"><div class="row"><div class="txt">
+    <div class="name">${esc(it.name)}</div>
+    <div class="dose">${esc(why)}</div>
+  </div></div></div>`;
+}
+function itemHTML(it,grouped){
+  /* v25: deload is a view of the same week, not a second week. The item keeps
+     its id and its checkbox — so a light week still archives as {done:1} — but
+     loses every number field. That is the old invariant made physical: a deload
+     week is logged, never measured, and so can never print as a loss in the
+     delta column. The record carries dl:1 to say why the row is bare. */
+  const dl = state.deload ? deloadOf(it) : null;
+  const cut = (dl&&dl.skip) ? cutHTML(it,dl.why) : '';
+  if(dl&&dl.skip&&!dl.alt) return cut;
+  const alt = (dl&&dl.alt) ? dl.alt : null;
+  const on=state.checks[it.id]?' on':'';
+  const mode=itemMode(it);
+  let wt='';
+  if(!dl && mode==='weight'){
+    const anchor=lastRecorded(histRecs,it.id);
+    const v=state.weights[it.id]??'';
+    /* v38: no "kg" on the row. It was seven repetitions of the same word to say
+       what one brass number in a box already says, and those 20px were the
+       difference between a name fitting on one line and not. The unit stays on
+       the body-weight card and on the metric fields, where it varies. */
+    wt=`<div class="wtwrap">
+      <input class="wtin" type="number" step="0.5" inputmode="decimal" data-wt="${it.id}"
+             value="${esc(v)}" placeholder="${anchor?esc(anchor.w):''}" aria-label="weight in kg, ${esc(it.name)}">
+      </div>`;
+  }
+  const hist = (dl || mode==='none') ? ''
+    : `<div class="histsplit"></div><div class="histbody"><span class="eyebrow">History</span>${histHTML(it)}</div>`;
+  const nm  = alt ? alt.name : it.name;
+  const tag = alt ? 'swapped' : ((dl&&dl.tag) ? dl.tag : '');
+  /* v38: the row carries the sets and nothing else. Tempo, rest and setup cues
+     are reference — needed at the rack, not at a glance — and inline they were
+     long enough to wrap four rows of seven, which is the whole reason this
+     layout exists. They open with the note instead, in full. */
+  const dsFull = alt ? esc(alt.dose)
+            : (dl ? dl.dose
+                  : esc(it.dose)+(it.rest?` · ${esc(it.rest)}`:''));
+  const ds = String(dsFull).split('·')[0].trim();
+  /* the note describes the exercise that was cut, so a substitute gets none */
+  const det = alt ? '' : `<div class="drop"><p class="dosefull">${dsFull}</p><div class="note">${noteHTML(it)}</div>${hist}</div>`;
+  const ibtn = alt ? '' : `<button class="idet" data-det="${it.id}" aria-expanded="false" aria-label="detail, ${esc(nm)}">i</button>`;
+  /* grouped = the group's own checkbox speaks for this exercise */
+  const boxHTML = grouped ? ''
+    : `<button class="box${on}" data-check="${it.id}" aria-pressed="${on?'true':'false'}" aria-label="${esc(nm)}">${CHECK}</button>`;
+  return cut+`<div class="item${on}${grouped?' nobox':''}" data-item="${it.id}">
+      ${boxHTML}
+      <span class="txt"><span class="name">${esc(nm)}${tag?`<span class="dltag">${esc(tag)}</span>`:''}</span><span class="dose">${ds}</span></span>
+      ${wt}${ibtn}
+    </div>${det}`;
+}
+function dayHTML(day,i){
+  const k=KIND[day.kind];
+  const isToday = DOWI[day.dow]===dowOf(now());   /* v28: two cards can share a dow */
+  /* v38: every item lives in a .grp — a superset is one group, a standalone
+     exercise is a group of one. "Up next" then has a single kind of thing to
+     mark, and a lone exercise highlights exactly like a pair does.
+     v52: a superset group carries ONE checkbox, on its label row, standing for
+     every exercise in it. `ids` collects what that box is responsible for —
+     everything except a bare cut, which has nothing to tick. */
+  let inner='', open=null, buf=[], ids=[];
+  const flush=()=>{ if(!buf.length) return;
+    /* a deload week can cut one half of a pair. What is left is one exercise
+       with one box — still a group structurally, but not a superset, so it must
+       not keep the label. `ss` is therefore about how many are LEFT, not about
+       whether the plan wrote an ss letter on them. */
+    const isSS = open && ids.length>1;
+    /* v62: `open` means the plan wrote an ss letter here; `ids` means something
+       in it is still tickable. A deload week that cut BOTH halves of a pair left
+       ids empty and still drew the box — a control that reports unpressed
+       forever and writes nothing when tapped. No rule in DELOAD_RULES does that
+       today; the guard is here so adding one cannot. */
+    const head = (open && ids.length)
+      ? `<div class="grphead"><button class="box" data-gcheck="${ids.join(',')}" aria-pressed="false"
+            aria-label="${isSS?`superset, ${ids.length} exercises`:'tick group'}">${CHECK}</button>
+          <p class="sslab">${isSS?'superset':''}</p></div>`
+      : `<p class="sslab"></p>`;
+    inner+=`<div class="grp${isSS?' ss':''}">${head}${buf.join('')}</div>`;
+    buf=[]; ids=[]; };
+  for(const it of day.items){
+    if((it.ss||null)!==open){ flush(); open=it.ss||null; }
+    buf.push(itemHTML(it,!!open));
+    if(open){
+      const d=state.deload?deloadOf(it):null;
+      if(!(d&&d.skip&&!d.alt)) ids.push(it.id);   /* a bare cut is not tickable */
+    }
+    if(!open) flush();
+  }
+  flush();
+  return `<section class="day${isToday?' today':''}" data-day="${i}"
+    style="--accent:${k.accent};--soft:${k.soft};--tint:${k.tint}">
+    <button class="head" data-toggle="${i}" aria-expanded="false">
+      <span class="stk">
+        <span class="dow">${day.dow}${day.sub?` <span class="sub">${esc(day.sub)}</span>`:''}</span>
+        <span class="title">${esc(day.title)}</span>
+      </span>
+      <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></span>
+    </button>
+    <span class="prog"><i data-prog="${i}"></i></span>
+    <div class="body">${inner}</div>
+  </section>`;
+}
+
+/* ================= week tab ================= */
+const daysEl=document.getElementById('days');
+/* a bare cut is not something to do; a substitution still is */
+function dayItems(day){
+  if(!state.deload) return day.items;
+  return day.items.filter(it=>{ const d=deloadOf(it); return !d.skip||d.alt; });
+}
+/* the live group is simply the first one still holding an unticked box. No
+   stored cursor: the checks already say where you are, and anything else would
+   be a second source of truth to keep honest. */
+/* v52: the group box is DERIVED from state.checks, never a stored value of its
+   own — lit only when every exercise it covers is ticked. That is what lets a
+   weight typed into one half of a pair (autoTick) and the group box itself stay
+   in agreement without either being the master. */
+function paintGroups(el){
+  for(const b of el.querySelectorAll('[data-gcheck]')){
+    const ids=b.dataset.gcheck.split(',').filter(Boolean);
+    const on = ids.length>0 && ids.every(id=>state.checks[id]);
+    b.classList.toggle('on',on);
+    b.setAttribute('aria-pressed',on?'true':'false');
+  }
+}
+function markNext(el){
+  let found=false;
+  for(const g of el.querySelectorAll('.grp')){
+    const open = !found && !!g.querySelector('.box:not(.on)');
+    g.classList.toggle('now', open);
+    const lab=g.querySelector('.sslab');
+    /* v52: the group knows what it is from its own class now, instead of being
+       inferred by counting checkboxes — which stopped working the moment a
+       superset had only one box to count. */
+    if(lab) lab.textContent = open ? 'up next' : (g.classList.contains('ss') ? 'superset' : '');
+    if(open) found=true;
+  }
+}
+function sync(i){
+  const day=PLAN[i], el=daysEl.querySelector(`[data-day="${i}"]`);
+  if(!el) return;
+  const items=dayItems(day);
+  const n=items.filter(it=>state.checks[it.id]).length;
+  /* a weekend day offers alternatives — one of them IS the day, so `2 / 2` would
+     be wrong and `1 / 2` would read as half-finished. */
+  const total = day.anyOf ? 1 : items.length;
+  const bar = el.querySelector(`[data-prog="${i}"]`);
+  if(bar) bar.style.width = `${total ? Math.min(n,total)/total*100 : 0}%`;
+  paintGroups(el);
+  markNext(el);
+  el.classList.toggle('done', day.anyOf ? n>=1 : n===items.length);
+  paintProg();
+}
+/* v23: typing a number IS doing the exercise. The Routines tab already worked
+   this way (setField); the week tab did not, so a logged weight with an unticked
+   box was silently dropped at rollover — makeRecord only walks `checks`.
+   Never auto-UNticks: clearing a mistyped number must not erase the set. */
+function autoTick(el,id){
+  if(state.checks[id]) return;
+  state.checks[id]=true;
+  const item=el.closest('.item'); if(!item) return;
+  const box=item.querySelector('[data-check]');
+  if(box){ box.classList.add('on'); box.setAttribute('aria-pressed','true'); }
+  item.classList.add('on');
+  const d=el.closest('[data-day]');
+  if(d) sync(Number(d.dataset.day));
+}
+/* v39: the week bar is gone — at 0% it was a stray hairline above the first
+   card, and the seven per-card rules already say the same thing louder.
+   v51: weekProgress() went with it. The comment claimed the export blob and the
+   deload copy still read it; neither did, and it had no callers at all. */
+function paintProg(){}
+function buildWeek(){
+  daysEl.innerHTML=PLAN.map(dayHTML).join('');
+  PLAN.forEach((_,i)=>sync(i));
+  paintProg();
+  /* v28: Wednesday has two sessions, so "today" can open more than one card */
+  const td=dowOf(now());
+  PLAN.forEach((s,i)=>{
+    if(DOWI[s.dow]!==td) return;
+    const el=daysEl.querySelector(`[data-day="${i}"]`);
+    if(el){ el.classList.add('open'); el.querySelector('.head').setAttribute('aria-expanded','true'); }
+  });
+  /* v33: no week number, no date. The week is the only thing on screen, and
+     history rows already carry their own week key. Deload is the one state the
+     bar still has to announce, and the toggle beside it says it. */
+  const wn=document.getElementById('weekno');
+  wn.innerHTML = state.deload ? 'deload · numbers optional' : '';
+  document.getElementById('weekbar').hidden = !state.deload;
+  const tg=document.getElementById('dltoggle');
+  tg.setAttribute('aria-pressed', state.deload?'true':'false');
+  document.getElementById('dlintro').innerHTML =
+    histWarnHTML() + (state.deload ? deloadIntroHTML() : '');
+  buildBW();
+}
+
+/* v49: a silent history gap used to look identical to "no history yet" — the
+   tables just came back short. Say which years did not load, and say whether the
+   week is frozen because of it, so a stuck rollover is visible instead of felt. */
+function histWarnHTML(){
+  if(!histGaps.length) return '';
+  const yrs=histGaps.slice().sort().join(', ');
+  const frozen = !histOK
+    ? ' <b>This week will not roll over until it reads.</b> Export your data before doing anything else.'
+    : ' Older weeks are missing from the tables below; nothing new is at risk.';
+  return `<p class="iomsg" style="margin:0 0 12px"><b>History incomplete</b> — could not read ${esc(yrs)}.${frozen}</p>`;
+}
+
+/* the live week in the same shape aeroList reads an archived one in */
+function aeroNow(){
+  /* v53: nothing to mirror any more — every aerobic session is logged on this
+     tab. aeroList still reads the retired ids when it walks an ARCHIVED week, so
+     old history keeps counting exactly as it did. */
+  return aeroList({aero:state.aero});
+}
+
+/* ---- body weight · weekly ----
+   Not a daily habit: one number a week, stored on the week record it belongs to.
+   The delta is deliberately NOT coloured. Up is not failure and down is not
+   success, and a tracker that grades the scale gets read as a verdict. */
+const bwEl=document.getElementById('bwcard');
+function bwLast(){ for(const r of histRecs){ if(r.bw!=null) return {w:r.bw,week:r.week}; } return null; }
+/* v51: bwDeltaText() removed. It wrote into a [data-bwd] node that buildBW has
+   not rendered for several versions, so the line never appeared. The same
+   week-over-week difference is in the History table, uncoloured, which is where
+   the reasoning in the header above wanted it anyway. */
+function bwHistHTML(){
+  const rows=[];
+  for(const r of histRecs){ if(r.bw!=null) rows.push(r); if(rows.length>=8) break; }
+  if(!rows.length) return '<p class="histcap">No history yet</p>';
+  let h='<p class="histcap">Last 8 weeks</p><table class="h">';
+  for(let i=0;i<rows.length;i++){
+    const r=rows[i], prev=rows[i+1];
+    const d=prev? +(r.bw-prev.bw).toFixed(1) : null;
+    const txt=d==null?'':(d>0?`+${d}`:(d<0?`${d}`:'—'));
+    h+=`<tr><td class="w">${r.week.slice(5)}</td><td class="kg">${r.bw} kg</td><td class="d">${txt}</td></tr>`;
+  }
+  return h+'</table>';
+}
+function buildBW(){
+  const last=bwLast();
+  bwEl.innerHTML=`<span class="bwlab">Body weight</span>
+    <span class="wtwrap">
+      <input class="wtin" id="bwin" type="number" step="0.1" inputmode="decimal"
+             value="${esc(state.bw??'')}" placeholder="${last?esc(last.w):''}" aria-label="body weight">
+      <span class="unit">kg</span>
+    </span>
+    <details><summary>History</summary><div class="histbody">${bwHistHTML()}</div></details>`;
+}
+bwEl.addEventListener('input',e=>{
+  if(!e.target.closest('#bwin')) return;
+  state.bw=e.target.value;
+  save();
+});
+daysEl.addEventListener('click',e=>{
+  const tg=e.target.closest('[data-toggle]');
+  if(tg){
+    const el=daysEl.querySelector(`[data-day="${tg.dataset.toggle}"]`);
+    tg.setAttribute('aria-expanded', el.classList.toggle('open')?'true':'false');
+    return;
+  }
+  const dt=e.target.closest('[data-det]');
+  if(dt){
+    const item=dt.closest('.item');
+    const on=item.classList.toggle('det');
+    dt.setAttribute('aria-expanded',on?'true':'false');
+    return;
+  }
+  /* one press, every exercise in the pair — written individually, exactly as if
+     each box had been tapped in turn. Full → clears the pair; anything else →
+     completes it, so a half-done superset never needs two taps to finish. */
+  const gb=e.target.closest('[data-gcheck]');
+  if(gb){
+    const ids=gb.dataset.gcheck.split(',').filter(Boolean);
+    const v=!ids.every(id=>state.checks[id]);
+    for(const id of ids){
+      state.checks[id]=v;
+      const item=daysEl.querySelector(`[data-item="${id}"]`);
+      if(item) item.classList.toggle('on',v);
+    }
+    sync(Number(gb.closest('[data-day]').dataset.day));
+    save();
+    return;
+  }
+  const cb=e.target.closest('[data-check]');
+  if(cb){
+    const id=cb.dataset.check, v=!state.checks[id];
+    state.checks[id]=v;
+    cb.classList.toggle('on',v);
+    cb.setAttribute('aria-pressed',v?'true':'false');
+    cb.closest('.item').classList.toggle('on',v);
+    sync(Number(cb.closest('[data-day]').dataset.day));
+    save();
+  }
+});
+
+
+/* v61: this listener was collateral damage. v60 deleted the dead [data-mt]
+   branch by cutting from the top of the listener that contained it — but
+   [data-wt] shared that listener and went with it, so every weight typed after
+   v60 was held in the input and never written to state. Restored on its own.
+   The lesson is in the shape of the bug: a listener that handles two unrelated
+   things is one delete away from silently losing the other. */
+daysEl.addEventListener('input',e=>{
+  const w=e.target.closest('[data-wt]');
+  if(!w) return;
+  state.weights[w.dataset.wt]=w.value;
+  if(w.value!=='') autoTick(w,w.dataset.wt);
+  save();
+});
+
+/* v49: "clear checks" removed. It was labelled as a checkbox reset but also
+   wiped state.aero — a whole week of logged sessions — and left weights and
+   metrics behind, so the week afterwards held numbers that makeRecord would
+   silently drop at rollover. Nothing here needed a bulk eraser: a wrong tick is
+   one tap to undo, and a wrong week rolls off by itself. */
+/* ================= transfer =================
+   Everything here avoids three APIs that a sandboxed artifact iframe blocks
+   without a word: file downloads, the file picker, and window.alert/confirm.
+   v26 used all three, which is why the button looked broken — the handler ran
+   fine and then nothing happened. Text in a textarea always works. */
+const ioEl=document.getElementById('io');
+const expBtn=document.getElementById('export');
+const impBtn=document.getElementById('import');
+let ioMode=null;
+
+function ioMsg(html){ const el=ioEl.querySelector('[data-iomsg]'); if(el) el.innerHTML=html; }
+function ioClose(){
+  ioMode=null; ioEl.hidden=true; ioEl.innerHTML='';
+  expBtn.setAttribute('aria-expanded','false');
+  impBtn.setAttribute('aria-expanded','false');
+}
+function ioOpen(mode,title,body){
+  ioMode=mode; ioEl.hidden=false;
+  ioEl.innerHTML=`<div class="iohead"><span class="eyebrow">${title}</span>
+    <button class="link" data-ioclose type="button">Close</button></div>${body}`;
+  expBtn.setAttribute('aria-expanded', mode==='export'?'true':'false');
+  impBtn.setAttribute('aria-expanded', mode==='import'?'true':'false');
+  try{ ioEl.scrollIntoView({block:'nearest'}); }catch(e){}
+}
+
+async function buildDump(){
+  const dump={exported:new Date().toISOString(),app:'training-week-v52',current:state,history:{},daily:{}};
+  dump.phase=phase;                 /* v55: a program that survives export */
+  const idx=await store.get(HIDX);
+  for(const y of ((idx&&idx.years)||[])){ const sh=await store.get(HSHARD(y)); if(sh) dump.history[y]=sh; }
+  const d=now();
+  /* v62 FIX: 24 DISTINCT months. The old walk used setMonth on today's date, so
+     from the 31st it produced 14 unique keys and repeated the rest — an export
+     that quietly left months out of the user's only backup. */
+  for(let i=0;i<24;i++){
+    const mk=monthKeyBack(d,i), sh=await store.get(DSHARD(mk));
+    if(sh) dump.daily[mk]=sh;
+  }
+  return dump;
+}
+function countWeeks(dump){
+  let n=0; for(const y of Object.keys(dump.history||{})) n+=Object.keys(dump.history[y].weeks||{}).length;
+  return n;
+}
+function countDays(dump){
+  let n=0; for(const mk of Object.keys(dump.daily||{})) n+=Object.keys(dump.daily[mk].days||{}).length;
+  return n;
+}
+
+expBtn.addEventListener('click',async()=>{
+  if(ioMode==='export') return ioClose();
+  ioOpen('export','Export','<p class="iomsg" data-iomsg>Collecting…</p>');
+  let dump;
+  try{ dump=await buildDump(); }
+  catch(err){ ioMsg('Could not read the data. Try again.'); return; }
+  const txt=JSON.stringify(dump);
+  ioOpen('export','Export',
+    `<textarea class="iota" id="ioout" readonly>${esc(txt)}</textarea>
+     <div class="iorow">
+       <button class="btn" data-iocopy type="button">Copy all</button>
+       <button class="btn ghost" data-iodl type="button">Try download</button>
+     </div>
+     <p class="iomsg" data-iomsg><b>${countWeeks(dump)}</b> weeks · <b>${countDays(dump)}</b> days · ${(txt.length/1024).toFixed(1)} KB<br>Copy, paste into Notes, then open the new version and paste it back into import</p>`);
+});
+
+impBtn.addEventListener('click',()=>{
+  if(ioMode==='import') return ioClose();
+  ioOpen('import','Import',
+    `<textarea class="iota" id="ioin" placeholder="paste the copied JSON here" autocomplete="off" spellcheck="false"></textarea>
+     <div class="iorow"><button class="btn" data-iocheck type="button">Check</button></div>
+     <p class="iomsg" data-iomsg>History and the daily log are <b>merged</b>; nothing existing is dropped. The current week is overwritten.</p>`);
+  const ta=ioEl.querySelector('#ioin'); if(ta) ta.focus();
+});
+
+let pending=null;                      /* a parsed dump waiting for the second press */
+
+async function runImport(dump){
+  const years=new Set();
+  for(const y of Object.keys(dump.history||{})){
+    const inc=dump.history[y];
+    if(!inc||!inc.weeks) continue;
+    const cur=(await store.get(HSHARD(y)))||{v:1,weeks:{}};
+    cur.weeks=cur.weeks||{};
+    for(const wk of Object.keys(inc.weeks)) if(!cur.weeks[wk]) cur.weeks[wk]=inc.weeks[wk];
+    if(!(await store.set(HSHARD(y),cur))) throw new Error('write '+y);
+    years.add(Number(y));
+  }
+  if(years.size){
+    const idx=(await store.get(HIDX))||{years:[]};
+    /* v62 FIX: coerce, then sort NUMERICALLY.
+       The old line merged whatever was on disk with the new years and sorted with
+       the default comparator, which is lexicographic. A Set also treats '2026'
+       and 2026 as two members, so an index that already held a string kept both
+       — and both mapped to the same shard key, which is how loadHist ended up
+       reading one year twice. Normalise on the way in and the duplicate can
+       never be written in the first place. */
+    const old=(Array.isArray(idx.years)?idx.years:[]).map(Number).filter(Number.isFinite);
+    const merged=new Set([...old,...years]);
+    await store.set(HIDX,{years:[...merged].sort((a,b)=>a-b)});
+  }
+  for(const mk of Object.keys(dump.daily||{})){
+    const inc=dump.daily[mk];
+    if(!inc||!inc.days) continue;
+    const cur=(await store.get(DSHARD(mk)))||{v:1,days:{}};
+    cur.days=cur.days||{};
+    for(const dk of Object.keys(inc.days)) if(!cur.days[dk]) cur.days[dk]=inc.days[dk];
+    await store.set(DSHARD(mk),cur);
+  }
+  if(dump.current){ applyState(dump.current); await store.set(KEY,state); }
+  /* v55: only if the incoming dump actually carries one — a pre-v55 export has
+     no phase field, and treating a missing key as "not started" would silently
+     wipe a running program on the way in. */
+  if(dump.phase && dump.phase.wk){ phase={wk:dump.phase.wk, adj:Number(dump.phase.adj)||0}; await phaseSave(); }
+  await loadHist();
+  await rollIfStale();
+  dailyReady=null;                     /* next mount re-reads the month shards */
+  buildWeek();
+  buildAero();
+  if(curTab==='daily') await mountDaily();
+}
+
+ioEl.addEventListener('click',async e=>{
+  if(e.target.closest('[data-ioclose]')) return ioClose();
+
+  if(e.target.closest('[data-iocopy]')){
+    const ta=ioEl.querySelector('#ioout'); if(!ta) return;
+    ta.focus(); ta.select(); ta.setSelectionRange(0,ta.value.length);
+    let done=false;
+    try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(ta.value); done=true; } }catch(err){}
+    if(!done){ try{ done=document.execCommand('copy'); }catch(err){} }
+    ioMsg(done ? '<b>Copied</b> — paste it somewhere safe before opening a new version'
+               : 'Auto-copy blocked — <b>the text is already selected</b>, long-press and choose Copy');
+    return;
+  }
+
+  if(e.target.closest('[data-iodl]')){
+    /* still offered: it works when the artifact is opened in its own tab */
+    const ta=ioEl.querySelector('#ioout'); if(!ta) return;
+    try{
+      const blob=new Blob([ta.value],{type:'application/json'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=`training-export-${dayKeyOf(now())}.json`;
+      a.rel='noopener'; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+      ioMsg('If no file appears, downloads are blocked here — use Copy all instead');
+    }catch(err){ ioMsg('Download is blocked here — use Copy all instead'); }
+    return;
+  }
+
+  if(e.target.closest('[data-iocheck]')){
+    const ta=ioEl.querySelector('#ioin'); if(!ta) return;
+    const raw=(ta.value||'').trim();
+    if(!raw){ ioMsg('Nothing added'); return; }
+    let dump=null;
+    try{ dump=JSON.parse(raw); }catch(err){ ioMsg('Not readable — the pasted text is not complete JSON (partial copy?)'); return; }
+    if(!dump||typeof dump!=='object'||!String(dump.app||'').startsWith('training-')){
+      ioMsg('This is not an export from this app'); return;
+    }
+    pending=dump;
+    const btn=ioEl.querySelector('[data-iocheck]');
+    btn.outerHTML='<button class="btn warn" data-iogo type="button">Confirm import</button>';
+    ioMsg(`Found <b>${countWeeks(dump)}</b> weeks · <b>${countDays(dump)}</b> days · exported ${esc(String(dump.exported||'').slice(0,10))}<br>Confirm to merge into your current data.`);
+    return;
+  }
+
+  if(e.target.closest('[data-iogo]')){
+    if(!pending) return;
+    ioMsg('Importing…');
+    try{
+      await runImport(pending);
+      const n=countWeeks(pending);
+      pending=null;
+      ioEl.innerHTML=`<div class="iohead"><span class="eyebrow">Import</span>
+        <button class="link" data-ioclose type="button">Close</button></div>
+        <p class="iomsg" data-iomsg><b>Imported</b> · ${n} weeks</p>`;
+      /* the panel is now a receipt, not a form: release the toggle so pressing
+         import again opens a fresh paste box instead of closing the receipt */
+      ioMode=null;
+      impBtn.setAttribute('aria-expanded','false');
+    }catch(err){
+      /* v49: the old copy claimed nothing had been touched, which is not true
+         once the first shard has been written. Every merge here is additive and
+         never overwrites an existing week or day, so a partial import is safe to
+         re-run — that, not a false all-or-nothing promise, is what to tell the user. */
+      ioMsg('Import stopped partway — <b>nothing existing was overwritten</b>, but some weeks may not have arrived. Tap <b>Confirm import</b> again to finish.');
+    }
+    return;
+  }
+});
+
+/* ================= daily tab ================= */
+const habEl=document.getElementById('habits');
+function weekDayKeys(){
+  const start=new Date(weekStartOf(now())+'T12:00:00');
+  return Array.from({length:7},(_,i)=>{
+    const d=new Date(start.getTime()); d.setDate(d.getDate()+i);
+    return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+  });
+}
+function buildDaily(){
+  const keys=weekDayKeys(), td=dowOf(now());
+  habEl.innerHTML=DAILY.map(h=>{
+    const cells=keys.map((k,i)=>{
+      const on=(dayLog[k]||{})[h.id]?' on':'';
+      const cls=i===td?' today':(i>td?' future':'');
+      return `<div class="gcell${cls}"><span class="gdow">${DOW_TH[i]}</span>
+        <button class="gbox${on}" data-hab="${h.id}" data-day="${k}" aria-pressed="${on?'true':'false'}"
+          aria-label="${esc(h.name)} ${DOW_TH[i]}">${CHECK}</button></div>`;
+    }).join('');
+    /* v54: name, grid, today's fields, density. The dose line, the streak and the
+       Detail disclosure are gone — a daily habit is read as ticked-or-not, and
+       three lines of text around every card was the tab's whole scroll. */
+    return `<section class="hab">
+      <div class="habtop">
+        <span class="habname">${esc(h.name)}</span>
+        <span class="density">${densityOf(dayLog,h.id,now(),30)} / 30</span>
+      </div>
+      <div class="grid">${cells}</div>
+      ${fieldRow(h)}
+    </section>`;
+  }).join('');
+  document.getElementById('dailyno').innerHTML='';
+}
+/* v21: numbers are edited for TODAY only, below the grid.
+   Putting an editor behind every cell would turn a one-tap habit tracker into a
+   two-step one for all seven days × every habit. A habit log that gets more
+   expensive per tap is a habit log that stops being filled in. */
+function fieldRow(h){
+  if(!h.fields) return '';
+  const k=dayKeyOf(now()), row=dayLog[k]||{}, cur=(typeof row[h.id]==='object')?row[h.id]:{};
+  const inputs=h.fields.map(f=>{
+    if(f.type==='score'){
+      const btns=Array.from({length:f.max},(_,i)=>{
+        const v=i+1, on=cur[f.k]===v?' on':'';
+        return `<button class="sc${on}" data-score="${h.id}" data-fk="${f.k}" data-v="${v}"
+                  aria-pressed="${on?'true':'false'}">${v}</button>`;
+      }).join('');
+      /* v62: a <label> with no form control inside it, wrapping buttons. Clicking
+         a button inside a label fires the label's own activation behaviour too,
+         which is a second click waiting to happen; and the row is a group of
+         controls, not a caption for one. A div with the same class styles
+         identically. */
+      return `<div class="mt" role="group" aria-label="${esc(f.label)} ${esc(h.name)}">
+        <span class="mtlab">${esc(f.label)}</span>
+        <span class="scoreset">${btns}</span></div>`;
+    }
+    return `<label class="mt"><span class="mtlab">${esc(f.label)}</span>
+      <span class="mtbox">
+        <input class="wtin mtin" type="number" step="${f.step}" inputmode="decimal"
+               data-hf="${h.id}" data-fk="${f.k}" value="${esc(cur[f.k]??'')}"
+               aria-label="${esc(f.label)} ${esc(h.name)}">
+        <span class="unit">${esc(f.unit)}</span>
+      </span></label>`;
+  }).join('');
+  return `<div class="todayrow"><span class="todaylab">Today</span>${inputs}</div>`;
+}
+/* write one field onto today's row. Entering a number IS doing the habit, so it
+   ticks the box too — otherwise "15 min, unticked" is a state that means nothing. */
+function applyField(id,k,v){
+  const day=dayKeyOf(now());
+  const row=dayLog[day]||(dayLog[day]={});
+  const had=row[id];
+  const cur=(typeof had==='object')?had:{v:1};
+  if(v==null) delete cur[k]; else cur[k]=v;
+  const rest=Object.keys(cur).filter(x=>x!=='v');
+  if(rest.length)   row[id]=cur;   /* has numbers → object */
+  else if(had)      row[id]=1;     /* was already ticked → stays a plain tick */
+  else              delete row[id];/* typed then cleared, never ticked → nothing happened */
+  return day;
+}
+/* v35: the write is fire-and-forget. Tapping a quality number used to await a
+   storage round trip before the button could light up, which on a slow write
+   read as a dead control. The state is already correct in memory; persisting
+   it is not something the finger should have to wait for. */
+function setField(id,k,v){ saveDaily(applyField(id,k,v)); }
+habEl.addEventListener('click',e=>{
+  const s=e.target.closest('[data-score]');
+  if(s){
+    const id=s.dataset.score, k=s.dataset.fk, v=Number(s.dataset.v);
+    const day=dayKeyOf(now()), cur=(dayLog[day]||{})[id];
+    const had=(typeof cur==='object')&&cur[k]===v;
+    const dk=applyField(id,k,had?null:v);   /* tapping the lit number clears it */
+    buildDaily();
+    saveDaily(dk);
+    return;
+  }
+  const b=e.target.closest('[data-hab]');
+  if(!b) return;
+  const id=b.dataset.hab, day=b.dataset.day;
+  dayLog[day]=dayLog[day]||{};
+  if(dayLog[day][id]) delete dayLog[day][id]; else dayLog[day][id]=1;
+  buildDaily();
+  saveDaily(day);
+});
+/* v50: one timer per field, not one for the whole tab. A single shared timer
+   meant typing in Meditation's minutes and then moving to another number inside
+   300ms cancelled the first field's pending write and lost it — the value sat on
+   screen and was never stored. Keyed by habit+field, so two fields debounce
+   independently and neither can cancel the other. */
+const habTimers={};
+/* v62: the same pending write, reachable by flushWrites when the tab goes away
+   before the 300ms is up. One entry per field, cleared as soon as it has run. */
+const habFlush={};
+habEl.addEventListener('input',e=>{
+  const f=e.target.closest('[data-hf]');
+  if(!f) return;
+  const id=f.dataset.hf, k=f.dataset.fk, raw=f.value;
+  const tk=id+':'+k;
+  clearTimeout(habTimers[tk]);
+  const run=()=>{
+    delete habTimers[tk]; delete habFlush[tk];
+    setField(id,k, raw===''?null:Number(raw));
+    const box=habEl.querySelector(`[data-hab="${id}"][data-day="${dayKeyOf(now())}"]`);
+    if(box && raw!==''){ box.classList.add('on'); box.setAttribute('aria-pressed','true'); }
+  };
+  habFlush[tk]=run;
+  habTimers[tk]=setTimeout(run,300);
+});
+
+/* ================= aerobic tab ================= */
+const aeroEl=document.getElementById('aero');
+let aeroUid=0;
+const newSid = () => 'a'+Date.now().toString(36)+(aeroUid++).toString(36);
+
+/* v54: aeroDerived() is gone. It built a per-session line — speed, split, MET,
+   MET-min — and then wrote it into a [data-ad] node that aeroSessHTML has never
+   rendered, so no user has ever seen it. The week TOTAL is the number this tab
+   is about; a per-session score invites optimising the session instead. */
+/* v55: the ladder is only useful if it reaches the field you are about to type
+   into. The incline card's Speed and Incline placeholders come from the current
+   phase, so "+ Incline walk" already shows 12 and 5.4 and the table never has to
+   be opened to find them. */
+function fieldPh(t,x){
+  if(t==='incline' && phaseOn()){
+    const P=phaseCur();
+    if(x.k==='grade') return String(P.grade);
+    /* v62: f1, so the placeholder reads 5.0 like the rung above it does. String()
+       printed 5, and a placeholder that disagrees with the table it was copied
+       from is a placeholder you check twice. */
+    if(x.k==='kmh')   return f1(P.lo);
+  }
+  return x.ph??'';
+}
+function aeroFieldsHTML(e){
+  const cfg=AEROT[e.t];
+  const f=cfg.fields.map(x=>`<label class="mt"><span class="mtlab">${esc(x.label)}</span>
+    <span class="mtbox">
+      <input class="wtin mtin" type="number" step="${x.step}" inputmode="decimal"
+             data-af="${e.s}" data-fk="${x.k}" value="${esc(e[x.k]??'')}" placeholder="${esc(fieldPh(e.t,x))}"
+             aria-label="${esc(x.label)} ${esc(cfg.label)}">
+      <span class="unit">${esc(x.unit)}</span>
+    </span></label>`).join('');
+  return `<div class="mtwrap">${f}</div>`;
+}
+function aeroSessHTML(e){
+  const cfg=AEROT[e.t]; if(!cfg) return '';
+  const opts=DOW_FULL.map((nm,i)=>`<option value="${i}"${i===e.d?' selected':''}>${nm.slice(0,3)}</option>`).join('');
+  return `<div class="arow first">
+    <div class="arh">
+      <span class="adot"></span>
+      <span class="aname">${esc(cfg.label)}</span>
+      <select class="adaysel" data-aday="${e.s}" aria-label="day for ${esc(cfg.label)}">${opts}</select>
+      <button class="ax" data-adel="${e.s}" aria-label="remove ${esc(cfg.label)}">×</button>
+    </div>${aeroFieldsHTML(e)}</div>`;
+}
+/* v53: the week is no longer a seven-row scaffold with an add pill on every day.
+   Six of those rows were always empty, and the pills asked which day before the
+   user had said what. The list now shows only days that HAPPENED, and the four
+   session types sit in one bar at the bottom — the thing you reach for after
+   training, where a thumb already is. A new session lands on today and can be
+   moved with the day select on its own row. */
+/* ---- v55: the card that replaced the printed cheat sheet ----
+   One line is always visible: the grade and speed for today. Everything else —
+   the other three rungs, the five session shapes — sits behind ONE fold. Two
+   folds side by side made the reader choose which to open before knowing what
+   was in either, and the answer was almost always both: the rung sets the
+   numbers the session shapes are written around. The MET range is computed, never stored. */
+/* v62: speedMet returns null for a non-positive speed, and f1 would have thrown
+   on it. No rung in PHASES can trigger that today — this is a guard on the
+   equation's own contract, so editing a rung to 0 shows a dash instead of
+   blanking the whole Aerobic tab with a TypeError. */
+function metRange(P){
+  const a=speedMet(P.lo,P.grade), b=speedMet(P.hi,P.grade);
+  if(a==null||b==null) return '—';
+  return a===b ? `~${f1(a)}` : `~${f1(a)}–${f1(b)}`;
+}
+const f1=v=>(v==null?'—':Number(v).toFixed(1));
+function kmhRange(P){ return P.lo===P.hi ? f1(P.lo) : `${f1(P.lo)}–${f1(P.hi)}`; }
+function ladderHTML(){
+  const cur=phaseIdx(), on=phaseOn();
+  let h='<table class="ph l">';
+  PHASES.forEach((P,i)=>{
+    const when = P.need==null ? 'ต่อไป' : (i===PHASES.length-2 ? `wk ${P.need+1}+` :
+                 `wk ${P.need+1}–${PHASES[i+1].need}`);
+    h+=`<tr class="${on&&i===cur?'now':''}">
+      <td class="w">${when}</td>
+      <td class="g"><b>${P.grade}%</b></td>
+      <td class="s">${kmhRange(P)}</td>
+      <td class="m">${metRange(P)} MET</td>
+      <td class="n">${P.min}</td></tr>`;
+  });
+  return h+`</table><p class="histcap">เปลี่ยนทีละตัวแปร · ลำดับ ${PHASE_ORDER}</p>
+    <p class="phsub">เมนู session</p>`;
+}
+function menuHTML(){
+  const rows=SESSIONS.map(S=>`<div class="ms">
+    <div class="msh">
+      <span class="mk ${S.kind}">${S.k}</span>
+      <span class="mn">${esc(S.name)}</span>
+      <span class="md">${esc(S.day)}${S.alt?' · สลับ':''}${S.every?' · '+esc(S.every):''}</span>
+      <span class="mm">${S.min}′</span>
+    </div>
+    <div class="mb">${S.s}${S.rows?' <span class="mr">· ลง 2 แถว</span>':''}</div>
+  </div>`).join('');
+  return rows+`<p class="histcap">${SESS_FUEL}</p>
+    <p class="histcap">B · C · E ผสมสองแบบในเซสชันเดียว — ลงเป็นสองแถวในหน้านี้ คนละความหนักจึงคนละ MET</p>`;
+}
+/* the head is split from the folds on purpose: it is redrawn on every keystroke
+   (a minute typed can earn the week and move the rung) and replacing the whole
+   card would snap an open <details> shut under the user's thumb. */
+function phaseTopHTML(){
+  if(!phaseOn()) return `<div class="phrow"><span class="aplab">Incline ladder</span></div>
+    <p class="anone">ยังไม่ได้เริ่มโปรแกรม — กดเริ่มแล้วเฟสจะเลื่อนเองตามสัปดาห์ที่มีเดินชันจริง</p>
+    <div class="phmeta"><span></span><span class="phbtns"><button class="apill" data-phstart>เริ่มโปรแกรมสัปดาห์นี้</button></span></div>`;
+  const P=phaseCur(), e=phaseEarned(), i=phaseIdx(), a=phaseAuto(e);
+  const drift = i>a ? ` · เลื่อนเอง +${i-a}` : i<a ? ` · ถอยเอง ${i-a}` : '';
+  return `<div class="phrow">
+      <span class="aplab">Phase ${P.lab}</span>
+      <span class="apval">${P.grade}% · ${kmhRange(P)}</span>
+    </div>
+    <div class="apsub">${metRange(P)} MET · ${P.min} · ${P.note}</div>
+    <div class="phmeta">
+      <span>${e} สัปดาห์ที่มีเดินชัน${drift}</span>
+      <span class="phbtns">
+        <button class="apill" data-phadj="-1" aria-label="ถอยหนึ่งเฟส">−</button>
+        <button class="apill" data-phadj="1" aria-label="เลื่อนหนึ่งเฟส">+</button>
+      </span>
+    </div>`;
+}
+function phaseHTML(){
+  return `<section class="atot phcard">
+    <div class="phtop">${phaseTopHTML()}</div>
+    <details><summary>ตารางเต็ม</summary><div class="histbody">${ladderHTML()}${menuHTML()}</div></details>
+  </section>`;
+}
+function buildAero(){
+  const td=dowOf(now());
+  /* v53: one SESSION, one card. The day heading said what the day select on the
+     session's own row already says, and a day is not the unit here — two rows
+     under one "Thursday" read as one thing that happened twice. */
+  /* v62: filter BEFORE wrapping. aeroSessHTML already returned '' for a type it
+     did not recognise, but the <section> around it was written unconditionally,
+     so an unknown `t` — from an old export, or a type retired later — painted an
+     empty card with no name, no fields and no way to delete it. */
+  const parts=(state.aero||[]).slice()
+    .filter(e=>e&&AEROT[e.t])
+    .sort((a,b)=>(a.d??0)-(b.d??0))
+    .map(e=>`<section class="aday${e.d===td?' today':''}">${aeroSessHTML(e)}</section>`);
+  const empty=parts.length?'':'<p class="anone">ยังไม่มี session สัปดาห์นี้ — กดปุ่มด้านล่างเพื่อเพิ่ม</p>';
+  const add=AERO.map(a=>`<button class="aaddbtn" data-aadd="${a.t}">+ ${esc(a.label)}</button>`).join('');
+  aeroEl.innerHTML=`
+    ${phaseHTML()}
+    <section class="atot" id="aprog">${aeroProgHTML()}</section>
+    ${empty}${parts.join('')}
+    <div class="aaddbar">${add}</div>`;
+  document.getElementById('aerono').innerHTML =
+    state.deload ? 'deload · easy work only, ~50–60% of usual · no 4×4' : '';
+}
+/* progression strip. The bar is scaled so the peak sits well inside it — a week
+   that goes past the previous best should look like it went past, not like it
+   merely filled a bar. Uncoloured logic: no red above the line, no green below
+   it. The +10% mark is a hint, not a limit, and a deload week is meant to be
+   short. */
+/* v60: one bar. Minutes are measured against the archive's own peak — the
+   10%-per-week ratchet — and the tick is a mark, never a verdict. */
+function aeroProgHTML(){
+  const t=aeroTotals(aeroNow());
+  const pk=aeroPeak(histRecs);
+  const bar=(cur,ref,scale,soft)=>{
+    const w=Math.max(cur?1.5:0, Math.min(100, cur/scale*100));
+    return `<span class="apfill" style="width:${w.toFixed(1)}%"></span>
+      <span class="aptick" style="left:${Math.min(100,ref/scale*100).toFixed(1)}%"></span>
+      <span class="aptick soft" style="left:${Math.min(100,soft/scale*100).toFixed(1)}%"></span>`;
+  };
+  const pctMin=Math.round(t.min/pk.min*100);
+  const sMin=Math.max(pk.min*1.35, t.min||0, 1);
+  return `<div class="apblk">
+      <div class="aprow"><span class="aplab">Weekly minutes</span><span class="apval">${pctMin}%</span></div>
+      <div class="apbar" role="img" aria-label="${t.min} of ${pk.min} minutes, ${pctMin}%">
+        ${bar(t.min,pk.min,sMin,pk.min*1.1)}
+      </div>
+      <div class="apsub"><b>${t.min}</b> / ${pk.min} min</div>
+    </div>
+    <div class="apsubrow">
+      <details><summary>History</summary><div class="histbody">${aeroHistHTML()}</div></details>
+    </div>`;
+}
+/* redraw everything derived from the week aerobic total.
+   v51: the .atotline branch and aeroTotText() are gone — there has been no
+   .atotline element since the progression strip replaced the totals card, so
+   half of this function was querying for a node that could not exist. */
+function aeroRefreshTot(){
+  const pg=document.getElementById('aprog');
+  if(pg) pg.innerHTML=aeroProgHTML();
+  /* v55: typing the first minute into an incline card can earn the week, which
+     can move the ladder. The phase card is derived from the same numbers, so it
+     is redrawn by the same call rather than waiting for the next full build. */
+  const ph=aeroEl.querySelector('.phtop');
+  if(ph) ph.innerHTML=phaseTopHTML();
+}
+/* no green, no red. Volume that went down in a deload week is not a loss, and a
+   tracker that grades weekly minutes gets read as a verdict — same reasoning
+   that keeps the body-weight delta uncoloured. */
+function aeroHistHTML(){
+  const rows=[];
+  for(const r of histRecs){ rows.push({week:r.week,t:aeroTotals(aeroList(r)),dl:!!r.dl}); if(rows.length>=8) break; }
+  if(!rows.length) return '<p class="histcap">No history yet — the first row lands when the week rolls over</p>';
+  let h='<p class="histcap">Weekly totals · uncoloured on purpose: a lighter deload week is not a loss</p><table class="h m">';
+  for(const r of rows){
+    const t=r.t;
+    const cell=t.n?`${t.n} sess · ${t.min} min`:'—';
+    h+=`<tr><td class="w">${r.week.slice(5)}</td><td class="kg">${cell}</td><td class="d">${r.dl?'deload':''}</td></tr>`;
+  }
+  return h+'</table>';
+}
+/* v55: start / nudge. The ladder redraws too, because `now` moves with the rung.
+   phaseSave writes its own key — nothing here touches the weekly state. */
+aeroEl.addEventListener('click',async e=>{
+  const st=e.target.closest('[data-phstart]');
+  if(st){
+    phase={wk:weekKeyOf(new Date(state.weekStart+'T12:00:00')), adj:0};
+    await phaseSave(); buildAero(); return;
+  }
+  const adj=e.target.closest('[data-phadj]');
+  if(adj && phaseOn()){
+    const want=phaseIdx()+Number(adj.dataset.phadj);
+    if(want>=0 && want<PHASES.length){ phase.adj=(phase.adj||0)+Number(adj.dataset.phadj); await phaseSave(); }
+    const c=aeroEl.querySelector('.phcard'); if(c) c.outerHTML=phaseHTML();
+    return;
+  }
+});
+aeroEl.addEventListener('click',e=>{
+  const add=e.target.closest('[data-aadd]');
+  if(add){
+    state.aero=state.aero||[];
+    state.aero.push({s:newSid(),d:dowOf(now()),t:add.dataset.aadd});
+    save(); buildAero(); return;
+  }
+  const del=e.target.closest('[data-adel]');
+  if(del){
+    state.aero=(state.aero||[]).filter(x=>x.s!==del.dataset.adel);
+    save(); buildAero(); return;
+  }
+});
+aeroEl.addEventListener('change',e=>{
+  const sel=e.target.closest('[data-aday]');
+  if(!sel) return;
+  const ent=(state.aero||[]).find(x=>x.s===sel.dataset.aday);
+  if(!ent) return;
+  ent.d=Number(sel.value);
+  save(); buildAero();
+});
+/* v54: the same debounce the habit tab got in v50. This listener called save()
+   on every keystroke, so typing "5000" into a rowing distance wrote the whole
+   blob four times — and wrote "5", "50" and "500" as real weeks in between. */
+let aeroTimer=null;
+function saveAeroSoon(){ clearTimeout(aeroTimer); aeroTimer=setTimeout(()=>{aeroTimer=null;save();},300); }
+aeroEl.addEventListener('input',e=>{
+  const f=e.target.closest('[data-af]');
+  if(!f) return;
+  const ent=(state.aero||[]).find(x=>x.s===f.dataset.af);
+  if(!ent) return;
+  if(f.value==='') delete ent[f.dataset.fk]; else ent[f.dataset.fk]=f.value;
+  aeroRefreshTot();
+  saveAeroSoon();
+});
+
+/* ================= deload week =================
+   Read-only. No checks, no numbers, no storage key of its own.
+   A deload week is still logged on the Exercises tab — tick the item, leave the
+   kg box empty, and it archives as {done:1}, the "did it, logged nothing" state
+   the model already has. That keeps a light week out of the delta maths instead
+   of printing it as a loss, and it avoids a second set of weekly state with its
+   own rollover, which is the double-archive path the invariants warn about. */
+const DELOAD_PRINCIPLES=[
+ {h:'Weights',t:'<b>ลดเซ็ตลง 40–50% · น้ำหนักเท่าเดิม</b> — ความล้าลดตามปริมาณ แต่ความแข็งแรงเสียไปกับน้ำหนักที่ลด ตัดเซ็ตก่อนเสมอ (RDL เป็นข้อยกเว้น ดูวันพฤหัส)'},
+ {h:'What to cut',t:'ตัด<b>ท่าที่ทำให้ปวดกล้ามเนื้อมากที่สุด</b>ก่อน (Nordic curl, Bulgarian split squat) ไม่ใช่ตัดท่าที่ทำง่าย จุดประสงค์คือให้เนื้อเยื่อได้ซ่อม'},
+ {h:'Cardio',t:'<b>ตัดงานหนักออกทั้งหมด</b> (4×4) เก็บงานเบาไว้ที่ ~50–60% ของ<b>ยอดนาทีรวม</b>ในแท็บ Aerobic — ฐานแอโรบิกหายช้ามาก ไม่ต้องกลัวเสียของ · ยอดที่ลดในสัปดาห์นี้ไม่ถูกทำเครื่องหมายว่าถดถอย'},
+ {h:'When',t:'ทุก 4–6 สัปดาห์ หรือเมื่อ<b>น้ำหนักไม่ขึ้น 2 สัปดาห์ติด · นอนไม่ดี · ชีพจรตอนเช้าสูงกว่าปกติ · ไม่อยากซ้อม</b> — สัญญาณมาก่อนตารางเสมอ'},
+ {h:'Watch for',t:'ใช้สัปดาห์ deload ไป<b>ไล่ตามงานที่ค้าง</b>จนกลายเป็นสัปดาห์ปกติที่กระจัดกระจาย · หรือหยุดสนิททั้งสัปดาห์จนกลับมาแล้วฟอร์มพัง — deload คือลดปริมาณ ไม่ใช่หยุด'}
+];
+/* Derived from PLAN, never a second copy of it: an exercise added to PLAN without
+   a rule here shows up with the strength default, and the test asserts every id
+   is either ruled or explicitly defaulted. Two hand-written lists would drift,
+   and the drift would only surface on a deload week — the worst time to find it. */
+const DELOAD_DEFAULT='2 sets · same load';
+/* v54: f1, m2 and u1 are deleted. They were rules for ids that left PLAN when
+   v53 moved cardio to the Aerobic tab, so they matched nothing and did nothing.
+   The test the comment above describes only walks PLAN → rules; it never walked
+   rules → PLAN, which is why three dead entries survived two versions.
+   NOTE the namespace: these keys are PLAN ids. 'x4' here would mean the
+   Isometric Neck exercise, NOT the 4×4 — that lives in AERO under `t`. The
+   4×4's deload rule is the line in DELOAD_PRINCIPLES, not a key here. */
+const DELOAD_RULES={
+  m1:{skip:'cut — jumping is impact, the opposite of a repair week'},
+  t2:{skip:'cut — the biggest muscle-damage driver here'},
+  h2:{skip:'cut — sore easily, eats the next day'},
+  e6:{skip:'cut — slow eccentric, as sore as the Bulgarian'},
+  h1:{dose:'2 × 8 · <b>−20% load</b>',tag:'lighter'},
+  e1:{dose:'2 sets · <b>bodyweight</b>, no load',tag:'lighter'},
+  h4:{dose:'2 sets · <b>more assist</b>',tag:'more assist'},
+  t8:{dose:'8–10s hold · 4→2 /side'},
+  /* v58: the warm-up is the one thing a repair week must not lose — it is the
+     part that protects the session, not the part that taxes it. Only the pogo
+     hops come out, for the same reason the bounds do. */
+  wu1:{dose:'10 นาที · <b>ข้าม pogo hop</b>'},
+  wu2:{dose:'10 นาที · <b>ข้าม pogo hop</b>'},
+  wu3:{dose:'10 นาที · <b>ข้าม pogo hop</b>'},
+  t3:{skip:'cut — maximal-intent rotation, same reason as the bounds'},
+  /* v59: CAT is speed work. A repair week has nothing to potentiate. */
+  c1:{skip:'cut — maximal-intent speed work, nothing to potentiate this week'},
+  c2:{skip:'cut — maximal-intent speed work, nothing to potentiate this week'},
+  h5:{dose:'2 เที่ยว · <b>−30% load</b>',tag:'lighter'}
+};
+/* what this item becomes in a deload week */
+function deloadOf(it){
+  const r=DELOAD_RULES[it.id];
+  if(r&&r.skip) return {skip:1,why:r.skip,alt:r.alt||null};
+  if(r&&r.dose) return {dose:r.dose,tag:r.tag||''};
+  return {dose:DELOAD_DEFAULT};
+}
+/* collapsed by default: the principles are worth re-reading on the day you flip
+   the switch, and worth staying out of the way on the other six */
+function deloadIntroHTML(){
+  const intro=DELOAD_PRINCIPLES.map(p=>
+    `<div class="pr"><span class="prh">${esc(p.h)}</span><p class="prt">${p.t}</p></div>`).join('');
+  return `<details class="prbox"><summary>Deload principles</summary>${intro}</details>`;
+}
+document.getElementById('dltoggle').addEventListener('click',()=>{
+  state.deload=!state.deload;
+  save();
+  buildWeek();
+  buildAero();
+});
+
+/* ================= tabs ================= */
+/* v20: the daily log is two round trips that the week tab never needs, so it is
+   read on first mount instead of at boot. The promise is memoised, so a fast
+   double-tap on the tab cannot start two reads and race them into dayLog. */
+let dailyReady=null;
+async function mountDaily(){
+  if(!dailyReady){ perf.mark('daily:load-start'); dailyReady=loadDaily().then(()=>perf.mark('daily:load-done')); }
+  await dailyReady;
+  buildDaily();
+}
+const TABS=[
+  {id:'week',  label:'Resistance', pane:'pane-week',  mount:buildWeek},
+  {id:'aero',  label:'Aerobic',   pane:'pane-aero',  mount:buildAero},
+  {id:'daily', label:'Routines',  pane:'pane-daily', mount:mountDaily}
+];
+const tabsEl=document.getElementById('tabs');
+tabsEl.innerHTML=TABS.map(t=>
+  /* v62: the panes carry role=tabpanel and point back here with
+     aria-labelledby, so each tab needs a stable id to be pointed at. */
+  `<button class="tab" role="tab" id="tab-${t.id}" data-tab="${t.id}" aria-selected="false" aria-controls="${t.pane}"><span class="tl">${t.label}</span></button>`
+).join('');
+let curTab='week';
+function showTab(id){
+  const t=TABS.find(x=>x.id===id)||TABS[0];
+  curTab=t.id;
+  for(const x of TABS){
+    document.getElementById(x.pane).classList.toggle('on',x.id===t.id);
+    tabsEl.querySelector(`[data-tab="${x.id}"]`).setAttribute('aria-selected',x.id===t.id?'true':'false');
+  }
+  t.mount();
+  store.mirrorSet(UITAB,{id:t.id});   /* sync: read back at parse time next boot */
+  store.set(UITAB,{id:t.id});
+}
+tabsEl.addEventListener('click',e=>{
+  const b=e.target.closest('[data-tab]'); if(b) showTab(b.dataset.tab);
+});
+
+/* ================= init ================= */
+/* v20 boot shape. v19 was six round trips in a chain and nothing painted until
+   the last one landed, because showTab is what makes a .pane visible.
+     wave 1  KEY + HIDX          (parallel)
+     wave 2  history shards      (parallel, usually one)
+     paint
+   UITAB is gone from the path entirely — read synchronously from the mirror.
+   loadDaily is gone too — it happens on first mount of the Routines tab.
+   The rollover still runs BEFORE the paint. It can blank the week, so painting
+   first would mean painting a week the archive is about to take away. */
+(async function init(){
+  const tab=(store.mirrorGet(UITAB)||{}).id||'week';   /* sync, 0 round trips */
+  perf.mark('init-start');
+  const [s,idx,ph]=await Promise.all([store.get(KEY),store.get(HIDX),store.get(PKEY)]);
+  perf.mark('wave1');
+  applyState(s);
+  phase = (ph&&ph.wk) ? {wk:ph.wk, adj:Number(ph.adj)||0} : null;
+  await loadHist(idx);
+  perf.mark('wave2');
+  await rollIfStale();
+  perf.mark('roll');
+  showTab(tab);
+  perf.mark('painted');
+  document.body.dataset.ready='1';
+  if(location.search.includes('perf')) perf.dump();
+})();
+
+/* ---- the app outlives the day it was opened on ----
+   v22 rolled the week only at boot. Left open overnight it kept yesterday's
+   `today` marker, and left open across Sunday→Monday it kept a week that should
+   already be archived — with the next tick landing in the wrong week. */
+let lastDay=dayKeyOf(now());
+let rollBusy=false;
+document.addEventListener('visibilitychange',async()=>{
+  /* v54: a debounced write must never be outlived by the tab. Backgrounding the
+     app 100ms after the last keystroke would otherwise drop it.
+     v62: flushWrites actually issues them; save() only rescheduled. */
+  if(document.hidden){ flushWrites(); return; }
+  if(document.body.dataset.ready!=='1'||rollBusy) return;
+  const dk=dayKeyOf(now());
+  if(dk===lastDay && !isStale(state.weekStart,now())) return;
+  lastDay=dk;
+  rollBusy=true;
+  try{
+    await rollIfStale();
+    buildWeek();
+    buildAero();
+    if(dailyReady){ await dailyReady; buildDaily(); }
+  } finally { rollBusy=false; }
+});
+/* v62: visibilitychange does not fire on every teardown — a swipe-away or a
+   memory kill on iOS can go straight to pagehide. Same flush, both doors. */
+window.addEventListener('pagehide',flushWrites);
+</script>
+</body>
+</html>
