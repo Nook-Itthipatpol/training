@@ -354,9 +354,9 @@ async function suiteAero() {
     eq(t.win.eval('phase'), null, 'not started');
     t.doc.querySelector('[data-phstart]').click(); await tick(60);
     eq(t.win.eval('phaseIdx()'), 0, 'starts at rung 0');
-    for (let i = 0; i < 8; i++) { const b = t.doc.querySelector('[data-phadj="1"]'); if (b) b.click(); await tick(30); }
-    eq(t.win.eval('phaseIdx()'), 3, 'clamps at the top');
-    for (let i = 0; i < 8; i++) { const b = t.doc.querySelector('[data-phadj="-1"]'); if (b) b.click(); await tick(30); }
+    for (let i = 0; i < 20; i++) { const b = t.doc.querySelector('[data-phadj="1"]'); if (b) b.click(); await tick(30); }
+    eq(t.win.eval('phaseIdx()'), 15, 'clamps at the top');
+    for (let i = 0; i < 20; i++) { const b = t.doc.querySelector('[data-phadj="-1"]'); if (b) b.click(); await tick(30); }
     eq(t.win.eval('phaseIdx()'), 0, 'clamps at the bottom');
     eq(t.errors, [], 'errors');
     t.close();
@@ -367,7 +367,7 @@ async function suiteAero() {
     t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
     t.doc.querySelector('[data-phstart]').click(); await tick(60);
     t.doc.querySelector('[data-aadd="incline"]').click(); await tick(40);
-    eq(t.doc.querySelector('[data-af][data-fk="grade"]').placeholder, '8', 'grade');
+    eq(t.doc.querySelector('[data-af][data-fk="grade"]').placeholder, '6', 'grade');
     eq(t.doc.querySelector('[data-af][data-fk="kmh"]').placeholder, '5.0', 'speed matches the ladder');
     t.close();
   });

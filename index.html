@@ -1025,36 +1025,50 @@ const AEROT={}; for(const a of AERO) AEROT[a.t]=a;
    adapt during a week off. Counting calendar weeks would walk a deload week, a
    week with flu and a week of travel straight up to 12%.
 
-   The last rung has no week threshold on purpose. Going past 5.8 km/h at 12% is
-   a judgement about whether the walk is still a walk, so it is reached only by
-   pressing +, never by arriving. */
+   The last rung before the vest step has no upper week threshold on purpose —
+   it is reached at week 15 and held there, just like the vest step above it, so
+   that arriving at the machine's grade ceiling is not itself the thing that
+   asks for a vest. The vest step is reached only by pressing +, never by
+   arriving. */
 const PHASES=[
-  {lab:'1',  need:0, grade:8,  lo:5.0, hi:5.4, min:'45–55 นาที',
+  {lab:'1',  need:0,  grade:6,  lo:5.0, hi:5.0, min:'30 นาที',
    note:'ไม่เกิน 3 ครั้ง/สัปดาห์ · ให้ tendon ปรับตัว'},
-  {lab:'2',  need:3, grade:10, lo:5.4, hi:5.4, min:'60–70 นาที',
-   note:'ยืด duration ก่อน ค่อยขยับชัน'},
-  {lab:'3',  need:7, grade:12, lo:5.4, hi:5.8, min:'60–75 นาที',
-   note:'ถึงเพดานเครื่อง · เริ่มใส่ 4×4 ได้'},
-  {lab:'4',  need:null, grade:12, lo:6.0, hi:6.4, min:'60–75 นาที',
-   note:'แล้วค่อย + vest 5 kg · <b>ห้ามเร่งจนต้องวิ่ง</b>'}
+  {lab:'2',  need:1,  grade:6,  lo:5.0, hi:5.0, min:'33 นาที'},
+  {lab:'3',  need:2,  grade:7,  lo:5.0, hi:5.0, min:'33 นาที'},
+  {lab:'4',  need:3,  grade:7,  lo:5.0, hi:5.0, min:'36 นาที'},
+  {lab:'5',  need:4,  grade:8,  lo:5.0, hi:5.0, min:'36 นาที'},
+  {lab:'6',  need:5,  grade:8,  lo:5.2, hi:5.2, min:'40 นาที'},
+  {lab:'7',  need:6,  grade:9,  lo:5.2, hi:5.2, min:'40 นาที'},
+  {lab:'8',  need:7,  grade:9,  lo:5.2, hi:5.2, min:'43 นาที'},
+  {lab:'9',  need:8,  grade:10, lo:5.2, hi:5.2, min:'43 นาที',
+   note:'เริ่มใส่ 4×4 ได้ (ทุก 1–2 สัปดาห์)'},
+  {lab:'10', need:9,  grade:10, lo:5.4, hi:5.4, min:'46 นาที'},
+  {lab:'11', need:10, grade:11, lo:5.4, hi:5.4, min:'46 นาที'},
+  {lab:'12', need:11, grade:11, lo:5.4, hi:5.4, min:'50 นาที'},
+  {lab:'13', need:12, grade:12, lo:5.6, hi:5.6, min:'50 นาที'},
+  {lab:'14', need:13, grade:12, lo:5.6, hi:5.6, min:'55 นาที'},
+  {lab:'15+',need:14, grade:12, lo:6.0, hi:6.4, min:'55 นาที',
+   note:'ถึงเพดานเครื่อง · เร่งความเร็วต่อ <b>ห้ามเร่งจนต้องวิ่ง</b>'},
+  {lab:'vest',need:null, grade:12, lo:6.0, hi:6.4, min:'55 นาที',
+   note:'+ vest 5 kg เมื่อ 6.0–6.4 km/h นิ่งแล้ว'}
 ];
-const PHASE_ORDER='duration → grade → speed → vest';   /* เปลี่ยนทีละตัวแปร */
+const PHASE_ORDER='grade +1% ทุก 2 สัปดาห์ (peak strain) · duration +10%/สัปดาห์ (volume)';
 
 /* the weekly menu. Structure only — the grade and speed for "เดินชัน" come from
    the phase above, which is why they are not written into these strings. The
-   three that are written in (E 8–10%, C 12%/8%, F 12%) are the ones that
-   deliberately depart from the current phase. */
+   ones that are written in (E's run, C's rows and cooldown walk, F's interval
+   and rest) are the parts that deliberately depart from the current phase. */
 const SESSIONS=[
-  {k:'A',day:'อังคาร',name:'เดินล้วน',   min:'50–60',kind:'z2',
-   s:'เดิน 5% <b>8′</b> → เดินชัน <b>45′</b> → cool <b>5′</b>'},
-  {k:'B',day:'พฤหัส', name:'Hybrid',     min:'70–75',kind:'z2',rows:2,
-   s:'เดิน 5% <b>10′</b> → row r18–20 <b>22′</b> → เดินชัน <b>38′</b> → cool <b>5′</b>'},
-  {k:'E',day:'เสาร์', name:'Run + walk', min:'75–85',kind:'z2',rows:2,alt:1,
-   s:'วิ่ง easy นอกบ้าน flat <b>30–40′</b> → เดินชัน 8–10% <b>35–40′</b>'},
-  {k:'C',day:'เสาร์', name:'Long hybrid',min:'85–95',kind:'z2',rows:2,alt:1,
-   s:'เดิน 5% <b>10′</b> → row <b>25′</b> → เดิน 12% <b>30′</b> → row <b>10′</b> → เดิน 8% <b>15′</b>'},
-  {k:'F',day:'เสาร์', name:'4×4 ลู่ชัน', min:'45–50',kind:'hard',alt:1,every:'ทุก 10–14 วัน',
-   s:'warm-up <b>12′</b> → <b>4×</b> [12% ที่ 6.4–7.0 <b>4′</b> · พัก 5% ช้า <b>3′</b>] → cool <b>8′</b>'}
+  {k:'A',day:'อังคาร',name:'เดินล้วน',kind:'z2',
+   s:'เดินชัน — ตามตารางสัปดาห์ปัจจุบัน'},
+  {k:'B',day:'พฤหัส', name:'Hybrid',     kind:'z2',rows:2,
+   s:'Row <b>22′</b> → เดินชัน — ตามตารางสัปดาห์ปัจจุบัน'},
+  {k:'E',day:'เสาร์', name:'Run',        kind:'z2',rows:2,alt:1,
+   s:'วิ่ง easy นอกบ้าน flat <b>30–40′</b> → เดินชัน — ตามตารางสัปดาห์ปัจจุบัน'},
+  {k:'C',day:'เสาร์', name:'Row',        kind:'z2',rows:2,alt:1,
+   s:'Row <b>25′</b> → เดินชัน — ตามตารางสัปดาห์ปัจจุบัน → Row <b>10′</b> → เดิน 6% <b>15′</b>'},
+  {k:'F',day:'เสาร์', name:'4×4 ลู่ชัน', kind:'hard',alt:1,every:'ทุก 1–2 สัปดาห์ · ไม่ทำก่อน wk 9',
+   s:'<b>4×</b> [grade ปัจจุบัน ที่ 6.4–7.0 km/h <b>4′</b> · พักเดิน 4% <b>3′</b>]'}
 ];
 const SESS_FUEL='ทุก session: น้ำ 450–500 ml + กล้วยก่อนออก · <b>A/B งดคาเฟอีน</b> · C เติม whey 20 g · <b>F ห้าม fasted</b>';
 
@@ -2325,7 +2339,7 @@ function aeroSessHTML(e){
    moved with the day select on its own row. */
 /* ---- v55: the card that replaced the printed cheat sheet ----
    One line is always visible: the grade and speed for today. Everything else —
-   the other three rungs, the five session shapes — sits behind ONE fold. Two
+   the other rungs, the five session shapes — sits behind ONE fold. Two
    folds side by side made the reader choose which to open before knowing what
    was in either, and the answer was almost always both: the rung sets the
    numbers the session shapes are written around. The MET range is computed, never stored. */
@@ -2345,7 +2359,7 @@ function ladderHTML(){
   let h='<table class="ph l">';
   PHASES.forEach((P,i)=>{
     const when = P.need==null ? 'ต่อไป' : (i===PHASES.length-2 ? `wk ${P.need+1}+` :
-                 `wk ${P.need+1}–${PHASES[i+1].need}`);
+                 PHASES[i+1].need===P.need+1 ? `wk ${P.need+1}` : `wk ${P.need+1}–${PHASES[i+1].need}`);
     h+=`<tr class="${on&&i===cur?'now':''}">
       <td class="w">${when}</td>
       <td class="g"><b>${P.grade}%</b></td>
@@ -2353,7 +2367,7 @@ function ladderHTML(){
       <td class="m">${metRange(P)} MET</td>
       <td class="n">${P.min}</td></tr>`;
   });
-  return h+`</table><p class="histcap">เปลี่ยนทีละตัวแปร · ลำดับ ${PHASE_ORDER}</p>
+  return h+`</table><p class="histcap">${PHASE_ORDER}</p>
     <p class="phsub">เมนู session</p>`;
 }
 function menuHTML(){
@@ -2362,7 +2376,6 @@ function menuHTML(){
       <span class="mk ${S.kind}">${S.k}</span>
       <span class="mn">${esc(S.name)}</span>
       <span class="md">${esc(S.day)}${S.alt?' · สลับ':''}${S.every?' · '+esc(S.every):''}</span>
-      <span class="mm">${S.min}′</span>
     </div>
     <div class="mb">${S.s}${S.rows?' <span class="mr">· ลง 2 แถว</span>':''}</div>
   </div>`).join('');
@@ -2379,15 +2392,15 @@ function phaseTopHTML(){
   const P=phaseCur(), e=phaseEarned(), i=phaseIdx(), a=phaseAuto(e);
   const drift = i>a ? ` · เลื่อนเอง +${i-a}` : i<a ? ` · ถอยเอง ${i-a}` : '';
   return `<div class="phrow">
-      <span class="aplab">Phase ${P.lab}</span>
+      <span class="aplab">Week ${P.lab}</span>
       <span class="apval">${P.grade}% · ${kmhRange(P)}</span>
     </div>
-    <div class="apsub">${metRange(P)} MET · ${P.min} · ${P.note}</div>
+    <div class="apsub">${metRange(P)} MET · ${P.min}${P.note?' · '+P.note:''}</div>
     <div class="phmeta">
       <span>${e} สัปดาห์ที่มีเดินชัน${drift}</span>
       <span class="phbtns">
-        <button class="apill" data-phadj="-1" aria-label="ถอยหนึ่งเฟส">−</button>
-        <button class="apill" data-phadj="1" aria-label="เลื่อนหนึ่งเฟส">+</button>
+        <button class="apill" data-phadj="-1" aria-label="ถอยหนึ่งสัปดาห์">−</button>
+        <button class="apill" data-phadj="1" aria-label="เลื่อนหนึ่งสัปดาห์">+</button>
       </span>
     </div>`;
 }
