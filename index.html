@@ -773,6 +773,7 @@
     <button class="link" id="dltoggle" type="button" aria-pressed="false">deload week</button>
     <button class="link" id="export" aria-expanded="false">export json</button>
     <button class="link" id="import" aria-expanded="false">import json</button>
+    <button class="link" id="copylist" type="button">copy exercise list</button>
     <span class="bwver" id="bwver"></span>
   </footer>
   <section class="io" id="io" hidden></section>
@@ -2079,6 +2080,34 @@ impBtn.addEventListener('click',()=>{
      <div class="iorow"><button class="btn" data-iocheck type="button">Check</button></div>
      <p class="iomsg" data-iomsg>History and the daily log are <b>merged</b>; nothing existing is dropped. The current week is overwritten.</p>`);
   const ta=ioEl.querySelector('#ioin'); if(ta) ta.focus();
+});
+
+/* plain-text exercise names, grouped by day — for pasting into notes/search,
+   not the tracked state, so it always lists the plan as written, deload or not */
+function planListText(){
+  return PLAN.map(day=>{
+    const names=day.items.filter(it=>it.name!=='Warm-up').map(it=>it.name);
+    return `${DOW_FULL[DOWI[day.dow]]}\n${names.join('\n')}`;
+  }).join('\n\n');
+}
+const copyListBtn=document.getElementById('copylist');
+let copyListTimer=null;
+copyListBtn.addEventListener('click',async()=>{
+  const txt=planListText();
+  let done=false;
+  try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(txt); done=true; } }catch(err){}
+  if(!done){
+    try{
+      const ta=document.createElement('textarea');
+      ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      done=document.execCommand('copy');
+      document.body.removeChild(ta);
+    }catch(err){}
+  }
+  clearTimeout(copyListTimer);
+  copyListBtn.textContent = done ? 'copied' : 'copy failed';
+  copyListTimer=setTimeout(()=>{ copyListBtn.textContent='copy exercise list'; },1500);
 });
 
 let pending=null;                      /* a parsed dump waiting for the second press */
