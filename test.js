@@ -99,7 +99,7 @@ async function suiteBoot() {
     t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
     ok(t.doc.querySelector('.phcard'), 'phase card');
     t.doc.querySelector('[data-tab="daily"]').click(); await tick(200);
-    eq(t.doc.querySelectorAll('.hab').length, 3, 'habit cards');
+    eq(t.doc.querySelectorAll('.hab').length, 2, 'habit cards');
     eq(t.errors, [], 'errors');
     t.close();
   });
@@ -466,8 +466,8 @@ async function suiteDaily() {
       now: '2026-03-29T09:00:00+07:00',
       seed: {
         'trainweek:v11': STATE({ weekStart: '2026-03-23' }),
-        'daily:log:2026-02': JSON.stringify({ v: 1, days: { '2026-02-27': { x1: 1 }, '2026-02-28': { x1: 1 } } }),
-        'daily:log:2026-03': JSON.stringify({ v: 1, days: { '2026-03-28': { x1: 1 } } })
+        'daily:log:2026-02': JSON.stringify({ v: 1, days: { '2026-02-27': { x3: 1 }, '2026-02-28': { x3: 1 } } }),
+        'daily:log:2026-03': JSON.stringify({ v: 1, days: { '2026-03-28': { x3: 1 } } })
       }
     });
     t.doc.querySelector('[data-tab="daily"]').click(); await tick(300);
@@ -484,8 +484,8 @@ async function suiteDaily() {
       now: '2026-03-31T09:00:00+07:00',
       seed: {
         'trainweek:v11': STATE({ weekStart: '2026-03-30' }),
-        'daily:log:2026-02': JSON.stringify({ v: 1, days: { '2026-02-25': { x1: 1 } } }),
-        'daily:log:2026-03': JSON.stringify({ v: 1, days: { '2026-03-30': { x1: 1 } } })
+        'daily:log:2026-02': JSON.stringify({ v: 1, days: { '2026-02-25': { x3: 1 } } }),
+        'daily:log:2026-03': JSON.stringify({ v: 1, days: { '2026-03-30': { x3: 1 } } })
       }
     });
     t.doc.querySelector('[data-tab="daily"]').click(); await tick(300);

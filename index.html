@@ -977,10 +977,6 @@ const PLAN=[
 
 /* ================= daily habits ================= */
 const DAILY=[
- {id:'x1',name:'Isometric Neck',dose:'2 min · 4 directions × ~30s',
-  target:'กันปวดคอจากท่านั่ง — <b>ความถี่รายวันสำคัญกว่าความหนัก</b> ทำสั้นๆ ทุกวันได้ผลกว่าทำหนักสัปดาห์ละ 2 ครั้ง',
-  note:'ใช้ฝ่ามือดันต้าน <b>โดยศีรษะไม่ขยับ</b> (isometric) · ทำครบ 4 ทิศ: หน้าผาก → ท้ายทอย → ขมับซ้าย → ขมับขวา ทิศละ ~30 วินาที · ออกแรงประมาณ 30–50% ของแรงสูงสุดก็พอ · หายใจปกติตลอด อย่ากลั้น',
-  mistake:'ออกแรงเต็มที่จนเกร็งทั้งตัว · ปล่อยให้คอขยับตามแรงดัน · กลั้นหายใจ · ทำแค่หน้า-หลัง ข้ามด้านข้าง'},
  {id:'x3',name:'Light Therapy',dose:'10–30 min · within 1h of waking',
   target:'ตรึงนาฬิกาชีวภาพ — ตัวกำหนดคุณภาพการนอนคืนถัดไป และเป็นฐานของทุกอย่างที่เหลือในลิสต์นี้',
   note:'<b>เวลาสำคัญกว่าความนาน</b> — เช้าตรู่สม่ำเสมอทุกวันได้ผลกว่านานๆ ครั้ง · แสงแดดจริงตอนเช้าแรงกว่ากล่องไฟหลายเท่า ออกไปข้างนอกได้ให้ออก · <b>ห้ามมองดวงอาทิตย์ตรงๆ</b> · วันเมฆครึ้มให้เพิ่มเวลาเป็น ~30 นาที · ไม่ใส่แว่นกันแดดช่วงนี้',
@@ -1441,7 +1437,7 @@ const store={
 const now = () => new Date();
 let state    = {weekStart:weekStartOf(now()),checks:{},weights:{},metrics:{},aero:[],bw:'',deload:false,stopped:{}};
 let histRecs = [];     /* newest first */
-let dayLog   = {};     /* dayKey → {x1:1,…} */
+let dayLog   = {};     /* dayKey → {x3:1,…} */
 let histOK   = true;   /* false ⇒ the shard rollover would write into failed to read */
 let histGaps = [];     /* years the index promised that did not come back */
 
@@ -2637,7 +2633,7 @@ const DELOAD_DEFAULT='2 sets · same load';
    The test the comment above describes only walks PLAN → rules; it never walked
    rules → PLAN, which is why three dead entries survived two versions.
    NOTE the namespace: these keys are PLAN ids. 'x4' here would mean the
-   Isometric Neck exercise, NOT the 4×4 — that lives in AERO under `t`. The
+   Meditation habit, NOT the 4×4 — that lives in AERO under `t`. The
    4×4's deload rule is the line in DELOAD_PRINCIPLES, not a key here. */
 const DELOAD_RULES={
   m1:{skip:'cut — jumping is impact, the opposite of a repair week'},
