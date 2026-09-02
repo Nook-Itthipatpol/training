@@ -241,6 +241,23 @@ async function suiteWeek() {
     t.close();
   });
 
+  await test('a stopday button dims the header without ticking anything', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
+    const day = t.doc.querySelector('[data-day="0"]');
+    const cb = day.querySelector('[data-check]');
+    const sd = day.querySelector('[data-stopday]');
+    ok(!day.classList.contains('done'), 'not done at start');
+    sd.click(); await tick(400);
+    ok(day.classList.contains('done'), 'dimmed once stopped');
+    eq(sd.getAttribute('aria-pressed'), 'true', 'aria');
+    eq(t.win.eval('state.checks["' + cb.dataset.check + '"]'), undefined, 'no exercise was ticked');
+    eq(JSON.parse(t.mem.get('trainweek:v11')).stopped, { '0': true }, 'persisted');
+    sd.click(); await tick(20);
+    ok(!day.classList.contains('done'), 'un-dimmed once resumed');
+    eq(sd.getAttribute('aria-pressed'), 'false', 'aria cleared');
+    t.close();
+  });
+
   await test('one superset box ticks every exercise in the pair, and untick clears it', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const g = t.doc.querySelector('[data-gcheck]');

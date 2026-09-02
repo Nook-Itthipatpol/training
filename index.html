@@ -311,6 +311,7 @@
 
   .body{display:none;padding:2px 0 14px;}
   .day.open .body{display:block;}
+  .daystoprow{padding:0 18px 8px;text-align:right;}
 
   /* ---------- item (v38 "C") ----------
      One row per exercise. The dose flows straight on from the name (W3) so a
@@ -1417,7 +1418,7 @@ const store={
 
 /* ================= state ================= */
 const now = () => new Date();
-let state    = {weekStart:weekStartOf(now()),checks:{},weights:{},metrics:{},aero:[],bw:'',deload:false};
+let state    = {weekStart:weekStartOf(now()),checks:{},weights:{},metrics:{},aero:[],bw:'',deload:false,stopped:{}};
 let histRecs = [];     /* newest first */
 let dayLog   = {};     /* dayKey → {x1:1,…} */
 let histOK   = true;   /* false ⇒ the shard rollover would write into failed to read */
@@ -1443,7 +1444,8 @@ function applyState(s){
       /* an entry needs a session id and a type to be renderable or countable */
       aero      : (Array.isArray(s.aero)?s.aero:[]).filter(e=>e&&typeof e==='object'&&e.t),
       bw        : (typeof s.bw==='number'||typeof s.bw==='string') ? s.bw : '',
-      deload    : !!s.deload
+      deload    : !!s.deload,
+      stopped   : plainObj(s.stopped)
     };
   }
 }
@@ -1562,7 +1564,7 @@ async function rollIfStale(){
     if(!Array.isArray(idx.years)) idx.years=[];
     if(!idx.years.includes(y)){ idx.years.push(y); await store.set(HIDX,idx); }
   }
-  state={weekStart:weekStartOf(now()),checks:{},weights:{},metrics:{},aero:[],bw:'',deload:false};
+  state={weekStart:weekStartOf(now()),checks:{},weights:{},metrics:{},aero:[],bw:'',deload:false,stopped:{}};
   await store.set(KEY,state);
   await loadHist();
   return true;
@@ -1737,6 +1739,7 @@ function dayHTML(day,i){
     if(!open) flush();
   }
   flush();
+  const stopped = !!(state.stopped && state.stopped[i]);
   return `<section class="day${isToday?' today':''}" data-day="${i}"
     style="--accent:${k.accent};--soft:${k.soft};--tint:${k.tint}">
     <button class="head" data-toggle="${i}" aria-expanded="false">
@@ -1747,7 +1750,9 @@ function dayHTML(day,i){
       <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></span>
     </button>
     <span class="prog"><i data-prog="${i}"></i></span>
-    <div class="body">${inner}</div>
+    <div class="body">
+      <div class="daystoprow"><button class="link" data-stopday="${i}" aria-pressed="${stopped?'true':'false'}">พอแค่นี้วันนี้ — ไม่ทำต่อแล้ว</button></div>
+      ${inner}</div>
   </section>`;
 }
 
@@ -1798,7 +1803,8 @@ function sync(i){
   if(bar) bar.style.width = `${total ? Math.min(n,total)/total*100 : 0}%`;
   paintGroups(el);
   markNext(el);
-  el.classList.toggle('done', day.anyOf ? n>=1 : n===items.length);
+  const stopped = !!(state.stopped && state.stopped[i]);
+  el.classList.toggle('done', stopped || (day.anyOf ? n>=1 : n===items.length));
   paintProg();
 }
 /* v23: typing a number IS doing the exercise. The Routines tab already worked
@@ -1920,6 +1926,16 @@ daysEl.addEventListener('click',e=>{
   /* one press, every exercise in the pair — written individually, exactly as if
      each box had been tapped in turn. Full → clears the pair; anything else →
      completes it, so a half-done superset never needs two taps to finish. */
+  const sd=e.target.closest('[data-stopday]');
+  if(sd){
+    const i=Number(sd.dataset.stopday);
+    state.stopped=state.stopped||{};
+    state.stopped[i]=!state.stopped[i];
+    sd.setAttribute('aria-pressed', state.stopped[i]?'true':'false');
+    sync(i);
+    save();
+    return;
+  }
   const gb=e.target.closest('[data-gcheck]');
   if(gb){
     const ids=gb.dataset.gcheck.split(',').filter(Boolean);
