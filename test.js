@@ -241,19 +241,22 @@ async function suiteWeek() {
     t.close();
   });
 
-  await test('a stopday button dims the header without ticking anything', async () => {
+  await test('"Finish the day" dims the header without ticking any exercise', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const day = t.doc.querySelector('[data-day="0"]');
     const cb = day.querySelector('[data-check]');
     const sd = day.querySelector('[data-stopday]');
+    ok(sd.closest('.grp') === day.querySelector('.grp:last-of-type'), 'sits in its own group at the bottom');
     ok(!day.classList.contains('done'), 'not done at start');
     sd.click(); await tick(400);
-    ok(day.classList.contains('done'), 'dimmed once stopped');
+    ok(day.classList.contains('done'), 'dimmed once finished');
+    ok(sd.classList.contains('on'), 'box lit');
     eq(sd.getAttribute('aria-pressed'), 'true', 'aria');
     eq(t.win.eval('state.checks["' + cb.dataset.check + '"]'), undefined, 'no exercise was ticked');
     eq(JSON.parse(t.mem.get('trainweek:v11')).stopped, { '0': true }, 'persisted');
     sd.click(); await tick(20);
-    ok(!day.classList.contains('done'), 'un-dimmed once resumed');
+    ok(!day.classList.contains('done'), 'un-dimmed once reopened');
+    ok(!sd.classList.contains('on'), 'box cleared');
     eq(sd.getAttribute('aria-pressed'), 'false', 'aria cleared');
     t.close();
   });
