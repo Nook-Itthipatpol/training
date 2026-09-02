@@ -311,7 +311,11 @@
 
   .body{display:none;padding:2px 0 14px;}
   .day.open .body{display:block;}
-  .daystoprow{padding:0 18px 8px;text-align:right;}
+  /* the day's own close-out control: styled to read as one more row in the
+     list, not a separate action, so finishing the day is as light a tap as
+     ticking any other exercise. */
+  .finishgrp{margin-top:6px;padding-top:8px;border-top:1px solid #FFFFFF0A;}
+  .finishgrp .name{color:var(--dim);}
 
   /* ---------- item (v38 "C") ----------
      One row per exercise. The dose flows straight on from the name (W3) so a
@@ -1750,9 +1754,10 @@ function dayHTML(day,i){
       <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></span>
     </button>
     <span class="prog"><i data-prog="${i}"></i></span>
-    <div class="body">
-      <div class="daystoprow"><button class="link" data-stopday="${i}" aria-pressed="${stopped?'true':'false'}">พอแค่นี้วันนี้ — ไม่ทำต่อแล้ว</button></div>
-      ${inner}</div>
+    <div class="body">${inner}<div class="grp finishgrp"><div class="item finish${stopped?' on':''}">
+        <button class="box${stopped?' on':''}" data-stopday="${i}" aria-pressed="${stopped?'true':'false'}" aria-label="finish the day">${CHECK}</button>
+        <span class="txt"><span class="name">Finish the day</span></span>
+      </div></div></div>
   </section>`;
 }
 
@@ -1923,19 +1928,24 @@ daysEl.addEventListener('click',e=>{
     dt.setAttribute('aria-expanded',on?'true':'false');
     return;
   }
-  /* one press, every exercise in the pair — written individually, exactly as if
-     each box had been tapped in turn. Full → clears the pair; anything else →
-     completes it, so a half-done superset never needs two taps to finish. */
+  /* independent of state.checks on purpose — a day cut short for recovery is
+     not "every exercise done", so this never ticks or untangles a real box. */
   const sd=e.target.closest('[data-stopday]');
   if(sd){
     const i=Number(sd.dataset.stopday);
     state.stopped=state.stopped||{};
-    state.stopped[i]=!state.stopped[i];
-    sd.setAttribute('aria-pressed', state.stopped[i]?'true':'false');
+    const v=!state.stopped[i];
+    state.stopped[i]=v;
+    sd.classList.toggle('on',v);
+    sd.setAttribute('aria-pressed',v?'true':'false');
+    sd.closest('.item').classList.toggle('on',v);
     sync(i);
     save();
     return;
   }
+  /* one press, every exercise in the pair — written individually, exactly as if
+     each box had been tapped in turn. Full → clears the pair; anything else →
+     completes it, so a half-done superset never needs two taps to finish. */
   const gb=e.target.closest('[data-gcheck]');
   if(gb){
     const ids=gb.dataset.gcheck.split(',').filter(Boolean);
