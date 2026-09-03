@@ -677,18 +677,16 @@
   #pane-aero .mtlab{letter-spacing:.1em;flex:none;width:74px;}
   #pane-aero .mtbox{flex:none;}
   /* a logged number here is a record, not a headline — brass was shouting.
-     v66: the boxed/pill look is gone too — an underline is enough to mark it
-     editable, and a card of three or four of these no longer reads as a form.
-     v67: the underline is sized to the value, not the old fixed box width,
-     and sits right under it instead of a few px below; the focus state is
-     the underline turning brass, not the app-wide focus rectangle, which
-     would have brought the boxed look right back. */
+     v66: the boxed/pill look is gone too. v68: so is the underline that
+     replaced it — plain text sitting on the same baseline as its label is
+     what "not a form" actually looks like. The only tell that it's a field
+     at all is the placeholder colour and the focus state, which turns the
+     value itself brass rather than drawing a rule under it. */
   #pane-aero .mtin{
     color:var(--ink);background:none;border:0;border-radius:0;box-shadow:none;
-    height:auto;width:32px;padding:0 0 1px;text-align:left;
-    border-bottom:1px solid #FFFFFF1F;
+    height:auto;width:32px;padding:0;text-align:left;
   }
-  #pane-aero .mtin:focus{border-bottom-color:var(--brass2);outline:none;}
+  #pane-aero .mtin:focus{color:var(--brass);outline:none;}
   #pane-aero .mtbox .unit{min-width:34px;}
 
   /* ---------- v30: aerobic progression ---------- */
