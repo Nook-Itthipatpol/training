@@ -342,6 +342,44 @@ async function suiteAero() {
     t.close();
   });
 
+  await test('height and MET-minutes derive from the same logged fields, no body weight', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
+    // incline: 45 min @ 5.5 km/h @ 10% — height = distance(m) x grade%
+    eq(t.win.heightOf({ t: 'incline', min: 45, kmh: 5.5, grade: 10 }), 412.5, 'incline height');
+    ok(t.win.metMinOf({ t: 'incline', min: 45, kmh: 5.5, grade: 10 }) > 0, 'incline MET-min positive');
+    // run: no kmh field, speed derives from km/min like a pace would
+    ok(t.win.metMinOf({ t: 'run', min: 30, km: 5 }) > 0, 'run MET-min derives a speed from km/min');
+    // row: no speed/watts field at all — split alone must be enough
+    ok(t.win.rowMet(25, 5000) > 0, 'row MET from split alone');
+    eq(t.win.heightOf({ t: 'row', min: 25, m: 5000 }), 0, 'row has no height');
+    // x4 with no grade given: height is 0, but MET-min still prices work vs easy minutes
+    eq(t.win.heightOf({ t: 'x4', sets: 4, kmh: 6.8 }), 0, 'x4 height needs an explicit grade');
+    ok(t.win.metMinOf({ t: 'x4', sets: 4, kmh: 6.8 }) > 0, 'x4 MET-min still counts the interval');
+    t.close();
+  });
+
+  await test('the weekly-total bar cycles mins → height → METs · mins and remembers the choice', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
+    t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
+    t.doc.querySelector('[data-aadd="incline"]').click(); await tick(40);
+    input(t.win, t.doc.querySelector('[data-af][data-fk="min"]'), '45');
+    input(t.win, t.doc.querySelector('[data-af][data-fk="kmh"]'), '5.5');
+    input(t.win, t.doc.querySelector('[data-af][data-fk="grade"]'), '10');
+    await tick(400);
+    eq(t.doc.querySelector('[data-aview]').textContent, 'mins', 'starts on mins');
+    t.doc.querySelector('[data-aview]').click(); await tick(30);
+    eq(t.doc.querySelector('[data-aview]').textContent, 'height', 'cycles to height');
+    ok(/413 \/ \d+ m/.test(t.doc.getElementById('aprog').textContent), 'height total shown');
+    t.win.eval('buildAero()'); // a full rebuild, not just the redraw a keystroke triggers
+    eq(t.doc.querySelector('[data-aview]').textContent, 'height', 'choice survives a rebuild');
+    t.doc.querySelector('[data-aview]').click(); await tick(30);
+    eq(t.doc.querySelector('[data-aview]').textContent, 'METs · mins', 'cycles to METs · mins');
+    t.doc.querySelector('[data-aview]').click(); await tick(30);
+    eq(t.doc.querySelector('[data-aview]').textContent, 'mins', 'cycles back to mins');
+    eq(t.errors, [], 'errors');
+    t.close();
+  });
+
   await test('the copied exercise list includes this week\'s logged aerobic dose', async () => {
     const t = await boot({
       now: '2026-08-31T09:00:00+07:00',

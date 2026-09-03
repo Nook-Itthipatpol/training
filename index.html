@@ -674,7 +674,9 @@
 
   /* ---------- v30: aerobic progression ---------- */
   .aprow{display:flex;align-items:baseline;gap:10px;}
-  .aplab{font-size:var(--s3);color:var(--muted);font-weight:600;flex:1;min-width:0;}
+  .aplab{font:inherit;font-size:var(--s3);color:var(--muted);font-weight:600;flex:1;min-width:0;
+    background:none;border:0;padding:0;text-align:left;cursor:pointer;}
+  .aplab:hover{color:var(--brass);}
   .apval{font-family:var(--mono);font-size:20px;font-weight:500;letter-spacing:-.02em;color:var(--brass);}
   .apbar{position:relative;height:12px;border-radius:999px;background:#FFFFFF0F;
     margin:10px 0 8px;overflow:hidden;}
@@ -751,6 +753,7 @@ const HIDX   = 'trainweek:hist:index';
 const HSHARD = y  => `trainweek:hist:${y}`;
 const DSHARD = m  => `daily:log:${m}`;  /* m = 'YYYY-MM' */
 const UITAB  = 'ui:tab';
+const UIAVIEW = 'ui:aeroview';          /* which of mins/height/MET·mins the bar shows — per device, never synced or exported */
 const ROLL_HOUR = 4;                    /* day + week boundary, local time */
 
 /* v33: on a near-black field a mid-tone hue reads as mud, so every accent is
@@ -952,8 +955,9 @@ const AERO=[
   mistake:'ซอยถี่จน SPM เกิน 26 เพื่อไล่ระยะ (กลายเป็นโซน 3) · ดึงด้วยแขนก่อนขา · แอ่นหลังจนปวดหลังล่าง'},
  {t:'x4',label:'4×4',hard:1,
   fields:[{k:'sets',label:'Intervals',unit:'× 4 min',step:1,ph:'4'},
-          {k:'kmh',label:'Avg speed, work',unit:'km/h',step:0.1}],
-  note:'วอร์มอัพ 10 นาที · <b>4 นาทีหนักระดับพูดได้ทีละ 2–3 คำ × 4 รอบ</b> สลับพักเคลื่อนไหวเบา 3 นาที · คูลดาวน์ 5 นาที · กด lap ทุกช่วง work แล้วกรอกความเร็วเฉลี่ยของช่วง work เท่านั้น · <b>ช่องรอบคือจำนวนช่วง 4 นาทีที่ทำจริง</b> ทำได้ 3 รอบก็กรอก 3 แล้วนาทีรวมจะลดตามเอง',
+          {k:'kmh',label:'Avg speed, work',unit:'km/h',step:0.1},
+          {k:'grade',label:'Incline (optional)',unit:'%',step:0.5}],
+  note:'วอร์มอัพ 10 นาที · <b>4 นาทีหนักระดับพูดได้ทีละ 2–3 คำ × 4 รอบ</b> สลับพักเคลื่อนไหวเบา 3 นาที · คูลดาวน์ 5 นาที · กด lap ทุกช่วง work แล้วกรอกความเร็วเฉลี่ยของช่วง work เท่านั้น · <b>ช่องรอบคือจำนวนช่วง 4 นาทีที่ทำจริง</b> ทำได้ 3 รอบก็กรอก 3 แล้วนาทีรวมจะลดตามเอง · <b>ช่องความชันเป็นทางเลือก</b> — ใส่เมื่อทำบนลู่ชัน เพื่อให้ height กับ MET·mins ของสัปดาห์นับรวมช่วงนี้ด้วย ไม่ใส่ก็ยังบันทึกได้ตามปกติ',
   mistake:'อัดเต็มที่ตั้งแต่รอบแรกจนรอบ 3–4 ตก · พักด้วยการนั่งนิ่ง · วางชิดวันวิ่งยาวหรือวันเวทหนัก'}
 ];
 const AEROT={}; for(const a of AERO) AEROT[a.t]=a;
@@ -962,15 +966,15 @@ const AEROT={}; for(const a of AERO) AEROT[a.t]=a;
    It is the one session with no Time field: 10 warm-up + n × 4 work +
    (n−1) × 3 rest + 5 cool is fixed by the protocol, so the rounds are the only
    thing worth asking for and the minutes follow from them. */
-const X4={warm:10,work:4,rest:3,cool:5};   /* v60: the MET constants went with metOf */
-/* v60: MET-min/week is gone, and so is the machinery under it — metOf, rowMet,
-   metMinOf, bwKg, MET_TARGET, MET_FLOOR, BW_DEFAULT and the body-weight thread
-   through aeroTotals. It was a population target (500–1000) sitting next to a
-   personal one, scored from estimates layered three deep: an equation picked by
-   speed, a wattage curve, a body weight that might be last month's. Minutes are
-   measured, and the minutes bar was already the one being read.
-   v63: speedMet itself is gone too — the incline ladder that was its last
-   caller is gone with it. */
+const X4={warm:10,work:4,rest:3,cool:5};
+/* v60 deleted a body-weight-scaled MET-min/week score (metOf, rowMet, metMinOf,
+   bwKg, MET_TARGET, MET_FLOOR, BW_DEFAULT) because it was a population target
+   sitting next to a personal one, estimated three layers deep. v63 then deleted
+   speedMet, its last remaining caller (the incline ladder), as dead code.
+   v65 brings both back, reshaped: no body weight anywhere, because MET is
+   already energy cost PER KG by definition — every equation below outputs the
+   right units on its own — and the number is now one of three views on the
+   same weekly total (see aeroTotals/aeroProgHTML), not a target to hit. */
 function x4Sets(e){ const n=num(e.sets); return (n==null||n<=0)?4:Math.max(1,Math.min(8,Math.round(n))); }
 function x4Parts(e){ const n=x4Sets(e); return {work:n*X4.work, easy:X4.warm+X4.cool+Math.max(0,n-1)*X4.rest}; }
 /* total time the session occupies — for the 4×4 this is derived from the rounds,
@@ -978,6 +982,85 @@ function x4Parts(e){ const n=x4Sets(e); return {work:n*X4.work, easy:X4.warm+X4.
 function aeroMinOf(e){
   if(e.t==='x4'){ const p=x4Parts(e); return p.work+p.easy; }
   const v=num(e.min); return v==null?0:v;
+}
+/* v54's equation picker, back for METs·mins: ACSM walking below 7 km/h, running
+   from 7 up, so the same speed never means two different things depending on
+   which card logged it. Used by Incline walk directly and by Run once its
+   split gives up a speed (see metMinOf). */
+function speedMet(kmh, grade){
+  if(kmh==null||kmh<=0) return null;
+  const S=kmh*16.6667, G=(grade||0)/100;
+  const vo2 = kmh<7 ? (0.1*S + 1.8*S*G + 3.5)     /* ACSM walking */
+                    : (0.2*S + 0.9*S*G + 3.5);    /* ACSM running */
+  return Math.round(vo2/3.5*10)/10;
+}
+/* Row has no speed field — only a split, derived from time and distance — so
+   its MET comes from estimated power instead. The Concept2 pace→watts formula
+   turns that split into watts with no extra input (not the watts shown on the
+   erg screen, which the user need not transcribe), and the Compendium of
+   Physical Activities' rowing-ergometer codes (2011: 02130–02150, watts→MET)
+   are linearly interpolated between their four points, anchored at (0 W, 1
+   MET) for a stalled or barely-moving stroke. */
+const ROW_MET_TABLE=[[0,1],[50,3.5],[100,7.0],[150,8.5],[200,12.0]];
+function rowWatts(min,m){
+  if(!min||!m||min<=0||m<=0) return 0;
+  const secPer500=(min*60)/(m/500);
+  return 2.8/Math.pow(secPer500/500,3);
+}
+function rowMet(min,m){
+  const w=rowWatts(min,m); if(w<=0) return null;
+  const T=ROW_MET_TABLE;
+  for(let i=1;i<T.length;i++){
+    if(w<=T[i][0]||i===T.length-1){
+      const w0=T[i-1][0],m0=T[i-1][1],w1=T[i][0],m1=T[i][1];
+      return Math.round((m0+(w-w0)*(m1-m0)/(w1-w0))*10)/10;
+    }
+  }
+}
+/* vertical climb, incline sessions only — the "% grade" a treadmill reports is
+   already rise/run, so height = distance × grade% is exact, not an angle
+   approximation. The 4×4's own incline is optional (see AERO) and, when given,
+   only its WORK minutes count: the easy/rest minutes' incline is not tracked. */
+function heightOf(e){
+  const min=num(e.min), grade=num(e.grade);
+  if(e.t==='incline'){
+    const kmh=num(e.kmh);
+    return (kmh==null||grade==null||min==null) ? 0 : kmh*min*grade/6;
+  }
+  if(e.t==='x4'){
+    const kmh=num(e.kmh);
+    if(kmh==null||grade==null) return 0;
+    return kmh*x4Parts(e).work*grade/6;
+  }
+  return 0;
+}
+/* MET-minutes for one session. Run has no speed field, only time+distance, so
+   its speed is derived the same way a pace would be. The 4×4 splits into its
+   work and easy minutes (see x4Parts) and prices them separately: work at the
+   logged speed (flat, i.e. MET 7, if no grade was given), easy minutes at a
+   light-walk MET the way the warm-up/cooldown/rest actually feel. */
+function metMinOf(e){
+  const min=num(e.min);
+  if(e.t==='incline'){
+    const met=speedMet(num(e.kmh),num(e.grade));
+    return (met==null||min==null) ? 0 : met*min;
+  }
+  if(e.t==='run'){
+    const km=num(e.km);
+    if(min==null||km==null||min<=0) return 0;
+    const met=speedMet(km*60/min,0);
+    return met==null ? 0 : met*min;
+  }
+  if(e.t==='row'){
+    const met=rowMet(min,num(e.m));
+    return (met==null||min==null) ? 0 : met*min;
+  }
+  if(e.t==='x4'){
+    const p=x4Parts(e);
+    const workMet=speedMet(num(e.kmh),num(e.grade))??7;
+    return workMet*p.work + 3*p.easy;
+  }
+  return 0;
 }
 /* v36: nothing is pre-placed on the aerobic tab. The planned sessions live on
    the Exercises tab, where they are logged; mirroring them here filled the week
@@ -1113,20 +1196,26 @@ function aeroCounts(e){
   return pos('min')||pos('km')||pos('m');
 }
 function aeroTotals(list){
-  let n=0,min=0,km=0,m=0;
+  let n=0,min=0,km=0,m=0,height=0,metMin=0;
   for(const e of list){
     if(!aeroCounts(e)) continue;
     n++;
     min+=aeroMinOf(e);
     const b=num(e.km);  if(b!=null) km+=b;
     const c=num(e.m);   if(c!=null) m+=c;
+    height+=heightOf(e);
+    metMin+=metMinOf(e);
   }
-  return {n,min:Math.round(min),km:Math.round(km*10)/10,m:Math.round(m)};
+  return {n,min:Math.round(min),km:Math.round(km*10)/10,m:Math.round(m),
+          height:Math.round(height),metMin:Math.round(metMin)};
 }
 /* the ceiling the 10%-per-week rule is measured against: the HIGHEST weekly
-   total minutes in the archive, not the most recent week. One easy week — or a
+   total in the archive, not the most recent week. One easy week — or a
    deload — must not lower the bar the next week is compared to, otherwise the
-   ratchet resets every time life gets in the way.
+   ratchet resets every time life gets in the way. Same reasoning for all three
+   views the progress bar can show (see aeroProgHTML): each gets its own peak
+   function and its own no-history fallback, since a minute, a metre of climb
+   and a MET-minute are not remotely the same scale.
    No history at all → 120 minutes. v51 dropped the `def` flag that came with it:
    no caller ever read it, so the promise in this comment that the UI would say
    the denominator is an assumption was never kept. */
@@ -1138,6 +1227,24 @@ function aeroPeak(recs){
     if(min>0 && (best==null || min>best.min)) best={min,week:r.week};
   }
   return best || {min:AERO_BASE,week:null};
+}
+const AERO_HEIGHT_BASE=300;
+function aeroPeakHeight(recs){
+  let best=null;
+  for(const r of (recs||[])){
+    const height=aeroTotals(aeroList(r)).height;
+    if(height>0 && (best==null || height>best.height)) best={height,week:r.week};
+  }
+  return best || {height:AERO_HEIGHT_BASE,week:null};
+}
+const AERO_METMIN_BASE=700;
+function aeroPeakMet(recs){
+  let best=null;
+  for(const r of (recs||[])){
+    const metMin=aeroTotals(aeroList(r)).metMin;
+    if(metMin>0 && (best==null || metMin>best.metMin)) best={metMin,week:r.week};
+  }
+  return best || {metMin:AERO_METMIN_BASE,week:null};
 }
 /* the number a history row is keyed on. 'w' = strength weight · 'm:min' = a metric */
 function valOf(it,key){
@@ -2258,25 +2365,50 @@ function buildAero(){
    merely filled a bar. Uncoloured logic: no red above the line, no green below
    it. The +10% mark is a hint, not a limit, and a deload week is meant to be
    short. */
-/* v60: one bar. Minutes are measured against the archive's own peak — the
-   10%-per-week ratchet — and the tick is a mark, never a verdict. */
+/* v65: three views of the same strip, cycled by tapping the label. Each view
+   is just a (totals key, peak function, unit, decimals) tuple — the bar/tick/
+   fraction markup underneath does not know or care which one is showing. The
+   choice lives in the localStorage mirror (see UIAVIEW), not `state`: it is a
+   per-device reading preference, not data, so it is never synced or exported
+   and never resets at rollover the way a logged week does. */
+const AERO_VIEWS={
+  min:   {label:'mins',        key:'min',    unit:'min',     dp:0, peak:()=>aeroPeak(histRecs)},
+  height:{label:'height',      key:'height', unit:'m',       dp:0, peak:()=>aeroPeakHeight(histRecs)},
+  met:   {label:'METs · mins', key:'metMin', unit:'MET·min', dp:0, peak:()=>aeroPeakMet(histRecs)}
+};
+const AERO_VIEW_ORDER=['min','height','met'];
+function aeroView(){
+  const v=(store.mirrorGet(UIAVIEW)||{}).id;
+  return AERO_VIEWS[v] ? v : 'min';
+}
+function aeroViewNext(){
+  const cur=AERO_VIEW_ORDER.indexOf(aeroView());
+  const next=AERO_VIEW_ORDER[(cur+1)%AERO_VIEW_ORDER.length];
+  store.mirrorSet(UIAVIEW,{id:next});
+  return next;
+}
+function fmtN(v,dp){ return dp>0 ? (Math.round(v*Math.pow(10,dp))/Math.pow(10,dp)).toFixed(dp) : String(Math.round(v)); }
 function aeroProgHTML(){
-  const t=aeroTotals(aeroNow());
-  const pk=aeroPeak(histRecs);
+  const view=aeroView(), V=AERO_VIEWS[view];
+  const t=aeroTotals(aeroNow())[V.key];
+  const pk=V.peak()[V.key];
   const bar=(cur,ref,scale,soft)=>{
     const w=Math.max(cur?1.5:0, Math.min(100, cur/scale*100));
     return `<span class="apfill" style="width:${w.toFixed(1)}%"></span>
       <span class="aptick" style="left:${Math.min(100,ref/scale*100).toFixed(1)}%"></span>
       <span class="aptick soft" style="left:${Math.min(100,soft/scale*100).toFixed(1)}%"></span>`;
   };
-  const pctMin=Math.round(t.min/pk.min*100);
-  const sMin=Math.max(pk.min*1.35, t.min||0, 1);
+  const pct=Math.round(t/pk*100);
+  const s=Math.max(pk*1.35, t||0, 1);
   return `<div class="apblk">
-      <div class="aprow"><span class="aplab">Weekly minutes</span><span class="apval">${pctMin}%</span></div>
-      <div class="apbar" role="img" aria-label="${t.min} of ${pk.min} minutes, ${pctMin}%">
-        ${bar(t.min,pk.min,sMin,pk.min*1.1)}
+      <div class="aprow">
+        <button class="aplab" type="button" data-aview aria-label="switch view, currently ${esc(V.label)}">${esc(V.label)}</button>
+        <span class="apval">${pct}%</span>
       </div>
-      <div class="apsub"><b>${t.min}</b> / ${pk.min} min</div>
+      <div class="apbar" role="img" aria-label="${fmtN(t,V.dp)} of ${fmtN(pk,V.dp)} ${V.unit}, ${pct}%">
+        ${bar(t,pk,s,pk*1.1)}
+      </div>
+      <div class="apsub"><b>${fmtN(t,V.dp)}</b> / ${fmtN(pk,V.dp)} ${V.unit}</div>
     </div>
     <div class="apsubrow">
       <details><summary>History</summary><div class="histbody">${aeroHistHTML()}</div></details>
@@ -2306,6 +2438,8 @@ function aeroHistHTML(){
   return h+'</table>';
 }
 aeroEl.addEventListener('click',e=>{
+  const view=e.target.closest('[data-aview]');
+  if(view){ aeroViewNext(); aeroRefreshTot(); return; }
   const add=e.target.closest('[data-aadd]');
   if(add){
     state.aero=state.aero||[];
