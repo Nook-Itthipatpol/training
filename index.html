@@ -666,21 +666,29 @@
   .aday .mtwrap{margin:0;}
   /* v54: one field per line, label and value on the same line — the fields are
      read one at a time while typing, not scanned as a row. */
-  #pane-aero .mtwrap{flex-direction:column;align-items:stretch;gap:0;}
-  #pane-aero .mt{flex-direction:row;align-items:center;gap:10px;padding:3px 0;}
+  /* v67: padding on .mt used to add leading space above TIME and trailing
+     space below the last row, so the column never lined up with the day
+     label beside it and sat well clear of the card's own bottom edge. A gap
+     on the wrapper spaces the rows from EACH OTHER only. */
+  #pane-aero .mtwrap{flex-direction:column;align-items:stretch;gap:2px;}
+  #pane-aero .mt{flex-direction:row;align-items:center;gap:10px;padding:0;}
   /* the label is a fixed column, so the value sits right beside it instead of
      being pushed out to the card edge */
   #pane-aero .mtlab{letter-spacing:.1em;flex:none;width:74px;}
   #pane-aero .mtbox{flex:none;}
   /* a logged number here is a record, not a headline — brass was shouting.
      v66: the boxed/pill look is gone too — an underline is enough to mark it
-     editable, and a card of three or four of these no longer reads as a form. */
+     editable, and a card of three or four of these no longer reads as a form.
+     v67: the underline is sized to the value, not the old fixed box width,
+     and sits right under it instead of a few px below; the focus state is
+     the underline turning brass, not the app-wide focus rectangle, which
+     would have brought the boxed look right back. */
   #pane-aero .mtin{
     color:var(--ink);background:none;border:0;border-radius:0;box-shadow:none;
-    height:auto;width:46px;padding:0 0 3px;text-align:left;
+    height:auto;width:32px;padding:0 0 1px;text-align:left;
     border-bottom:1px solid #FFFFFF1F;
   }
-  #pane-aero .mtin:focus{border-bottom-color:var(--brass2);}
+  #pane-aero .mtin:focus{border-bottom-color:var(--brass2);outline:none;}
   #pane-aero .mtbox .unit{min-width:34px;}
 
   /* ---------- v30: aerobic progression ---------- */
@@ -971,8 +979,8 @@ const AERO=[
   mistake:'ซอยถี่จน SPM เกิน 26 เพื่อไล่ระยะ (กลายเป็นโซน 3) · ดึงด้วยแขนก่อนขา · แอ่นหลังจนปวดหลังล่าง'},
  {t:'x4',label:'4×4',hard:1,
   fields:[{k:'sets',label:'Intervals',unit:'× 4 min',step:1,ph:'4'},
-          {k:'kmh',label:'Avg speed, work',unit:'km/h',step:0.1},
-          {k:'grade',label:'Incline (optional)',unit:'%',step:0.5}],
+          {k:'kmh',label:'Speed',unit:'km/h',step:0.1},
+          {k:'grade',label:'Incline',unit:'%',step:0.5}],
   note:'วอร์มอัพ 10 นาที · <b>4 นาทีหนักระดับพูดได้ทีละ 2–3 คำ × 4 รอบ</b> สลับพักเคลื่อนไหวเบา 3 นาที · คูลดาวน์ 5 นาที · กด lap ทุกช่วง work แล้วกรอกความเร็วเฉลี่ยของช่วง work เท่านั้น · <b>ช่องรอบคือจำนวนช่วง 4 นาทีที่ทำจริง</b> ทำได้ 3 รอบก็กรอก 3 แล้วนาทีรวมจะลดตามเอง · <b>ช่องความชันเป็นทางเลือก</b> — ใส่เมื่อทำบนลู่ชัน เพื่อให้ height กับ MET·mins ของสัปดาห์นับรวมช่วงนี้ด้วย ไม่ใส่ก็ยังบันทึกได้ตามปกติ',
   mistake:'อัดเต็มที่ตั้งแต่รอบแรกจนรอบ 3–4 ตก · พักด้วยการนั่งนิ่ง · วางชิดวันวิ่งยาวหรือวันเวทหนัก'}
 ];
