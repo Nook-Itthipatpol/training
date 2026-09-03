@@ -97,7 +97,7 @@ async function suiteBoot() {
     eq(t.doc.querySelectorAll('[data-day]').length, 3, 'day cards');
     ok(t.doc.querySelectorAll('[data-item]').length > 20, 'exercise rows');
     t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
-    ok(t.doc.querySelector('.phcard'), 'phase card');
+    ok(t.doc.querySelector('#aprog'), 'weekly progress card');
     t.doc.querySelector('[data-tab="daily"]').click(); await tick(200);
     eq(t.doc.querySelectorAll('.hab').length, 2, 'habit cards');
     eq(t.errors, [], 'errors');
@@ -380,27 +380,12 @@ async function suiteAero() {
     t.close();
   });
 
-  await test('the phase ladder starts, nudges and clamps at both ends', async () => {
+  await test('the incline card keeps its static speed/grade placeholders', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
-    eq(t.win.eval('phase'), null, 'not started');
-    t.doc.querySelector('[data-phstart]').click(); await tick(60);
-    eq(t.win.eval('phaseIdx()'), 0, 'starts at rung 0');
-    for (let i = 0; i < 20; i++) { const b = t.doc.querySelector('[data-phadj="1"]'); if (b) b.click(); await tick(30); }
-    eq(t.win.eval('phaseIdx()'), 15, 'clamps at the top');
-    for (let i = 0; i < 20; i++) { const b = t.doc.querySelector('[data-phadj="-1"]'); if (b) b.click(); await tick(30); }
-    eq(t.win.eval('phaseIdx()'), 0, 'clamps at the bottom');
-    eq(t.errors, [], 'errors');
-    t.close();
-  });
-
-  await test('FIX-G · the incline placeholders come from the current rung, formatted like it', async () => {
-    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
-    t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
-    t.doc.querySelector('[data-phstart]').click(); await tick(60);
     t.doc.querySelector('[data-aadd="incline"]').click(); await tick(40);
-    eq(t.doc.querySelector('[data-af][data-fk="grade"]').placeholder, '6', 'grade');
-    eq(t.doc.querySelector('[data-af][data-fk="kmh"]').placeholder, '5.0', 'speed matches the ladder');
+    eq(t.doc.querySelector('[data-af][data-fk="grade"]').placeholder, '12', 'grade');
+    eq(t.doc.querySelector('[data-af][data-fk="kmh"]').placeholder, '5.5', 'speed');
     t.close();
   });
 
@@ -415,14 +400,6 @@ async function suiteAero() {
     t.close();
   });
 
-  await test('speedMet picks the equation by speed, not by card', async () => {
-    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
-    const walk = t.win.speedMet(5.5, 12), run = t.win.speedMet(10, 0);
-    ok(walk > 8 && walk < 14, 'incline walk MET in range, got ' + walk);
-    ok(run > 9 && run < 12, 'run MET in range, got ' + run);
-    eq(t.win.speedMet(0, 0), null, 'zero speed');
-    t.close();
-  });
 }
 
 /* =========================================================================
@@ -525,13 +502,12 @@ async function suiteTransfer() {
     t.close();
   });
 
-  await test('export then import round-trips history, daily log and phase', async () => {
+  await test('export then import round-trips history and daily log', async () => {
     const dump = {
       exported: '2026-08-01T00:00:00Z', app: 'training-week-v52',
       current: { weekStart: '2026-08-31', checks: { h2: true }, weights: { h2: '55' }, metrics: {}, aero: [], bw: '71', deload: false },
       history: { 2026: { v: 1, weeks: { '2026-W20': { week: '2026-W20', items: { h2: { done: 1, w: 50 } } } } } },
-      daily: { '2026-08': { v: 1, days: { '2026-08-05': { x1: 1 } } } },
-      phase: { wk: '2026-W20', adj: 1 }
+      daily: { '2026-08': { v: 1, days: { '2026-08-05': { x3: 1 } } } }
     };
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     t.doc.getElementById('import').click(); await tick(40);
@@ -540,7 +516,6 @@ async function suiteTransfer() {
     t.doc.querySelector('[data-iogo]').click(); await tick(600);
     eq(t.win.eval('state.bw'), '71', 'current week');
     eq(t.win.eval('histRecs.length'), 1, 'history');
-    eq(JSON.parse(t.win.eval('JSON.stringify(phase)')), { wk: '2026-W20', adj: 1 }, 'phase');
     eq(t.errors, [], 'errors');
     t.close();
   });
@@ -650,20 +625,6 @@ async function suiteDurability() {
     });
     eq(t.win.eval('histRecs.length'), 1, 'one record');
     eq(t.win.eval('histRecs.map(r=>r.week).join(",")'), '2026-W30', 'one week');
-    t.close();
-  });
-
-  await test('FIX-E · the ladder counts each incline week once', async () => {
-    const t = await boot({
-      now: '2026-08-31T09:00:00+07:00',
-      seed: {
-        'trainweek:v11': STATE({}),
-        'aero:phase': JSON.stringify({ wk: '2026-W01', adj: 0 }),
-        'trainweek:hist:index': JSON.stringify({ years: ['2026', 2026] }),
-        'trainweek:hist:2026': JSON.stringify({ v: 1, weeks: { '2026-W30': { week: '2026-W30', items: {}, aero: [{ t: 'incline', min: 50 }] } } })
-      }
-    });
-    eq(t.win.eval('phaseEarned()'), 1, 'one earned week, not two');
     t.close();
   });
 

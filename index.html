@@ -633,10 +633,6 @@
   .aday.today .adow::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
     background:var(--brass);vertical-align:middle;margin-left:7px;box-shadow:0 0 8px var(--brass);}
   .aadd{display:flex;gap:6px;}
-  .apill{padding:5px 11px;border:1px solid #FFFFFF1F;border-radius:999px;background:transparent;
-    font:inherit;font-family:var(--mono);font-size:var(--s4);font-weight:500;color:var(--dim);
-    cursor:pointer;letter-spacing:.04em;transition:border-color .15s,color .15s;}
-  .apill:hover{border-color:var(--brass2);color:var(--brass);}
   .arow{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
   .arow.first{border-top:0;margin-top:0;padding-top:0;}
   .arh{display:flex;align-items:center;gap:9px;}
@@ -658,8 +654,6 @@
   .aday.empty::after,.aday.empty::before{display:none;}
   .aday.empty .ahead{gap:6px;}
   .aday.empty .adow{font-size:var(--s3);font-weight:500;color:var(--muted);}
-  .aday.empty .apill{padding:3px 9px;opacity:.55;transition:opacity .15s,border-color .15s,color .15s;}
-  .aday.empty .apill:hover{opacity:1;}
   .aemptywrap{border:1px solid var(--line);border-radius:var(--r);background:#FFFFFF04;
     padding:5px 12px;margin-bottom:8px;}
   .aemptywrap .aday.empty+.aday.empty{border-top:1px solid #FFFFFF08;}
@@ -675,49 +669,6 @@
   /* a logged number here is a record, not a headline — brass was shouting */
   #pane-aero .mtin{color:var(--ink);}
   #pane-aero .mtbox .unit{min-width:34px;}
-
-  /* ---------- v55: incline ladder ---------- */
-  .phcard{margin-bottom:14px;padding:14px 16px 10px;}
-  .phrow{display:flex;align-items:baseline;gap:10px;}
-  .phrow .aplab{flex:1;}
-  .phmeta{display:flex;align-items:center;justify-content:space-between;gap:10px;
-    margin-top:10px;font-family:var(--mono);font-size:var(--s4);color:var(--dim);}
-  .phbtns{display:flex;gap:6px;flex:none;}
-  .phbtns .apill{padding:3px 12px;font-size:var(--s3);line-height:1.4;}
-  .phcard details{margin:8px 0 0;}
-  /* the ladder. `now` is a marker, not a grade — same uncoloured logic as the
-     history table: no row here is a pass or a fail. */
-  table.ph{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:var(--s4);}
-  table.ph td{padding:6px 6px 6px 0;color:var(--dim);vertical-align:top;
-    border-top:1px solid var(--line);}
-  table.ph tr:first-child td{border-top:0;}
-  table.ph td.w{white-space:nowrap;width:64px;}
-  table.ph td.g{white-space:nowrap;width:38px;color:var(--ink);}
-  table.ph td.s{white-space:nowrap;width:54px;}
-  table.ph td.m{white-space:nowrap;width:78px;}
-  table.ph td.n{padding-right:0;line-height:1.5;}
-  table.ph tr.now td{color:var(--ink);}
-  table.ph tr.now td.w{position:relative;padding-left:9px;}
-  table.ph tr.now td.w::before{content:"";position:absolute;left:0;top:8px;
-    width:4px;height:4px;border-radius:50%;background:var(--brass);}
-  .phsub{font-size:var(--s4);letter-spacing:.2em;text-transform:uppercase;
-    color:var(--dim);margin:16px 0 10px;padding-top:14px;
-    border-top:1px solid var(--line);}
-  /* session menu */
-  .ms+.ms{margin-top:11px;padding-top:11px;border-top:1px solid var(--line);}
-  .msh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;}
-  .mk{font-family:var(--mono);font-size:var(--s4);font-weight:600;flex:none;
-    width:19px;height:19px;border-radius:var(--rc);display:inline-flex;
-    align-items:center;justify-content:center;
-    background:#FFFFFF0F;color:var(--dim);}
-  .mk.hard{background:color-mix(in srgb,var(--brass),transparent 82%);color:var(--brass);}
-  .mn{font-size:var(--s3);font-weight:600;color:var(--ink);}
-  .md{font-family:var(--mono);font-size:var(--s4);color:var(--dim);flex:1;min-width:0;}
-  .mm{font-family:var(--mono);font-size:var(--s4);color:var(--muted);flex:none;}
-  .mb{font-family:var(--mono);font-size:var(--s4);color:var(--dim);
-    line-height:1.65;margin-top:5px;}
-  .mb b{color:var(--ink);font-weight:600;}
-  .mr{color:var(--muted);}
 
   /* ---------- v30: aerobic progression ---------- */
   .aprow{display:flex;align-items:baseline;gap:10px;}
@@ -797,7 +748,6 @@ const HIDX   = 'trainweek:hist:index';
 const HSHARD = y  => `trainweek:hist:${y}`;
 const DSHARD = m  => `daily:log:${m}`;  /* m = 'YYYY-MM' */
 const UITAB  = 'ui:tab';
-const PKEY   = 'aero:phase';           /* v55: {wk, adj} — outlives the weekly rollover */
 const ROLL_HOUR = 4;                    /* day + week boundary, local time */
 
 /* v33: on a near-black field a mid-tone hue reads as mud, so every accent is
@@ -1005,65 +955,6 @@ const AERO=[
 ];
 const AEROT={}; for(const a of AERO) AEROT[a.t]=a;
 
-/* ================= v55: the incline ladder =================
-   The cheat sheet this replaces was a printed table with a METs column typed
-   into it by hand. Every one of those numbers is already computable from the
-   grade and the speed beside it — speedMet() reproduces all four rows to within
-   0.1 — so the column is gone and the app derives it. Two sources of truth for
-   the same number is how they drift.
-
-   Phase advances on WEEKS THAT HAD AN INCLINE SESSION, not on the calendar. The
-   whole point of the first phase is "ให้ tendon ปรับตัว", and a tendon does not
-   adapt during a week off. Counting calendar weeks would walk a deload week, a
-   week with flu and a week of travel straight up to 12%.
-
-   The last rung before the vest step has no upper week threshold on purpose —
-   it is reached at week 15 and held there, just like the vest step above it, so
-   that arriving at the machine's grade ceiling is not itself the thing that
-   asks for a vest. The vest step is reached only by pressing +, never by
-   arriving. */
-const PHASES=[
-  {lab:'1',  need:0,  grade:6,  lo:5.0, hi:5.0, min:'30 นาที',
-   note:'ไม่เกิน 3 ครั้ง/สัปดาห์ · ให้ tendon ปรับตัว'},
-  {lab:'2',  need:1,  grade:6,  lo:5.0, hi:5.0, min:'33 นาที'},
-  {lab:'3',  need:2,  grade:7,  lo:5.0, hi:5.0, min:'33 นาที'},
-  {lab:'4',  need:3,  grade:7,  lo:5.0, hi:5.0, min:'36 นาที'},
-  {lab:'5',  need:4,  grade:8,  lo:5.0, hi:5.0, min:'36 นาที'},
-  {lab:'6',  need:5,  grade:8,  lo:5.2, hi:5.2, min:'40 นาที'},
-  {lab:'7',  need:6,  grade:9,  lo:5.2, hi:5.2, min:'40 นาที'},
-  {lab:'8',  need:7,  grade:9,  lo:5.2, hi:5.2, min:'43 นาที'},
-  {lab:'9',  need:8,  grade:10, lo:5.2, hi:5.2, min:'43 นาที',
-   note:'เริ่มใส่ 4×4 ได้ (ทุก 1–2 สัปดาห์)'},
-  {lab:'10', need:9,  grade:10, lo:5.4, hi:5.4, min:'46 นาที'},
-  {lab:'11', need:10, grade:11, lo:5.4, hi:5.4, min:'46 นาที'},
-  {lab:'12', need:11, grade:11, lo:5.4, hi:5.4, min:'50 นาที'},
-  {lab:'13', need:12, grade:12, lo:5.6, hi:5.6, min:'50 นาที'},
-  {lab:'14', need:13, grade:12, lo:5.6, hi:5.6, min:'55 นาที'},
-  {lab:'15+',need:14, grade:12, lo:6.0, hi:6.4, min:'55 นาที',
-   note:'ถึงเพดานเครื่อง · เร่งความเร็วต่อ <b>ห้ามเร่งจนต้องวิ่ง</b>'},
-  {lab:'vest',need:null, grade:12, lo:6.0, hi:6.4, min:'55 นาที',
-   note:'+ vest 5 kg เมื่อ 6.0–6.4 km/h นิ่งแล้ว'}
-];
-const PHASE_ORDER='grade +1% ทุก 2 สัปดาห์ (peak strain) · duration +10%/สัปดาห์ (volume)';
-
-/* the weekly menu. Structure only — the grade and speed for "เดินชัน" come from
-   the phase above, which is why they are not written into these strings. The
-   ones that are written in (E's run, C's rows and cooldown walk, F's interval
-   and rest) are the parts that deliberately depart from the current phase. */
-const SESSIONS=[
-  {k:'A',day:'อังคาร',name:'เดินล้วน',kind:'z2',
-   s:'เดินชัน — ตามตารางสัปดาห์ปัจจุบัน'},
-  {k:'B',day:'พฤหัส', name:'Hybrid',     kind:'z2',rows:2,
-   s:'Row <b>22′</b> → เดินชัน — ตามตารางสัปดาห์ปัจจุบัน'},
-  {k:'E',day:'เสาร์', name:'Run',        kind:'z2',rows:2,alt:1,
-   s:'วิ่ง easy นอกบ้าน flat <b>30–40′</b> → เดินชัน — ตามตารางสัปดาห์ปัจจุบัน'},
-  {k:'C',day:'เสาร์', name:'Row',        kind:'z2',rows:2,alt:1,
-   s:'Row <b>25′</b> → เดินชัน — ตามตารางสัปดาห์ปัจจุบัน → Row <b>10′</b> → เดิน 6% <b>15′</b>'},
-  {k:'F',day:'เสาร์', name:'4×4 ลู่ชัน', kind:'hard',alt:1,every:'ทุก 1–2 สัปดาห์ · ไม่ทำก่อน wk 9',
-   s:'<b>4×</b> [grade ปัจจุบัน ที่ 6.4–7.0 km/h <b>4′</b> · พักเดิน 4% <b>3′</b>]'}
-];
-const SESS_FUEL='ทุก session: น้ำ 450–500 ml + กล้วยก่อนออก · <b>A/B งดคาเฟอีน</b> · C เติม whey 20 g · <b>F ห้าม fasted</b>';
-
 /* ---- the 4×4's duration ----
    It is the one session with no Time field: 10 warm-up + n × 4 work +
    (n−1) × 3 rest + 5 cool is fixed by the protocol, so the rounds are the only
@@ -1075,8 +966,8 @@ const X4={warm:10,work:4,rest:3,cool:5};   /* v60: the MET constants went with m
    personal one, scored from estimates layered three deep: an equation picked by
    speed, a wattage curve, a body weight that might be last month's. Minutes are
    measured, and the minutes bar was already the one being read.
-   speedMet survives because the incline ladder still quotes a MET per rung —
-   that is a single number from a single equation, not a weekly score. */
+   v63: speedMet itself is gone too — the incline ladder that was its last
+   caller is gone with it. */
 function x4Sets(e){ const n=num(e.sets); return (n==null||n<=0)?4:Math.max(1,Math.min(8,Math.round(n))); }
 function x4Parts(e){ const n=x4Sets(e); return {work:n*X4.work, easy:X4.warm+X4.cool+Math.max(0,n-1)*X4.rest}; }
 /* total time the session occupies — for the 4×4 this is derived from the rounds,
@@ -1085,22 +976,6 @@ function aeroMinOf(e){
   if(e.t==='x4'){ const p=x4Parts(e); return p.work+p.easy; }
   const v=num(e.min); return v==null?0:v;
 }
-/* v54: ONE equation picker for everything done on legs, so the same speed can
-   never mean two different things depending on which card it was typed into.
-   The ACSM walking equation is only valid to ~6 km/h and the running one only
-   from ~8 km/h; the old code chose by CARD (incline → always walking, run →
-   always running), so a 6 km/h jog logged as a run was credited 6.7 MET instead
-   of 3.9, and a 8 km/h treadmill climb logged as an incline walk used the wrong
-   equation the other way. It now chooses by SPEED, with 7 km/h as the crossover
-   in the middle of the gap where neither equation is validated. */
-function speedMet(kmh, grade){
-  if(kmh==null||kmh<=0) return null;
-  const S=kmh*16.6667, G=(grade||0)/100;
-  const vo2 = kmh<7 ? (0.1*S + 1.8*S*G + 3.5)     /* ACSM walking */
-                    : (0.2*S + 0.9*S*G + 3.5);    /* ACSM running */
-  return Math.round(vo2/3.5*10)/10;
-}
-
 /* v36: nothing is pre-placed on the aerobic tab. The planned sessions live on
    the Exercises tab, where they are logged; mirroring them here filled the week
    with rows that were not choices. This tab is now only what actually happened.
@@ -1234,35 +1109,6 @@ function aeroCounts(e){
   const pos=k=>{ const v=num(e[k]); return v!=null && v>0; };
   return pos('min')||pos('km')||pos('m');
 }
-/* ---- v55: which rung of the ladder the week is on ----
-   `phase` is stored under its own key, not inside `state`, because the weekly
-   rollover blanks `state` — a program that forgot where it was every Monday
-   would be worse than the printed table it replaces.
-   `adj` is a manual offset in weeks, not an absolute index, so pressing + once
-   does not freeze the count: the automatic advance keeps running underneath. */
-let phase = null;    /* {wk:'YYYY-Www', adj:0} · null = program not started */
-function phaseOn(){ return !!(phase && phase.wk); }
-function hasIncline(list){ for(const e of list) if(e.t==='incline' && aeroCounts(e)) return true; return false; }
-/* weeks since the start that actually contained an incline session. Week keys
-   are zero-padded, so the string compare is a date compare. */
-function phaseEarned(){
-  if(!phaseOn()) return 0;
-  let n=0;
-  for(const r of histRecs){ if(r.week>=phase.wk && hasIncline(aeroList(r))) n++; }
-  const liveWk=weekKeyOf(new Date(state.weekStart+'T12:00:00'));
-  if(liveWk>=phase.wk && hasIncline(aeroNow())) n++;
-  return n;
-}
-/* the automatic rung tops out at index 2. Rung 4 has no `need`, so it is only
-   ever reached through adj — see the note on PHASES. */
-function phaseAuto(e){ let i=0; for(let k=0;k<PHASES.length;k++){ if(PHASES[k].need!=null && e>=PHASES[k].need) i=k; } return i; }
-function phaseIdx(){
-  if(!phaseOn()) return 0;
-  return Math.max(0, Math.min(PHASES.length-1, phaseAuto(phaseEarned()) + (phase.adj||0)));
-}
-function phaseCur(){ return PHASES[phaseIdx()]; }
-async function phaseSave(){ await store.set(PKEY, phase); }
-
 function aeroTotals(list){
   let n=0,min=0,km=0,m=0;
   for(const e of list){
@@ -1491,7 +1337,7 @@ async function loadHist(idxPre){
   recs.sort((a,b)=> a.week<b.week?1:(a.week>b.week?-1:0));
   /* v62: one record per week key, whatever the shards contained. The year dedupe
      above is the fix; this is the invariant, held where every reader can rely on
-     it — histRows, aeroPeak and phaseEarned all assume weeks are unique. */
+     it — histRows and aeroPeak both assume weeks are unique. */
   const seen=new Set();
   histRecs=recs.filter(r=>{ if(!r||!r.week||seen.has(r.week)) return false; seen.add(r.week); return true; });
 }
@@ -2005,7 +1851,6 @@ function ioOpen(mode,title,body){
 
 async function buildDump(){
   const dump={exported:new Date().toISOString(),app:'training-week-v52',current:state,history:{},daily:{}};
-  dump.phase=phase;                 /* v55: a program that survives export */
   const idx=await store.get(HIDX);
   for(const y of ((idx&&idx.years)||[])){ const sh=await store.get(HSHARD(y)); if(sh) dump.history[y]=sh; }
   const d=now();
@@ -2137,10 +1982,6 @@ async function runImport(dump){
     await store.set(DSHARD(mk),cur);
   }
   if(dump.current){ applyState(dump.current); await store.set(KEY,state); }
-  /* v55: only if the incoming dump actually carries one — a pre-v55 export has
-     no phase field, and treating a missing key as "not started" would silently
-     wipe a running program on the way in. */
-  if(dump.phase && dump.phase.wk){ phase={wk:dump.phase.wk, adj:Number(dump.phase.adj)||0}; await phaseSave(); }
   await loadHist();
   await rollIfStale();
   dailyReady=null;                     /* next mount re-reads the month shards */
@@ -2357,27 +2198,12 @@ const newSid = () => 'a'+Date.now().toString(36)+(aeroUid++).toString(36);
    MET-min — and then wrote it into a [data-ad] node that aeroSessHTML has never
    rendered, so no user has ever seen it. The week TOTAL is the number this tab
    is about; a per-session score invites optimising the session instead. */
-/* v55: the ladder is only useful if it reaches the field you are about to type
-   into. The incline card's Speed and Incline placeholders come from the current
-   phase, so "+ Incline walk" already shows 12 and 5.4 and the table never has to
-   be opened to find them. */
-function fieldPh(t,x){
-  if(t==='incline' && phaseOn()){
-    const P=phaseCur();
-    if(x.k==='grade') return String(P.grade);
-    /* v62: f1, so the placeholder reads 5.0 like the rung above it does. String()
-       printed 5, and a placeholder that disagrees with the table it was copied
-       from is a placeholder you check twice. */
-    if(x.k==='kmh')   return f1(P.lo);
-  }
-  return x.ph??'';
-}
 function aeroFieldsHTML(e){
   const cfg=AEROT[e.t];
   const f=cfg.fields.map(x=>`<label class="mt"><span class="mtlab">${esc(x.label)}</span>
     <span class="mtbox">
       <input class="wtin mtin" type="number" step="${x.step}" inputmode="decimal"
-             data-af="${e.s}" data-fk="${x.k}" value="${esc(e[x.k]??'')}" placeholder="${esc(fieldPh(e.t,x))}"
+             data-af="${e.s}" data-fk="${x.k}" value="${esc(e[x.k]??'')}" placeholder="${esc(x.ph??'')}"
              aria-label="${esc(x.label)} ${esc(cfg.label)}">
       <span class="unit">${esc(x.unit)}</span>
     </span></label>`).join('');
@@ -2400,79 +2226,6 @@ function aeroSessHTML(e){
    session types sit in one bar at the bottom — the thing you reach for after
    training, where a thumb already is. A new session lands on today and can be
    moved with the day select on its own row. */
-/* ---- v55: the card that replaced the printed cheat sheet ----
-   One line is always visible: the grade and speed for today. Everything else —
-   the other rungs, the five session shapes — sits behind ONE fold. Two
-   folds side by side made the reader choose which to open before knowing what
-   was in either, and the answer was almost always both: the rung sets the
-   numbers the session shapes are written around. The MET range is computed, never stored. */
-/* v62: speedMet returns null for a non-positive speed, and f1 would have thrown
-   on it. No rung in PHASES can trigger that today — this is a guard on the
-   equation's own contract, so editing a rung to 0 shows a dash instead of
-   blanking the whole Aerobic tab with a TypeError. */
-function metRange(P){
-  const a=speedMet(P.lo,P.grade), b=speedMet(P.hi,P.grade);
-  if(a==null||b==null) return '—';
-  return a===b ? `~${f1(a)}` : `~${f1(a)}–${f1(b)}`;
-}
-const f1=v=>(v==null?'—':Number(v).toFixed(1));
-function kmhRange(P){ return P.lo===P.hi ? f1(P.lo) : `${f1(P.lo)}–${f1(P.hi)}`; }
-function ladderHTML(){
-  const cur=phaseIdx(), on=phaseOn();
-  let h='<table class="ph l">';
-  PHASES.forEach((P,i)=>{
-    const when = P.need==null ? 'ต่อไป' : (i===PHASES.length-2 ? `wk ${P.need+1}+` :
-                 PHASES[i+1].need===P.need+1 ? `wk ${P.need+1}` : `wk ${P.need+1}–${PHASES[i+1].need}`);
-    h+=`<tr class="${on&&i===cur?'now':''}">
-      <td class="w">${when}</td>
-      <td class="g"><b>${P.grade}%</b></td>
-      <td class="s">${kmhRange(P)}</td>
-      <td class="m">${metRange(P)} MET</td>
-      <td class="n">${P.min}</td></tr>`;
-  });
-  return h+`</table><p class="histcap">${PHASE_ORDER}</p>
-    <p class="phsub">เมนู session</p>`;
-}
-function menuHTML(){
-  const rows=SESSIONS.map(S=>`<div class="ms">
-    <div class="msh">
-      <span class="mk ${S.kind}">${S.k}</span>
-      <span class="mn">${esc(S.name)}</span>
-      <span class="md">${esc(S.day)}${S.alt?' · สลับ':''}${S.every?' · '+esc(S.every):''}</span>
-    </div>
-    <div class="mb">${S.s}${S.rows?' <span class="mr">· ลง 2 แถว</span>':''}</div>
-  </div>`).join('');
-  return rows+`<p class="histcap">${SESS_FUEL}</p>
-    <p class="histcap">B · C · E ผสมสองแบบในเซสชันเดียว — ลงเป็นสองแถวในหน้านี้ คนละความหนักจึงคนละ MET</p>`;
-}
-/* the head is split from the folds on purpose: it is redrawn on every keystroke
-   (a minute typed can earn the week and move the rung) and replacing the whole
-   card would snap an open <details> shut under the user's thumb. */
-function phaseTopHTML(){
-  if(!phaseOn()) return `<div class="phrow"><span class="aplab">Incline ladder</span></div>
-    <p class="anone">ยังไม่ได้เริ่มโปรแกรม — กดเริ่มแล้วเฟสจะเลื่อนเองตามสัปดาห์ที่มีเดินชันจริง</p>
-    <div class="phmeta"><span></span><span class="phbtns"><button class="apill" data-phstart>เริ่มโปรแกรมสัปดาห์นี้</button></span></div>`;
-  const P=phaseCur(), e=phaseEarned(), i=phaseIdx(), a=phaseAuto(e);
-  const drift = i>a ? ` · เลื่อนเอง +${i-a}` : i<a ? ` · ถอยเอง ${i-a}` : '';
-  return `<div class="phrow">
-      <span class="aplab">Week ${P.lab}</span>
-      <span class="apval">${P.grade}% · ${kmhRange(P)}</span>
-    </div>
-    <div class="apsub">${metRange(P)} MET · ${P.min}${P.note?' · '+P.note:''}</div>
-    <div class="phmeta">
-      <span>${e} สัปดาห์ที่มีเดินชัน${drift}</span>
-      <span class="phbtns">
-        <button class="apill" data-phadj="-1" aria-label="ถอยหนึ่งสัปดาห์">−</button>
-        <button class="apill" data-phadj="1" aria-label="เลื่อนหนึ่งสัปดาห์">+</button>
-      </span>
-    </div>`;
-}
-function phaseHTML(){
-  return `<section class="atot phcard">
-    <div class="phtop">${phaseTopHTML()}</div>
-    <details><summary>ตารางเต็ม</summary><div class="histbody">${ladderHTML()}${menuHTML()}</div></details>
-  </section>`;
-}
 function buildAero(){
   const td=dowOf(now());
   /* v53: one SESSION, one card. The day heading said what the day select on the
@@ -2489,7 +2242,6 @@ function buildAero(){
   const empty=parts.length?'':'<p class="anone">ยังไม่มี session สัปดาห์นี้ — กดปุ่มด้านล่างเพื่อเพิ่ม</p>';
   const add=AERO.map(a=>`<button class="aaddbtn" data-aadd="${a.t}">+ ${esc(a.label)}</button>`).join('');
   aeroEl.innerHTML=`
-    ${phaseHTML()}
     <section class="atot" id="aprog">${aeroProgHTML()}</section>
     ${empty}${parts.join('')}
     <div class="aaddbar">${add}</div>`;
@@ -2532,11 +2284,6 @@ function aeroProgHTML(){
 function aeroRefreshTot(){
   const pg=document.getElementById('aprog');
   if(pg) pg.innerHTML=aeroProgHTML();
-  /* v55: typing the first minute into an incline card can earn the week, which
-     can move the ladder. The phase card is derived from the same numbers, so it
-     is redrawn by the same call rather than waiting for the next full build. */
-  const ph=aeroEl.querySelector('.phtop');
-  if(ph) ph.innerHTML=phaseTopHTML();
 }
 /* no green, no red. Volume that went down in a deload week is not a loss, and a
    tracker that grades weekly minutes gets read as a verdict — same reasoning
@@ -2553,22 +2300,6 @@ function aeroHistHTML(){
   }
   return h+'</table>';
 }
-/* v55: start / nudge. The ladder redraws too, because `now` moves with the rung.
-   phaseSave writes its own key — nothing here touches the weekly state. */
-aeroEl.addEventListener('click',async e=>{
-  const st=e.target.closest('[data-phstart]');
-  if(st){
-    phase={wk:weekKeyOf(new Date(state.weekStart+'T12:00:00')), adj:0};
-    await phaseSave(); buildAero(); return;
-  }
-  const adj=e.target.closest('[data-phadj]');
-  if(adj && phaseOn()){
-    const want=phaseIdx()+Number(adj.dataset.phadj);
-    if(want>=0 && want<PHASES.length){ phase.adj=(phase.adj||0)+Number(adj.dataset.phadj); await phaseSave(); }
-    const c=aeroEl.querySelector('.phcard'); if(c) c.outerHTML=phaseHTML();
-    return;
-  }
-});
 aeroEl.addEventListener('click',e=>{
   const add=e.target.closest('[data-aadd]');
   if(add){
@@ -2722,10 +2453,9 @@ tabsEl.addEventListener('click',e=>{
 (async function init(){
   const tab=(store.mirrorGet(UITAB)||{}).id||'week';   /* sync, 0 round trips */
   perf.mark('init-start');
-  const [s,idx,ph]=await Promise.all([store.get(KEY),store.get(HIDX),store.get(PKEY)]);
+  const [s,idx]=await Promise.all([store.get(KEY),store.get(HIDX)]);
   perf.mark('wave1');
   applyState(s);
-  phase = (ph&&ph.wk) ? {wk:ph.wk, adj:Number(ph.adj)||0} : null;
   await loadHist(idx);
   perf.mark('wave2');
   await rollIfStale();
