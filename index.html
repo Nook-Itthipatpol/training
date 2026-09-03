@@ -2048,11 +2048,36 @@ function itemSetsText(it){
   const m=/^(\d+)\s*(?:×|x)/.exec(it.dose||'');
   return m ? ` x ${m[1]} sets` : '';
 }
+/* one line per group: a superset (2+ consecutive items sharing an `ss`
+   letter, the same rule dayHTML uses for its one shared checkbox) becomes
+   "Superset A: Name x N sets + Name x N sets"; anything else — a standalone
+   exercise, or a lone survivor of a pair — is just its own line. Deload is
+   ignored here the same way the rest of this list ignores it: PLAN as
+   written, not the live cut-down version. */
+function daySupersetLines(day){
+  const lines=[];
+  let open=null, buf=[];
+  const flush=()=>{
+    if(!buf.length) return;
+    if(open && buf.length>1){
+      lines.push(`Superset ${open}: ${buf.map(it=>`${it.name}${itemSetsText(it)}`).join(' + ')}`);
+    } else {
+      for(const it of buf) lines.push(`${it.name}${itemSetsText(it)}`);
+    }
+    buf=[];
+  };
+  for(const it of day.items){
+    if(it.name==='Warm-up') continue;
+    if((it.ss||null)!==open){ flush(); open=it.ss||null; }
+    buf.push(it);
+  }
+  flush();
+  return lines;
+}
 function planListText(){
   const byDay=Array.from({length:7},()=>({names:[],aero:[]}));
   for(const day of PLAN){
-    const names=day.items.filter(it=>it.name!=='Warm-up').map(it=>`${it.name}${itemSetsText(it)}`);
-    byDay[DOWI[day.dow]].names.push(...names);
+    byDay[DOWI[day.dow]].names.push(...daySupersetLines(day));
   }
   for(const e of (state.aero||[])){
     const line=aeroLineText(e); if(!line) continue;
@@ -2061,7 +2086,7 @@ function planListText(){
   return byDay
     .map((b,i)=>({i,lines:[...b.names,...b.aero]}))
     .filter(b=>b.lines.length)
-    .map(b=>`${DOW_FULL[b.i]}\n${b.lines.join('\n')}`)
+    .map(b=>`# ${DOW_FULL[b.i]}\n${b.lines.map(l=>`- ${l}`).join('\n')}`)
     .join('\n\n');
 }
 const copyListBtn=document.getElementById('copylist');
