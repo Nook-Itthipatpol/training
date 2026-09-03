@@ -383,19 +383,30 @@ async function suiteAero() {
   await test('the copied exercise list suffixes each resistance name with its set count', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
-    ok(txt.includes('Bulgarian Split Squat x 3 sets'), 'name first, set count suffixed');
+    ok(txt.includes('- Bulgarian Split Squat x 3 sets'), 'name first, set count suffixed, bulleted');
     ok(!txt.includes('Warm-up x'), 'Warm-up is still excluded, not just left unsuffixed');
     t.close();
   });
 
-  await test('the copied exercise list includes this week\'s logged aerobic dose', async () => {
+  await test('the copied exercise list writes each superset as one bulleted line', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
+    const txt = t.win.eval('planListText()');
+    // Monday: e4+e3 are superset A (3 sets each), h3+e5 are superset B (3 then 2 sets)
+    ok(txt.includes('- Superset A: Incline DB Press x 3 sets + Chest-supported Row x 3 sets'),
+      'superset A on one line, each exercise keeping its own set count');
+    ok(txt.includes('- Superset B: Lateral Raise x 3 sets + Preacher Curl x 2 sets'),
+      'superset B: differing set counts both preserved');
+    t.close();
+  });
+
+  await test('the copied exercise list uses markdown headers and bullets', async () => {
     const t = await boot({
       now: '2026-08-31T09:00:00+07:00',
       seed: { 'trainweek:v11': STATE({ aero: [{ s: 'a1', d: 1, t: 'incline', min: '45', kmh: '5.5', grade: '10' }] }) }
     });
     const txt = t.win.eval('planListText()');
-    ok(/^Monday\n/.test(txt), 'resistance day still heads the list');
-    ok(txt.includes('Tuesday\nIncline walk — 45 min · 5.5 km/h · 10 %'), 'aerobic session with its dose');
+    ok(/^# Monday\n/.test(txt), 'day is an h1 header');
+    ok(txt.includes('# Tuesday\n- Incline walk — 45 min · 5.5 km/h · 10 %'), 'aerobic session with its dose, bulleted');
     ok(!txt.includes('Saturday'), 'a day with nothing logged is not printed');
     t.close();
   });
