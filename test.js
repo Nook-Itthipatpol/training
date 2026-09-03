@@ -342,6 +342,18 @@ async function suiteAero() {
     t.close();
   });
 
+  await test('the copied exercise list includes this week\'s logged aerobic dose', async () => {
+    const t = await boot({
+      now: '2026-08-31T09:00:00+07:00',
+      seed: { 'trainweek:v11': STATE({ aero: [{ s: 'a1', d: 1, t: 'incline', min: '45', kmh: '5.5', grade: '10' }] }) }
+    });
+    const txt = t.win.eval('planListText()');
+    ok(/^Monday\n/.test(txt), 'resistance day still heads the list');
+    ok(txt.includes('Tuesday\nIncline walk — 45 min · 5.5 km/h · 10 %'), 'aerobic session with its dose');
+    ok(!txt.includes('Saturday'), 'a day with nothing logged is not printed');
+    t.close();
+  });
+
   await test('the 4x4 derives its minutes from the rounds', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     eq(t.win.aeroMinOf({ t: 'x4' }), 40, 'default 4 rounds');

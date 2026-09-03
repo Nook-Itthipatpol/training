@@ -2052,13 +2052,35 @@ impBtn.addEventListener('click',()=>{
   const ta=ioEl.querySelector('#ioin'); if(ta) ta.focus();
 });
 
-/* plain-text exercise names, grouped by day — for pasting into notes/search,
-   not the tracked state, so it always lists the plan as written, deload or not */
+/* plain-text exercise names, grouped by day — for pasting into notes/search.
+   Resistance names come from PLAN, not tracked state, so they always list the
+   plan as written, deload or not. Aerobic lines come from state.aero instead —
+   there is no "aerobic plan" to fall back on, only whatever was actually
+   logged for the live week, dose and all — so this half of the list changes
+   as the week is filled in, unlike the resistance half. */
+function aeroLineText(e){
+  const cfg=AEROT[e.t]; if(!cfg) return null;
+  const parts=cfg.fields.map(x=>{
+    const v = (e.t==='x4' && x.k==='sets') ? x4Sets(e) : num(e[x.k]);
+    return v==null ? null : `${v} ${x.unit}`;
+  }).filter(Boolean);
+  return parts.length ? `${cfg.label} — ${parts.join(' · ')}` : cfg.label;
+}
 function planListText(){
-  return PLAN.map(day=>{
+  const byDay=Array.from({length:7},()=>({names:[],aero:[]}));
+  for(const day of PLAN){
     const names=day.items.filter(it=>it.name!=='Warm-up').map(it=>it.name);
-    return `${DOW_FULL[DOWI[day.dow]]}\n${names.join('\n')}`;
-  }).join('\n\n');
+    byDay[DOWI[day.dow]].names.push(...names);
+  }
+  for(const e of (state.aero||[])){
+    const line=aeroLineText(e); if(!line) continue;
+    byDay[e.d??0].aero.push(line);
+  }
+  return byDay
+    .map((b,i)=>({i,lines:[...b.names,...b.aero]}))
+    .filter(b=>b.lines.length)
+    .map(b=>`${DOW_FULL[b.i]}\n${b.lines.join('\n')}`)
+    .join('\n\n');
 }
 const copyListBtn=document.getElementById('copylist');
 let copyListTimer=null;
