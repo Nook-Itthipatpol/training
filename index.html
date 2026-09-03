@@ -633,16 +633,18 @@
   .aday.today .adow::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
     background:var(--brass);vertical-align:middle;margin-left:7px;box-shadow:0 0 8px var(--brass);}
   .aadd{display:flex;gap:6px;}
-  .arow{border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
+  .arow{position:relative;border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
   .arow.first{border-top:0;margin-top:0;padding-top:0;}
-  .arh{display:flex;align-items:center;gap:9px;}
-  .aname{font-size:var(--s2);font-weight:500;flex:1;min-width:0;}
+  .arbody{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding-right:26px;}
+  .arinfo{display:flex;flex-direction:column;gap:5px;min-width:0;}
+  .arname{display:flex;align-items:center;gap:8px;min-width:0;}
+  .aname{font-size:var(--s2);font-weight:500;min-width:0;}
   /* v60: one colour. The dot used to be green for Z2 and orange for the 4×4,
      which read as a verdict on the session before it had been logged — the same
      reason the bars and the delta column are uncoloured. Brass says "this is a
      session", and the card already says which kind in words. */
-  .adot{width:8px;height:8px;border-radius:50%;background:var(--brass);flex:none;margin-left:8px;}
-  .ax{width:28px;height:28px;padding:0;flex:none;border:0;background:none;
+  .adot{width:8px;height:8px;border-radius:50%;background:var(--brass);flex:none;}
+  .ax{position:absolute;top:8px;right:2px;width:28px;height:28px;padding:0;border:0;background:none;
     font:inherit;font-size:18px;line-height:1;color:#5A676C;cursor:pointer;}
   .ax:hover{color:#E0899A;}
   .anone{font-size:var(--s3);color:var(--dim);margin:8px 0 0;}
@@ -657,7 +659,7 @@
   .aemptywrap{border:1px solid var(--line);border-radius:var(--r);background:#FFFFFF04;
     padding:5px 12px;margin-bottom:8px;}
   .aemptywrap .aday.empty+.aday.empty{border-top:1px solid #FFFFFF08;}
-  .aday .mtwrap{margin:8px 0 0 33px;}
+  .aday .mtwrap{margin:0;}
   /* v54: one field per line, label and value on the same line — the fields are
      read one at a time while typing, not scanned as a row. */
   #pane-aero .mtwrap{flex-direction:column;align-items:stretch;gap:0;}
@@ -699,7 +701,8 @@
   }
   .aaddbtn:hover{border-color:var(--brass2);background:#FFFFFF0A;}
   .adaysel{
-    flex:none;padding:4px 6px;border:1px solid #FFFFFF1A;border-radius:var(--rc);background:#12161B;
+    appearance:none;-webkit-appearance:none;-moz-appearance:none;
+    flex:none;align-self:flex-start;padding:4px 6px;border:1px solid #FFFFFF1A;border-radius:var(--rc);background:#12161B;
     font:inherit;font-family:var(--mono);font-size:var(--s4);color:var(--muted);cursor:pointer;
   }
   .adaysel:focus{outline:none;border-color:var(--brass2);}
@@ -2213,12 +2216,14 @@ function aeroSessHTML(e){
   const cfg=AEROT[e.t]; if(!cfg) return '';
   const opts=DOW_FULL.map((nm,i)=>`<option value="${i}"${i===e.d?' selected':''}>${nm.slice(0,3)}</option>`).join('');
   return `<div class="arow first">
-    <div class="arh">
-      <span class="adot"></span>
-      <span class="aname">${esc(cfg.label)}</span>
-      <select class="adaysel" data-aday="${e.s}" aria-label="day for ${esc(cfg.label)}">${opts}</select>
-      <button class="ax" data-adel="${e.s}" aria-label="remove ${esc(cfg.label)}">×</button>
-    </div>${aeroFieldsHTML(e)}</div>`;
+    <button class="ax" data-adel="${e.s}" aria-label="remove ${esc(cfg.label)}">×</button>
+    <div class="arbody">
+      <div class="arinfo">
+        <span class="arname"><span class="adot"></span><span class="aname">${esc(cfg.label)}</span></span>
+        <select class="adaysel" data-aday="${e.s}" aria-label="day for ${esc(cfg.label)}">${opts}</select>
+      </div>
+      ${aeroFieldsHTML(e)}
+    </div></div>`;
 }
 /* v53: the week is no longer a seven-row scaffold with an add pill on every day.
    Six of those rows were always empty, and the pills asked which day before the
