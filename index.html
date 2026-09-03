@@ -1216,10 +1216,11 @@ function aeroTotals(list){
    views the progress bar can show (see aeroProgHTML): each gets its own peak
    function and its own no-history fallback, since a minute, a metre of climb
    and a MET-minute are not remotely the same scale.
-   No history at all → 120 minutes. v51 dropped the `def` flag that came with it:
-   no caller ever read it, so the promise in this comment that the UI would say
-   the denominator is an assumption was never kept. */
-const AERO_BASE=120;
+   No history at all → 35 minutes, a modest first-week denominator rather than
+   the true target it took months to earn. v51 dropped the `def` flag that came
+   with it: no caller ever read it, so the promise in this comment that the UI
+   would say the denominator is an assumption was never kept. */
+const AERO_BASE=35;
 function aeroPeak(recs){
   let best=null;
   for(const r of (recs||[])){
@@ -1228,7 +1229,7 @@ function aeroPeak(recs){
   }
   return best || {min:AERO_BASE,week:null};
 }
-const AERO_HEIGHT_BASE=300;
+const AERO_HEIGHT_BASE=90;
 function aeroPeakHeight(recs){
   let best=null;
   for(const r of (recs||[])){
@@ -1237,7 +1238,7 @@ function aeroPeakHeight(recs){
   }
   return best || {height:AERO_HEIGHT_BASE,week:null};
 }
-const AERO_METMIN_BASE=700;
+const AERO_METMIN_BASE=200;
 function aeroPeakMet(recs){
   let best=null;
   for(const r of (recs||[])){
