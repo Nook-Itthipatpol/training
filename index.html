@@ -2044,10 +2044,14 @@ function aeroLineText(e){
   }).filter(Boolean);
   return parts.length ? `${cfg.label} — ${parts.join(' · ')}` : cfg.label;
 }
+function itemSetsText(it){
+  const m=/^(\d+)\s*(?:×|x)/.exec(it.dose||'');
+  return m ? ` x ${m[1]} sets` : '';
+}
 function planListText(){
   const byDay=Array.from({length:7},()=>({names:[],aero:[]}));
   for(const day of PLAN){
-    const names=day.items.filter(it=>it.name!=='Warm-up').map(it=>it.name);
+    const names=day.items.filter(it=>it.name!=='Warm-up').map(it=>`${it.name}${itemSetsText(it)}`);
     byDay[DOWI[day.dow]].names.push(...names);
   }
   for(const e of (state.aero||[])){

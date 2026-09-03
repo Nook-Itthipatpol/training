@@ -380,6 +380,14 @@ async function suiteAero() {
     t.close();
   });
 
+  await test('the copied exercise list suffixes each resistance name with its set count', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
+    const txt = t.win.eval('planListText()');
+    ok(txt.includes('Bulgarian Split Squat x 3 sets'), 'name first, set count suffixed');
+    ok(!txt.includes('Warm-up x'), 'Warm-up is still excluded, not just left unsuffixed');
+    t.close();
+  });
+
   await test('the copied exercise list includes this week\'s logged aerobic dose', async () => {
     const t = await boot({
       now: '2026-08-31T09:00:00+07:00',
