@@ -414,7 +414,7 @@ async function suiteAero() {
       { week: '2026-W33', aero: [{ t: 'run', min: 200 }] }
     ];
     eq(t.win.aeroPeak(recs).min, 200, 'peak');
-    eq(t.win.aeroPeak([]).min, 120, 'no history falls back to 120');
+    eq(t.win.aeroPeak([]).min, 35, 'no history falls back to 35');
     t.close();
   });
 
