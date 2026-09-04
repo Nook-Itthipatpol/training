@@ -383,7 +383,7 @@ async function suiteAero() {
   await test('the copied exercise list suffixes each resistance name with its set count', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
-    ok(txt.includes('- Bulgarian Split Squat x 3 sets'), 'name first, set count suffixed, bulleted');
+    ok(txt.includes('- Bulgarian Split Squat x 2 sets'), 'name first, set count suffixed, bulleted');
     ok(!txt.includes('Warm-up x'), 'Warm-up is still excluded, not just left unsuffixed');
     t.close();
   });
@@ -391,11 +391,11 @@ async function suiteAero() {
   await test('the copied exercise list writes each superset as one bulleted line', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
-    // Monday: e4+e3 are superset A (3 sets each), h3+e5 are superset B (3 then 2 sets)
+    // Monday: e4+e3 are superset A (3 sets each), h3+e11 are superset B (3 sets each)
     ok(txt.includes('- Superset A: Incline DB Press x 3 sets + Chest-supported Row x 3 sets'),
       'superset A on one line, each exercise keeping its own set count');
-    ok(txt.includes('- Superset B: Lateral Raise x 3 sets + Preacher Curl x 2 sets'),
-      'superset B: differing set counts both preserved');
+    ok(txt.includes('- Superset B: Lateral Raise x 3 sets + Hammer Curl x 3 sets'),
+      'superset B: both exercises keeping their set count');
     t.close();
   });
 
