@@ -52,7 +52,7 @@ Fields:
    count` and `...writes each superset as one bulleted line`) hardcode exact
    exercise names and set counts from Monday's list (currently Nordic
    Hamstring Curl, the Incline DB Press / Chest-supported Row superset, and
-   the Prone DB Y raise / Hammer Curl superset) and Wednesday's (the Face
+   the Hammer Curl / Lateral Raise superset) and Wednesday's (the Face
    Pull / Seated Calf Raise superset, used as the differing-set-count
    example). If you change any of those specific exercises or their set
    counts, update
