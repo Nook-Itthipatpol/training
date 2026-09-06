@@ -52,9 +52,10 @@ Fields:
    count` and `...writes each superset as one bulleted line`) hardcode exact
    exercise names and set counts from Monday's list (currently Bulgarian
    Split Squat, the Incline DB Press / Chest-supported Row superset, and the
-   Lateral Raise / Hammer Curl superset). If you change any of those specific
-   exercises or their set counts, update the matching `ok(txt.includes(...))`
-   strings in `test.js`.
+   Prone DB Y raise / Hammer Curl superset) and Wednesday's (the Face Pull /
+   Seated Calf Raise superset, used as the differing-set-count example). If
+   you change any of those specific exercises or their set counts, update
+   the matching `ok(txt.includes(...))` strings in `test.js`.
 
 3. **Cross-references in prose fields.** Some `target`/`note` strings mention
    another exercise by name for context (e.g. "complement กับ hammer curl
