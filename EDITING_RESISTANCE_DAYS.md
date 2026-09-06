@@ -12,7 +12,7 @@ exercises in display order.
 Each item looks like:
 
 ```js
-{id:'h2', rest:'rest 2–3 min', name:'Bulgarian Split Squat', dose:'2 × 8 /side',
+{id:'t2', rest:'rest 2 min', name:'Nordic Hamstring Curl', dose:'2 × 3–5 · once a week',
  target:'• why this exercise is here',
  note:'• how to perform it (cues, setup, tempo)',
  mistake:'• optional: the failure mode to watch for'}
@@ -50,11 +50,12 @@ Fields:
 2. **`test.js`** — the "copy exercise list" tests
    (`the copied exercise list suffixes each resistance name with its set
    count` and `...writes each superset as one bulleted line`) hardcode exact
-   exercise names and set counts from Monday's list (currently Bulgarian
-   Split Squat, the Incline DB Press / Chest-supported Row superset, and the
-   Prone DB Y raise / Hammer Curl superset) and Wednesday's (the Face Pull /
-   Seated Calf Raise superset, used as the differing-set-count example). If
-   you change any of those specific exercises or their set counts, update
+   exercise names and set counts from Monday's list (currently Nordic
+   Hamstring Curl, the Incline DB Press / Chest-supported Row superset, and
+   the Prone DB Y raise / Hammer Curl superset) and Wednesday's (the Face
+   Pull / Seated Calf Raise superset, used as the differing-set-count
+   example). If you change any of those specific exercises or their set
+   counts, update
    the matching `ok(txt.includes(...))` strings in `test.js`.
 
 3. **Cross-references in prose fields.** Some `target`/`note` strings mention
