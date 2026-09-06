@@ -391,11 +391,14 @@ async function suiteAero() {
   await test('the copied exercise list writes each superset as one bulleted line', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
-    // Monday: e4+e3 are superset A (3 sets each), h3+e11 are superset B (3 sets each)
+    // Monday: e4+e3 are superset A (3 sets each), e16+e11 are superset B (2 sets each)
     ok(txt.includes('- Superset A: Incline DB Press x 3 sets + Chest-supported Row x 3 sets'),
       'superset A on one line, each exercise keeping its own set count');
-    ok(txt.includes('- Superset B: Lateral Raise x 3 sets + Hammer Curl x 3 sets'),
+    ok(txt.includes('- Superset B: Prone DB Y raise x 2 sets + Hammer Curl x 2 sets'),
       'superset B: both exercises keeping their set count');
+    // Wednesday: h6+h7 are superset C with differing set counts (3 then 2)
+    ok(txt.includes('- Superset C: Face Pull x 3 sets + Seated Calf Raise x 2 sets'),
+      'differing set counts within one superset are both preserved');
     t.close();
   });
 
