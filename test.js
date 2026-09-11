@@ -94,7 +94,7 @@ async function suiteBoot() {
   await test('boots clean, paints all three tabs, no errors', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     eq(t.doc.body.dataset.ready, '1', 'ready flag');
-    eq(t.doc.querySelectorAll('[data-day]').length, 3, 'day cards');
+    eq(t.doc.querySelectorAll('[data-day]').length, 5, 'day cards: Mon and Fri are two cards each');
     ok(t.doc.querySelectorAll('[data-item]').length > 20, 'exercise rows');
     t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
     ok(t.doc.querySelector('#aprog'), 'weekly progress card');
@@ -391,14 +391,18 @@ async function suiteAero() {
   await test('the copied exercise list writes each superset as one bulleted line', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
-    // Monday: e4+e3 are superset A (3 sets each), e11+h3 are superset B (2 sets each)
-    ok(txt.includes('- Superset A: Incline DB Press x 3 sets + Chest-supported Row x 3 sets'),
-      'superset A on one line, each exercise keeping its own set count');
-    ok(txt.includes('- Superset B: Hammer Curl x 2 sets + Lateral Raise x 2 sets'),
-      'superset B: both exercises keeping their set count');
-    // Wednesday: h6+h7 are superset C with differing set counts (3 then 2)
-    ok(txt.includes('- Superset C: Face Pull x 3 sets + Seated Calf Raise x 2 sets'),
-      'differing set counts within one superset are both preserved');
+    // Monday part 1: e4+e3 are superset B (3 sets each), e9+e11 are superset C (2 sets each)
+    ok(txt.includes('- Superset B: Incline DB Press x 3 sets + Chest-supported Row x 3 sets'),
+      'superset B on one line, each exercise keeping its own set count');
+    ok(txt.includes('- Superset C: DB Overhead Extension x 2 sets + Hammer Curl x 2 sets'),
+      'superset C: both exercises keeping their set count');
+    // Monday part 2 is a separate card, and its superset letters land under the
+    // same '# Monday' header as part 1's — one day, one list.
+    ok(txt.includes('- Superset D: Harness Neck Extension'),
+      'a second card on the same day keeps its own superset letters');
+    // the letters are per day, so Wednesday opens at A again without merging
+    ok(txt.includes('- Superset A: Single-Arm Cable Row x 3 sets + Cable lateral raise x 3 sets'),
+      'a repeated letter on another day is its own superset');
     t.close();
   });
 
