@@ -810,42 +810,63 @@ const DOW_FULL=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','S
    v53: this tab is RESISTANCE ONLY. The 4×4, the long run and pickleball are
    aerobic work, and aerobic work is now logged in one place — the Aerobic tab —
    where a session carries its own day and its own numbers.
-   Skater bounds stayed: it is a plyometric warm-up for the gym day, not cardio. */
+   v65: skater bounds and the cable chop left with them — the plan they were a
+   warm-up for no longer opens with power work. */
 const PLAN=[
- {dow:'MON',title:'Home gym',kind:'strength',items:[
+ /* v65: Monday and Friday are each ONE session written as TWO cards. The split
+    is presentational — a 10-item card is a scroll, two 4-item cards are a list
+    — so both halves keep the same `dow` and only `sub` tells them apart.
+    dayHTML already drew a `sub`, and buildWeek already opened every card whose
+    dow is today, so nothing below this line needed to learn about parts. */
+ {dow:'MON',sub:'part 1',title:'Home gym',kind:'strength',items:[
    {id:'wu1',noWeight:1,rest:'rest 60s',name:'Warm-up',dose:'10 นาที · ก่อนเวททุกครั้ง',
     target:'• Raise temperature → open ROM → activate key muscles → prime speed ก่อน working sets',
     note:'• 3 min: jumping jack + step-up ต่อเนื่อง<br>• Dynamic: leg swing หน้า–หลัง ×8/ข้าง · ด้านข้าง ×8/ข้าง · world’s greatest stretch ×4/ข้าง · cat-cow ×6 · ankle dorsiflexion rock ×8/ข้าง · bodyweight squat ×5<br>• Activation: glute bridge ×10 · band walk ×10/ข้าง · scapular pull-up ×5<br>• Pogo hop 3×15: เด้งจากข้อเท้า เข่าแทบไม่งอ · ground contact ให้สั้นที่สุด'},
-   {id:'m1',rest:'rest 90s',noWeight:1,name:'Skater Bounds (stick landing)',dose:'2 × 6 /side · ต่อจาก warm-up',
-    target:'• Lateral power + deceleration control; เตรียมข้อเท้า/เข่าสำหรับ pickleball<br>• เป้าหมายคือ stick landing ให้นิ่ง ไม่ใช่กระโดดให้ไกล',
-    note:'• ทำต่อจาก warm-up ตอนขายัง fresh ก่อน strength work<br>• กระโดดด้านข้าง → ลงขาเดียวผ่าน mid-foot → งอ hip/knee ซับแรง<br>• เข่าตามแนวปลายเท้า; ค้างนิ่ง 1–2 s ก่อนกระโดดกลับ<br>• เน้น quality; หยุดก่อนกลายเป็น cardio หรือกินแรงเซ็ตหลัก',
-    mistake:'• ถ้าลงแล้วต้องแตะอีกเท้าช่วยทรงตัว = rep ยังไม่ถือว่า stick'},
-   {id:'t2',rest:'rest 2 min',noWeight:1,name:'Nordic Hamstring Curl',dose:'2 × 3–5 · once a week',
-    target:'• Lengthened hamstring work; ใช้เป็น low-dose injury-prevention work',
-    note:'• ล็อกข้อเท้าและรักษาลำตัวเป็นเส้นตรง<br>• ค่อยๆ ปล่อยตัวลงช้าที่สุดเท่าที่ต้านไหว → มือรับพื้น → ใช้แขนช่วยดันกลับ<br>• โดสน้อยโดยตั้งใจ; progress ด้วยช่วงที่คุม eccentric ได้ ไม่ใช่เพิ่ม reps'},
-   {id:'e4',ss:'A',name:'Incline DB Press',dose:'3 × 8–10',
-    target:'• Upper chest + anterior delts; main press ของ Home gym',
-    note:'• Bench ~30°<br>• สะบักกดติดเบาะ; ศอก ~45° กับลำตัว<br>• ลงจนอกตึงโดยไม่ดึงไหล่หน้า แล้ว press ขึ้นให้ DB เข้าหากันเล็กน้อย'},
-   {id:'e3',ss:'A',rest:'rest 2 min',name:'Chest-supported Row',dose:'3 × 10–12',
+   {id:'e6',ss:'A',name:'Single-leg Step Down',dose:'2 × 8–10 /side',
+    target:'• Unilateral quad + eccentric knee control; งานหลักอยู่ช่วงลง',
+    note:'• เริ่มกล่อง ~20–30 cm; ยืนขาเดียว อีกขาห้อยหน้า<br>• Lower 3 s จนส้นอีกข้างแตะพื้นเบาๆ แล้วดันกลับ<br>• เข่าตามแนวปลายเท้า; ขาที่ห้อยไม่ช่วยดัน<br>• Progress จาก box height แล้วค่อยเพิ่ม DB load'},
+   {id:'e12',ss:'A',rest:'rest 90s',name:'Copenhagen plank',dose:'2 × 20–30 s /side',
+    target:'• Adductor strength + anti-rotation; injury-prevention work สำหรับ lateral movement',
+    note:'• วางเท้าบนบนม้านั่ง (top leg) ศอกอีกข้างค้ำพื้น; ลำตัวเป็นเส้นตรงจากบ่าถึงข้อเท้า<br>• Brace core; ห้ามสะโพกตก<br>• เริ่มจากช่วงเวลาสั้นและ progress ทีละน้อยเมื่อฟอร์มยังนิ่ง',
+    mistake:'• สะโพกหมุนหรือหย่อนลง = จบ set'},
+   {id:'e4',ss:'B',name:'Incline DB Press',dose:'3 × 8–10',
+    target:'• Upper chest + anterior delts; main press ของวันจันทร์',
+    note:'• Bench ~30°<br>• สะบักกดติดเบาะ; ศอก ~45° กับลำตัว<br>• ลงจนอกตึงโดยไม่ดึงไหล่หน้า แล้ว press ขึ้นให้ DB เข้าหากันเล็กน้อย<br>• คนละช่องน้ำหนักกับ Incline DB Press วันศุกร์ — ล็อกสดกว่า ตัวเลขจึงมักไม่เท่ากัน'},
+   {id:'e3',ss:'B',rest:'rest 2 min',name:'Chest-supported Row',dose:'3 × 10–12',
     target:'• Mid-back work โดยแทบไม่เพิ่ม load ให้ lower back',
     note:'• Bench ~30–45°; นอนคว่ำและให้อกติดเบาะตลอด<br>• Drive elbows ไปด้านหลัง; squeeze scapula 1 s ตอนสุด<br>• อย่ายกอกหรือ shrug เพื่อช่วยน้ำหนัก'},
-   {id:'e11',ss:'B',rest:'rest 90s',name:'Hammer Curl',dose:'2 × 10–12',
-    target:'• Biceps brachii + brachialis ผ่าน neutral grip; complement กับ incline curl',
-    note:'• จับ DB แนวตั้ง (neutral grip) ตลอด rep; ศอกแนบลำตัว<br>• Curl ขึ้นโดยไม่แกว่งไหล่หรือเหวี่ยงศอกไปหน้า<br>• ลงคุม eccentric จนแขนเกือบเหยียดสุด',
-    mistake:'• ศอกลอยไปหน้าเพื่อช่วยยก = load หนักเกิน'},
-   {id:'h3',ss:'B',name:'Lateral Raise',dose:'2 × 12–15',
+   {id:'h3',rest:'rest 90s',name:'Lateral Raise',dose:'2 × 12–15',
     target:'• Lateral delts',
     note:'• เอนตัวไปหน้าเล็กน้อย<br>• ยกถึง shoulder height; eccentric ~3 s',
     mistake:'• ถ้าต้องเหวี่ยงสะโพกเพื่อยก = load หนักเกิน'},
-   {id:'h5',rest:'rest 90s',noWeight:0,name:'Suitcase Carry',dose:'3 เที่ยว × 30–40 ม. /ข้าง',
+   {id:'e9',ss:'C',name:'DB Overhead Extension',dose:'2 × 10–12',
+    target:'• เน้น long head ของ triceps ผ่าน overhead position',
+    note:'• ถือ DB สองมือหรือทีละข้าง<br>• ศอกชี้ขึ้นและอยู่กับที่<br>• ลงหลังศีรษะจน triceps ตึง แล้วขึ้นแบบ controlled<br>• Brace abs กัน lumbar extension'},
+   {id:'e11',ss:'C',rest:'rest 90s',name:'Hammer Curl',dose:'2 × 10–12',
+    target:'• Biceps brachii + brachialis ผ่าน neutral grip; complement กับ incline curl วันศุกร์',
+    note:'• จับ DB แนวตั้ง (neutral grip) ตลอด rep; ศอกแนบลำตัว<br>• Curl ขึ้นโดยไม่แกว่งไหล่หรือเหวี่ยงศอกไปหน้า<br>• ลงคุม eccentric จนแขนเกือบเหยียดสุด',
+    mistake:'• ศอกลอยไปหน้าเพื่อช่วยยก = load หนักเกิน'}
+
+ ]},
+
+ {dow:'MON',sub:'part 2',title:'Carry · neck · calves · grip',kind:'strength',items:[
+   {id:'h5',rest:'rest 90s',noWeight:0,name:'Suitcase Carry',dose:'2 × 30–40 ม. /ข้าง · ครบสองข้าง = 1 เที่ยว',
     target:'• Anti-lateral flexion + grip + hip stability ระหว่างเดิน<br>• เป้าหมายคือรักษาลำตัวตรงภายใต้ unilateral load',
     note:'• ถือ DB/KB ข้างเดียว; ไหล่สองข้างระดับเดียวกัน ห้าม counter-lean<br>• Scapula down, chest open, เดินก้าวปกติและหายใจต่อเนื่อง<br>• ครบสองข้าง = 1 trip<br>• Progress ด้วย load ไม่ใช่ระยะ; เลือกน้ำหนักจากความสามารถในการเดินตรง ไม่ใช่จาก grip อย่างเดียว'},
-   {id:'n1',rest:'rest 90s',name:'Harness Neck Extension, seated, torso hinged ~45°',dose:'2 × 12–15',
+   {id:'n1',ss:'D',name:'Harness Neck Extension, seated, torso hinged ~45°',dose:'2 × 12–15',
     target:'• Direct neck extensor work; complement daily isometric holds',
     note:'• Torso hinged ~45°<br>• 3 s eccentric + 1 s pause at stretch<br>• ขึ้นถึง neutral เท่านั้น; movement ต้อง controlled'},
-   {id:'n2',rest:'rest 90s',name:'Supine Plate Neck Flexion',dose:'2 × 15–20',
+   {id:'n2',ss:'D',rest:'rest 90s',name:'Supine Plate Neck Flexion',dose:'2 × 15–20',
     target:'• Direct neck flexor work; complement daily isometric holds',
-    note:'• Chin tuck ก่อน แล้วคง tuck ไว้ตลอด curl<br>• ถ้า chin tuck หลุด = จบ set<br>• คุมจังหวะ; ไม่ใช้ head momentum'}
+    note:'• Chin tuck ก่อน แล้วคง tuck ไว้ตลอด curl<br>• ถ้า chin tuck หลุด = จบ set<br>• คุมจังหวะ; ไม่ใช้ head momentum'},
+   {id:'h11',rest:'rest 90s',name:'Standing Calf Raise',dose:'2 × 12–15 · 2s hold at top',
+    target:'• Gastrocnemius — เข่าเหยียดทำให้ gastroc รับงานแทน soleus<br>• คู่กับ Standing Calf Raise วันศุกร์: สัปดาห์ละสองครั้งคือโดสที่น่องต้องการ',
+    note:'• ยืนปลายเท้าบนขอบแท่น เข่าเหยียด (ไม่ล็อกแข็ง)<br>• ขึ้นสุด + hold 2 s<br>• ลงช้าจนส้นต่ำกว่าระดับแท่นเพื่อได้ full stretch',
+    mistake:'• เด้งจาก Achilles แทนการออกแรงน่อง · ROM สั้นเพราะโหลดหนักเกิน'},
+   {id:'h12',rest:'rest 90s',name:'Wrist Roller',dose:'2 × 2 ขึ้น-ลง',
+    target:'• Forearm flexors + extensors ต่อเนื่องยาวๆ; grip endurance สำหรับ carry และ pickleball',
+    note:'• ยืดแขนไปหน้า ระดับไหล่; ม้วนเชือกขึ้นจนสุดแล้วคลายลงช้าๆ = 1 เที่ยว<br>• ขึ้นและลงนับเท่ากัน — ขาลงคือ eccentric ของ extensors<br>• ศอกอยู่กับที่ ไม่ตกลงมาพักระหว่างเที่ยว',
+    mistake:'• ปล่อยน้ำหนักดิ่งลงแทนการคลายช้า = ทิ้งครึ่งหนึ่งของงานไป'}
 
  ]},
 
@@ -853,79 +874,71 @@ const PLAN=[
    {id:'wu2',noWeight:1,rest:'rest 60s',name:'Warm-up',dose:'10 นาที · ก่อนเวททุกครั้ง',
     target:'• Raise temperature → open ROM → activate key muscles → prime speed ก่อน working sets',
     note:'• 3 min: jumping jack + step-up ต่อเนื่อง<br>• Dynamic: leg swing หน้า–หลัง ×8/ข้าง · ด้านข้าง ×8/ข้าง · world’s greatest stretch ×4/ข้าง · cat-cow ×6 · ankle dorsiflexion rock ×8/ข้าง · bodyweight squat ×5<br>• Activation: glute bridge ×10 · band walk ×10/ข้าง · scapular pull-up ×5<br>• Pogo hop 3×15: เด้งจากข้อเท้า เข่าแทบไม่งอ · ground contact ให้สั้นที่สุด'},
-   {id:'c1',rest:'rest 2 min',name:'Smith Squat · CAT',dose:'2 × 3 @ 70%',
-    target:'• Prime nervous system ก่อน heavy squat เพื่อเพิ่ม intent + bar speed',
-    note:'• Load ~70% ของ current working-set load — ไม่ใช่ 70% 1RM<br>• Eccentric ปกติ; concentric เร่งเต็มที่ทุก rep<br>• Full rest; ต้องจบ fresh — ถ้าล้า แปลว่า load/volume/rest ไม่เหมาะ'},
-   {id:'t3',rest:'rest 90s',name:'Cable Rotational Chop',dose:'2 × 5 /side · เร่งเต็มที่',
-    target:'• Rotational power/speed สำหรับการตีลูก<br>• สร้าง rotation จากสะโพก; trunk ทำหน้าที่ส่งแรง ไม่ใช่ให้แขนลากสาย',
-    note:'• Cable สูงระดับไหล่ขึ้นไป; ยืนตั้งฉากกับเสา จับสองมือ<br>• เริ่มจากหมุนสะโพก + pivot ส้นเท้าหลัง แล้วลำตัวตาม; แขนออกแรงให้น้อย<br>• ทุก rep = max intent; ถ้า rep ท้ายช้าลงชัด ให้ลด load หรือจบ set<br>• Return ช้าและ controlled; รักษาความสดแบบ power work'},
    {id:'t1',rest:'rest 3 min',name:'Smith Machine Squat',dose:'3 × 6–8',
     target:'• Main squat pattern สำหรับขา + สะโพก; Smith rail ช่วยให้โหลดหนักได้อย่าง stable',
     note:'• วางเท้าออกหน้าบาร์เล็กน้อย; ส้นเท้าติดพื้น<br>• Brace ก่อนลงทุก rep; เข่าตามแนวปลายเท้า<br>• ลงลึกเท่าที่ยังคุมหลังได้; ไม่ bounce<br>• ตั้ง safety pin ใต้ bottom position'},
-   {id:'h1',rest:'rest 3 min',name:'Romanian Deadlift',dose:'3 × 8',
-    target:'• Main hip-hinge work: glutes + hamstrings + lower back',
-    note:'• Push hips back ไม่ใช่ย่อตัวลง; เข่างอเพียงเล็กน้อย<br>• หลัง neutral + brace; bar เลียดต้นขา<br>• ลงจน hamstrings ตึงแล้วหยุด ไม่ต้องแตะพื้น<br>• ยืนจบตรง ไม่ hyperextend หลังล่าง<br>• ถ้า hamstrings ยัง sore จาก Nordic ให้ลด load แทนการฝืน'},
-   {id:'h4',ss:'A',invert:1,name:'Assisted Pull-up',dose:'3 × 6–10',
+   {id:'e19',rest:'rest 3 min',name:'Flat Barbell Press',dose:'3 × 6–8',
+    target:'• Main horizontal press ของสัปดาห์; barbell ทำให้โหลดหนักกว่า incline DB วันจันทร์/ศุกร์',
+    note:'• สะบักหุบและกดติดเบาะตลอด; เท้ายันพื้น<br>• ศอก ~45° กับลำตัว ไม่กาง 90°<br>• บาร์ลงระดับอกล่าง แตะเบา ไม่ bounce<br>• มี safety pin หรือคนช่วยเสมอเมื่อเข้าใกล้ failure'},
+   {id:'h4',rest:'rest 2 min',invert:1,name:'Assisted Pull-up',dose:'3 × 6–10',
     target:'• Vertical pull สำหรับ lats; เติม pattern ที่ horizontal row ไม่ครอบคลุม',
     note:'• เริ่มจากแขนเหยียดสุด → depress scapula → ดึงตัวขึ้น<br>• คุม eccentric ~3 s และใช้ full ROM<br>• ลด assistance ทีละน้อยเมื่อครบ reps ได้ด้วย form เดิม<br>• เลขในช่อง = assistance; ตัวเลขลดลง = progress',
     mistake:'• อย่าเหวี่ยงขาช่วยเพื่อผ่าน rep'},
-   {id:'e1',ss:'A',rest:'rest 2–3 min',name:'Dip',dose:'3 × 8–10',
-    target:'• Lower chest + triceps + anterior delts; downward vertical press',
-    note:'• เลือก bias ให้คงที่: เอนไปหน้าเล็กน้อย = chest; ตั้งตรง = triceps<br>• Depress scapula ก่อนเริ่ม<br>• ลงถึงต้นแขนประมาณขนานพื้น ไม่ต้องลึกกว่านั้น<br>• ถ้ายังไม่ไหว ใช้เท้าช่วยก่อน แล้วค่อยลด assistance',
-    mistake:'• Anterior shoulder pain ตอนล่าง = ลึกเกิน; หยุด/ลด ROM'},
-   {id:'h8',ss:'B',rest:'rest 90s',name:'Single-Arm Cable Row',dose:'3 × 10–12 /side',
+   {id:'h1',rest:'rest 3 min',name:'Romanian Deadlift',dose:'3 × 8',
+    target:'• Main hip-hinge work: glutes + hamstrings + lower back',
+    note:'• Push hips back ไม่ใช่ย่อตัวลง; เข่างอเพียงเล็กน้อย<br>• หลัง neutral + brace; bar เลียดต้นขา<br>• ลงจน hamstrings ตึงแล้วหยุด ไม่ต้องแตะพื้น<br>• ยืนจบตรง ไม่ hyperextend หลังล่าง<br>• ถ้า hamstrings ยัง sore จาก Nordic ให้ลด load แทนการฝืน'},
+   {id:'h8',ss:'A',name:'Single-Arm Cable Row',dose:'3 × 10–12 /side',
     target:'• Unilateral mid-back/scapular work + anti-rotation ของลำตัว',
     note:'• ยืนหรือ half-kneel หน้า cable จับ single handle<br>• ดึงศอกชิดลำตัวไปด้านหลัง; finish ด้วย scapular retraction<br>• ลำตัวนิ่ง ไม่หมุนหรือเอนช่วย<br>• ปล่อยกลับช้าจนแขนเหยียดสุดและ scapula protract'},
-   {id:'h9',ss:'B',rest:'rest 90s',name:'Cable lateral raise',dose:'3 × 12–15',
+   {id:'h9',ss:'A',rest:'rest 90s',name:'Cable lateral raise',dose:'3 × 12–15',
     target:'• Lateral delts ผ่านแรงต้านจาก cable ตลอด range; ต่างจาก DB ตรงจุดที่แรงต้านคงที่แม้ตอนบนสุด',
     note:'• ตั้ง pulley ต่ำสุด ยืนข้างเสา จับสายด้วยมือฝั่งตรงข้าม (cross-body)<br>• ยกแขนออกด้านข้างถึงระดับไหล่ ศอกงอเล็กน้อยคงที่<br>• คุม eccentric ~2–3 s ไม่ปล่อยดิ่ง',
-    mistake:'• ยกสูงเกินไหล่ · เหวี่ยงตัวช่วย · ปล่อยกลับเร็วจนเสีย tension'},
-   {id:'h6',ss:'C',name:'Face Pull',dose:'3 × 12–15',
-    target:'• Rear delts + rotator cuff; balance งาน pressing ทั้งสัปดาห์',
-    note:'• Cable ระดับหน้าผาก<br>• ดึงเข้าหน้าผากพร้อม rotate ฝ่ามือขึ้น; ศอกสูงกว่าข้อมือ<br>• Hold 1 s ตอนสุด<br>• ใช้ load เบาพอที่ไม่ต้องเอนตัวช่วย'},
-   {id:'h7',ss:'C',rest:'rest 90s',name:'Seated Calf Raise',dose:'2 × 12–15 · 2s hold at top',
-    target:'• เน้น soleus + Achilles loading',
-    note:'• นั่งเข่างอ ~90°; ปลายเท้าบนแท่น ส้นลอย<br>• ขึ้นสุด + hold 2 s<br>• ลงช้าจนส้นต่ำกว่าระดับแท่น เพื่อได้ full stretch<br>• ทำต่อเนื่องอย่างน้อย 8–12 สัปดาห์'}
+    mistake:'• ยกสูงเกินไหล่ · เหวี่ยงตัวช่วย · ปล่อยกลับเร็วจนเสีย tension'}
 
  ]},
 
- {dow:'FRI',title:'Home gym',kind:'strength',items:[
+ {dow:'FRI',sub:'part 1',title:'Home gym',kind:'strength',items:[
    {id:'wu3',noWeight:1,rest:'rest 60s',name:'Warm-up',dose:'10 นาที · ก่อนเวททุกครั้ง',
     target:'• Raise temperature → open ROM → activate key muscles → prime speed ก่อน working sets',
     note:'• 3 min: jumping jack + step-up ต่อเนื่อง<br>• Dynamic: leg swing หน้า–หลัง ×8/ข้าง · ด้านข้าง ×8/ข้าง · world’s greatest stretch ×4/ข้าง · cat-cow ×6 · ankle dorsiflexion rock ×8/ข้าง · bodyweight squat ×5<br>• Activation: glute bridge ×10 · band walk ×10/ข้าง · scapular pull-up ×5<br>• Pogo hop 3×15: เด้งจากข้อเท้า เข่าแทบไม่งอ · ground contact ให้สั้นที่สุด'},
-   {id:'e6',name:'Single-leg Step Down',dose:'2 × 8–10 /side',
-    target:'• Unilateral quad + eccentric knee control; งานหลักอยู่ช่วงลง',
-    note:'• เริ่มกล่อง ~20–30 cm; ยืนขาเดียว อีกขาห้อยหน้า<br>• Lower 3 s จนส้นอีกข้างแตะพื้นเบาๆ แล้วดันกลับ<br>• เข่าตามแนวปลายเท้า; ขาที่ห้อยไม่ช่วยดัน<br>• Progress จาก box height แล้วค่อยเพิ่ม DB load'},
-   {id:'e12',rest:'rest 90s',name:'Copenhagen plank',dose:'2 × 20–30 s /side',
-    target:'• Adductor strength + anti-rotation; injury-prevention work สำหรับ lateral movement',
-    note:'• วางเท้าบนบนม้านั่ง (top leg) ศอกอีกข้างค้ำพื้น; ลำตัวเป็นเส้นตรงจากบ่าถึงข้อเท้า<br>• Brace core; ห้ามสะโพกตก<br>• เริ่มจากช่วงเวลาสั้นและ progress ทีละน้อยเมื่อฟอร์มยังนิ่ง',
-    mistake:'• สะโพกหมุนหรือหย่อนลง = จบ set'},
+   {id:'t2',rest:'rest 2 min',noWeight:1,name:'Nordic Hamstring Curl',dose:'2 × 3–5 · once a week',
+    target:'• Lengthened hamstring work; ใช้เป็น low-dose injury-prevention work',
+    note:'• ล็อกข้อเท้าและรักษาลำตัวเป็นเส้นตรง<br>• ค่อยๆ ปล่อยตัวลงช้าที่สุดเท่าที่ต้านไหว → มือรับพื้น → ใช้แขนช่วยดันกลับ<br>• โดสน้อยโดยตั้งใจ; progress ด้วยช่วงที่คุม eccentric ได้ ไม่ใช่เพิ่ม reps'},
    {id:'e14',ss:'A',name:'Incline DB Press',dose:'3 × 8–10',
     target:'• Upper chest + anterior delts; main press ของวันศุกร์',
-    note:'• Bench ~30°<br>• สะบักกดติดเบาะ; ศอก ~45° กับลำตัว<br>• ลงจนอกตึงโดยไม่ดึงไหล่หน้า แล้ว press ขึ้นให้ DB เข้าหากันเล็กน้อย'},
-   {id:'e15',ss:'A',rest:'rest 2 min',name:'Lean-In Dumbbell Lateral Raise',dose:'3 × 12–15',
-    target:'• Lateral delts ด้วยมุมเอียงที่เพิ่ม tension ช่วงล่างซึ่ง lateral raise ยืนตรงไม่มี',
-    note:'• มือหนึ่งจับเสาหรือโครงเครื่องไว้แน่น เอนตัวออกจากจุดจับจนลำตัวเอียง<br>• ยก DB ขึ้นด้านข้างด้วยแขนที่ว่าง จนถึงระดับไหล่<br>• คุมช่วงลงช้าๆ ให้ตึงตลอด ไม่ปล่อยดิ่งกลับ',
-    mistake:'• เอนตัวน้อยเกินจนกลายเป็น lateral raise ยืนธรรมดา · เหวี่ยงจากสะโพกแทนไหล่'},
-   {id:'e7',ss:'B',rest:'rest 2 min',name:'DB Chest Fly',dose:'3 × 12–15',
-    target:'• Chest work ใน lengthened position',
-    note:'• นอนราบหรือ incline เล็กน้อย<br>• คงศอกงอ ~15° ตลอด rep<br>• กางแขนลงจนอกตึงโดยไม่เจ็บไหล่หน้า แล้ว hug กลับ<br>• หยุดเมื่อ DB อยู่เหนืออก; ไม่ต้องดันสูงต่อ'},
-   {id:'e13',ss:'B',name:'DB lat pullover',dose:'3 × 12–15',
-    target:'• Lats + serratus ใน overhead/lengthened position; complement กับ chest fly',
-    note:'• นอนราบบนม้านั่ง สะบักหนุนขอบม้า สะโพกต่ำลงเล็กน้อย<br>• ถือ DB สองมือเหนืออก ศอกงอเล็กน้อยคงที่ตลอด rep<br>• ปล่อยแขนไปด้านหลังศีรษะจนอก/lats ตึง แล้วดึงกลับด้วย lats ไม่ใช่ triceps<br>• คุม tempo; ไม่ใช้ momentum เหวี่ยง'},
-   {id:'e9',ss:'C',name:'DB Overhead Extension',dose:'2 × 10–12',
-    target:'• เน้น long head ของ triceps ผ่าน overhead position',
-    note:'• ถือ DB สองมือหรือทีละข้าง<br>• ศอกชี้ขึ้นและอยู่กับที่<br>• ลงหลังศีรษะจน triceps ตึง แล้วขึ้นแบบ controlled<br>• Brace abs กัน lumbar extension'},
-   {id:'e10',ss:'C',rest:'rest 90s',name:'Incline DB Curl',dose:'2 × 10–12',
+    note:'• Bench ~30°<br>• สะบักกดติดเบาะ; ศอก ~45° กับลำตัว<br>• ลงจนอกตึงโดยไม่ดึงไหล่หน้า แล้ว press ขึ้นให้ DB เข้าหากันเล็กน้อย<br>• คนละช่องน้ำหนักกับวันจันทร์ — วันศุกร์มาทีหลังในสัปดาห์ ตัวเลขจึงมักต่ำกว่า'},
+   {id:'e17',ss:'A',rest:'rest 2 min',name:'Single-arm DB Row',dose:'3 × 10–12 /side',
+    target:'• Horizontal pull ของวันศุกร์; unilateral จึงแก้ความต่างซ้าย-ขวาได้ตรงกว่า row สองมือ',
+    note:'• เข่าและมือข้างเดียวกันยันม้านั่ง; หลังขนานพื้นและ neutral<br>• ดึงศอกไปหลังชิดลำตัว จบด้วย scapular retraction<br>• ปล่อยลงจนแขนเหยียดและสะบักยืดสุด<br>• ลำตัวนิ่ง ไม่บิดสะโพกช่วยดึง',
+    mistake:'• บิดลำตัวขึ้นทุก rep = load หนักเกิน'},
+   {id:'e18',ss:'B',name:'Lateral Raise',dose:'2 × 12–15',
+    target:'• Lateral delts ครั้งที่สองของสัปดาห์ ต่อจากวันจันทร์',
+    note:'• เอนตัวไปหน้าเล็กน้อย<br>• ยกถึง shoulder height; eccentric ~3 s',
+    mistake:'• ถ้าต้องเหวี่ยงสะโพกเพื่อยก = load หนักเกิน'},
+   {id:'e10',ss:'B',rest:'rest 90s',name:'Incline DB Curl',dose:'2 × 10–12',
     target:'• Biceps ใน highly lengthened position; complement กับ hammer curl วันจันทร์',
-    note:'• Bench ~45–60°; หลังแนบเบาะ<br>• ปล่อยแขนห้อยหลังลำตัวจนเกือบเหยียดสุด<br>• ต้นแขนอยู่ด้านหลัง ไม่ลอยมาข้างหน้า; supinate ระหว่าง curl<br>• Load ควรเบากว่า standing curl เป็นปกติ'},
-   {id:'n3',rest:'rest 90s',name:'Side-lying Neck Lateral Flexion, plate on head',dose:'2 × 12 /side',
-    target:'• Neck lateral flexors; เติม frontal-plane work ที่ Monday ไม่มี',
+    note:'• Bench ~45–60°; หลังแนบเบาะ<br>• ปล่อยแขนห้อยหลังลำตัวจนเกือบเหยียดสุด<br>• ต้นแขนอยู่ด้านหลัง ไม่ลอยมาข้างหน้า; supinate ระหว่าง curl<br>• Load ควรเบากว่า standing curl เป็นปกติ'}
+
+ ]},
+
+ {dow:'FRI',sub:'part 2',title:'Neck · wrists · calves',kind:'strength',items:[
+   {id:'n3',ss:'D',name:'Side-lying Neck Lateral Flexion, plate on head',dose:'2 × 12 /side',
+    target:'• Neck lateral flexors; เติม frontal-plane work ที่วันจันทร์ไม่มี',
     note:'• ศีรษะพ้นขอบม้านั่ง<br>• ทำ pure lateral flexion; no rotation<br>• คุม tempo ไม่ใช้ momentum'},
-   {id:'h10',rest:'rest 90s',name:'DB shrug, 2s hold at top',dose:'3 × 12–15',
+   {id:'h10',ss:'D',rest:'rest 90s',name:'DB shrug, 2s hold at top',dose:'2 × 12–15',
     target:'• Upper traps direct work; balance งาน pressing/pulling ทั้งสัปดาห์',
     note:'• ถือ DB สองข้างปล่อยตรงข้างลำตัว<br>• ยกไหล่ขึ้นตรงๆ (ไม่หมุนไหล่) ค้าง 2 s ตอนบนสุด<br>• ปล่อยลงช้าจนไหล่ยืดสุด',
-    mistake:'• หมุนไหล่เป็นวงกลม (เสี่ยง impingement) · ใช้ momentum เหวี่ยงจากขา · ก้มคอช่วยยก'}
+    mistake:'• หมุนไหล่เป็นวงกลม (เสี่ยง impingement) · ใช้ momentum เหวี่ยงจากขา · ก้มคอช่วยยก'},
+   {id:'h14',ss:'E',name:'Wrist Extension',dose:'2 × 12–15',
+    target:'• Wrist extensors — ฝั่งที่รับภาระมากที่สุดตอนตีลูกและเป็นต้นเหตุของ tennis elbow',
+    note:'• นั่งวางท่อนแขนบนต้นขาหรือม้านั่ง ฝ่ามือคว่ำ ข้อมือพ้นขอบ<br>• กระดกข้อมือขึ้นสุด ค้าง 1 s แล้วปล่อยลงช้า ~3 s<br>• ท่อนแขนไม่ขยับ ใช้แค่ข้อมือ<br>• Load เบาไว้ก่อน; ท่านี้ progress ช้ากว่าที่คิดเสมอ'},
+   {id:'h15',ss:'E',rest:'rest 90s',name:'Wrist Flexion',dose:'2 × 12–15',
+    target:'• Wrist flexors + grip; คู่ตรงข้ามของ wrist extension เพื่อให้ปลายแขนสมดุล',
+    note:'• ท่าเดียวกันแต่ฝ่ามือหงาย ข้อมือพ้นขอบ<br>• ปล่อยข้อมือลงจนรู้สึกยืด แล้วม้วนขึ้นสุด<br>• ปล่อยลงช้า ~3 s; ไม่ให้ DB กลิ้งถึงปลายนิ้วถ้ายังคุมไม่ได้'},
+   {id:'h13',rest:'rest 90s',name:'Standing Calf Raise',dose:'2 × 12–15 · 2s hold at top',
+    target:'• Gastrocnemius ครั้งที่สองของสัปดาห์ ต่อจากวันจันทร์<br>• Achilles ตอบสนองต่อความถี่มากกว่าต่อเซ็ตหนักครั้งเดียว',
+    note:'• ยืนปลายเท้าบนขอบแท่น เข่าเหยียด (ไม่ล็อกแข็ง)<br>• ขึ้นสุด + hold 2 s<br>• ลงช้าจนส้นต่ำกว่าระดับแท่นเพื่อได้ full stretch<br>• ทำต่อเนื่องอย่างน้อย 8–12 สัปดาห์',
+    mistake:'• เด้งจาก Achilles แทนการออกแรงน่อง · ROM สั้นเพราะโหลดหนักเกิน'}
 
  ]}
 ];
@@ -2557,22 +2570,17 @@ const DELOAD_DEFAULT='2 sets · same load';
    Meditation habit, NOT the 4×4 — that lives in AERO under `t`. The
    4×4's deload rule is the line in DELOAD_PRINCIPLES, not a key here. */
 const DELOAD_RULES={
-  m1:{skip:'cut — jumping is impact, the opposite of a repair week'},
   t2:{skip:'cut — the biggest muscle-damage driver here'},
   e6:{skip:'cut — slow eccentric, high muscle damage for a unilateral quad move'},
   h1:{dose:'2 × 8 · <b>−20% load</b>',tag:'lighter'},
-  e1:{dose:'2 sets · <b>bodyweight</b>, no load',tag:'lighter'},
   h4:{dose:'2 sets · <b>more assist</b>',tag:'more assist'},
   /* v58: the warm-up is the one thing a repair week must not lose — it is the
      part that protects the session, not the part that taxes it. Only the pogo
-     hops come out, for the same reason the bounds do. */
+     hops come out: impact is the one thing a repair week has no use for. */
   wu1:{dose:'10 นาที · <b>ข้าม pogo hop</b>'},
   wu2:{dose:'10 นาที · <b>ข้าม pogo hop</b>'},
   wu3:{dose:'10 นาที · <b>ข้าม pogo hop</b>'},
-  t3:{skip:'cut — maximal-intent rotation, same reason as the bounds'},
-  /* v59: CAT is speed work. A repair week has nothing to potentiate. */
-  c1:{skip:'cut — maximal-intent speed work, nothing to potentiate this week'},
-  h5:{dose:'2 เที่ยว · <b>−30% load</b>',tag:'lighter'}
+  h5:{dose:'1 เที่ยว · <b>−30% load</b>',tag:'lighter'}
 };
 /* what this item becomes in a deload week */
 function deloadOf(it){

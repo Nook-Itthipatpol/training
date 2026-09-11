@@ -5,9 +5,18 @@ Where to look next time the Monday/Wednesday/Friday strength routine changes.
 ## Where the data lives
 
 `index.html` — everything is one file, no build step. Search for `const PLAN=[`
-(around line 814). `PLAN` is an array of three session objects, one per day
-(`dow:'MON'`, `dow:'WED'`, `dow:'FRI'`), each with an `items` array of
+(around line 814). `PLAN` is an array of **five** session objects
+(`dow:'MON'` ×2, `dow:'WED'`, `dow:'FRI'` ×2), each with an `items` array of
 exercises in display order.
+
+Monday and Friday are each ONE session split across TWO cards, purely so
+neither card is a ten-item scroll. Both halves carry the same `dow` and are
+told apart by `sub:'part 1'` / `sub:'part 2'`, which prints beside the day
+name in the card header. Nothing downstream treats a part as its own day:
+`buildWeek` opens every card whose `dow` is today, and the copied exercise
+list groups by `dow`, so both Monday cards land under one `# Monday`.
+To re-balance the split, move items between the two objects; to add a third
+part, copy a card object and give it the same `dow` with a new `sub`.
 
 Each item looks like:
 
@@ -20,8 +29,16 @@ Each item looks like:
 
 Fields:
 - `id` — stable, short, unique across the whole file (used by history, deload
-  rules, tests). Never reuse an id for a different exercise; give a brand-new
-  exercise a fresh id (grep the file first to make sure it's not taken).
+  rules, tests). Never reuse an id for a different exercise — **including ids
+  that have already been retired**: a user's archived weeks still hold them, so
+  a recycled id makes another exercise's history reappear under the new name.
+  Check every id ever used, not just the live ones:
+
+  ```sh
+  { for c in $(git rev-list --all); do git show $c:index.html; done; \
+    cat training\ v*.html; } | grep -o "id:'[a-z0-9]*'" | sort -u
+  ```
+- `sub` — day-card subtitle (`'part 1'`), for a day written as two cards.
 - `dose` — the set/rep scheme. **The leading number before `×`/`x` is parsed
   by `itemSetsText()`** (see below) to build the "x N sets" suffix in the
   copied exercise list, so keep that number accurate to the actual set count.
@@ -50,13 +67,13 @@ Fields:
 2. **`test.js`** — the "copy exercise list" tests
    (`the copied exercise list suffixes each resistance name with its set
    count` and `...writes each superset as one bulleted line`) hardcode exact
-   exercise names and set counts from Monday's list (currently Nordic
-   Hamstring Curl, the Incline DB Press / Chest-supported Row superset, and
-   the Hammer Curl / Lateral Raise superset) and Wednesday's (the Face
-   Pull / Seated Calf Raise superset, used as the differing-set-count
-   example). If you change any of those specific exercises or their set
-   counts, update
-   the matching `ok(txt.includes(...))` strings in `test.js`.
+   exercise names and set counts: Friday's Nordic Hamstring Curl, Monday
+   part 1's Incline DB Press / Chest-supported Row (superset B) and DB
+   Overhead Extension / Hammer Curl (superset C), Monday part 2's superset D,
+   and Wednesday's superset A. If you change any of those specific exercises
+   or their set counts, update the matching `ok(txt.includes(...))` strings in
+   `test.js`. The boot suite also asserts the **number of day cards** (5) —
+   update it if a day gains or loses a part.
 
 3. **Cross-references in prose fields.** Some `target`/`note` strings mention
    another exercise by name for context (e.g. "complement กับ hammer curl
@@ -66,14 +83,17 @@ Fields:
 ## Running the tests
 
 ```sh
-npm install jsdom --no-save   # not vendored in the repo
-node test.js
+npm install jsdom --no-save          # not vendored in the repo
+node test.js index.html              # the arg matters, see below
 ```
 
-Note: as of writing, this checkout has ~15 pre-existing failures unrelated to
-the resistance-day plan (timezone/rollover/history tests, `planListText is
-not defined` in the aerobic suite due to an eval scoping issue with the
-jsdom version installed here). Compare failure counts before/after your
-change (e.g. `git stash` and rerun) rather than assuming a red run means you
-broke something — but do make sure you haven't *added* any new failures, and
-that the two "copy exercise list" tests pass if you touched Monday's plan.
+`test.js` defaults to the frozen `training v62.html` snapshot, not the live
+file. Always pass `index.html` explicitly, or you will be testing a build from
+three versions ago (and seeing ~15 failures that are only that snapshot's).
+
+Note: as of writing, `node test.js index.html` has 8 pre-existing failures
+unrelated to the resistance-day plan (timezone/rollover/history tests, import/
+export round-trips). Compare failure counts before/after your change (e.g.
+`git stash` and rerun) rather than assuming a red run means you broke
+something — but do make sure you haven't *added* any new failures, and that
+the "copy exercise list" tests pass if you touched a resistance day.
