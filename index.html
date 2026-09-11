@@ -281,13 +281,9 @@
     background:none;border:0;font:inherit;color:inherit;cursor:pointer;
     touch-action:manipulation;
   }
-  .stk{display:flex;flex-direction:column;align-items:center;gap:5px;width:100%;
-    transform:translateY(-6.5px);}
-    /* v41: Plex Mono at 10px/.03em. Mono carries its own fixed advance, so the
-     .14em that a proportional face needed to read as an eyebrow made this one
-     look stretched — .03em is the least that still says "label". */
-  .dow{font-family:var(--tag);font-size:10px;letter-spacing:.03em;text-transform:uppercase;
-    color:var(--dim);font-weight:500;line-height:1.3;}
+  /* v65: one line, centred in the header — the .dow eyebrow above it is gone, and
+     with it the gap and the -6.5px lift that balanced a two-line stack. */
+  .stk{display:flex;flex-direction:column;align-items:center;width:100%;}
     /* v41: the title is the one piece of prose on the card — everything else is a
      number, a code or a state. A serif says that without a rule or a colour. */
   .title{font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:-.005em;
@@ -598,12 +594,6 @@
   .iomsg b{color:var(--ink);font-weight:600;}
 
 
-  /* ---------- v28: session subtitle ---------- */
-    /* v41: AM/PM is another word in the label, not a footnote on it — so it
-     inherits every property rather than restating any. */
-  .dow .sub{display:inline;font:inherit;letter-spacing:inherit;text-transform:inherit;
-    color:inherit;white-space:nowrap;}
-
   /* ---------- v28: aerobic tab ---------- */
   .atot{background:var(--fill);border:1px solid var(--line);border-top:0;border-bottom:0;
     border-radius:var(--r);
@@ -815,10 +805,12 @@ const DOW_FULL=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','S
 const PLAN=[
  /* v65: Monday and Friday are each ONE session written as TWO cards. The split
     is presentational — a 10-item card is a scroll, two 4-item cards are a list
-    — so both halves keep the same `dow` and only `sub` tells them apart.
-    dayHTML already drew a `sub`, and buildWeek already opened every card whose
-    dow is today, so nothing below this line needed to learn about parts. */
- {dow:'MON',sub:'part 1',title:'Home gym',kind:'strength',items:[
+    — so both halves keep the same `dow` and only the `title` tells them apart.
+    buildWeek already opened every card whose dow is today, so nothing below
+    this line needed to learn about parts.
+    v65: the title is the day now ('Monday 1'), so the uppercase `dow` eyebrow
+    that used to sit above it has gone — it was the same word, twice, smaller. */
+ {dow:'MON',title:'Monday 1',kind:'strength',items:[
    {id:'wu1',noWeight:1,rest:'rest 60s',name:'Warm-up',dose:'10 นาที · ก่อนเวททุกครั้ง',
     target:'• Raise temperature → open ROM → activate key muscles → prime speed ก่อน working sets',
     note:'• 3 min: jumping jack + step-up ต่อเนื่อง<br>• Dynamic: leg swing หน้า–หลัง ×8/ข้าง · ด้านข้าง ×8/ข้าง · world’s greatest stretch ×4/ข้าง · cat-cow ×6 · ankle dorsiflexion rock ×8/ข้าง · bodyweight squat ×5<br>• Activation: glute bridge ×10 · band walk ×10/ข้าง · scapular pull-up ×5<br>• Pogo hop 3×15: เด้งจากข้อเท้า เข่าแทบไม่งอ · ground contact ให้สั้นที่สุด'},
@@ -849,7 +841,7 @@ const PLAN=[
 
  ]},
 
- {dow:'MON',sub:'part 2',title:'Carry · neck · calves · grip',kind:'strength',items:[
+ {dow:'MON',title:'Monday 2',kind:'strength',items:[
    {id:'h5',rest:'rest 90s',noWeight:0,name:'Suitcase Carry',dose:'2 × 30–40 ม. /ข้าง · ครบสองข้าง = 1 เที่ยว',
     target:'• Anti-lateral flexion + grip + hip stability ระหว่างเดิน<br>• เป้าหมายคือรักษาลำตัวตรงภายใต้ unilateral load',
     note:'• ถือ DB/KB ข้างเดียว; ไหล่สองข้างระดับเดียวกัน ห้าม counter-lean<br>• Scapula down, chest open, เดินก้าวปกติและหายใจต่อเนื่อง<br>• ครบสองข้าง = 1 trip<br>• Progress ด้วย load ไม่ใช่ระยะ; เลือกน้ำหนักจากความสามารถในการเดินตรง ไม่ใช่จาก grip อย่างเดียว'},
@@ -870,7 +862,7 @@ const PLAN=[
 
  ]},
 
- {dow:'WED',title:'Full gym',kind:'strength',items:[
+ {dow:'WED',title:'Wednesday',kind:'strength',items:[
    {id:'wu2',noWeight:1,rest:'rest 60s',name:'Warm-up',dose:'10 นาที · ก่อนเวททุกครั้ง',
     target:'• Raise temperature → open ROM → activate key muscles → prime speed ก่อน working sets',
     note:'• 3 min: jumping jack + step-up ต่อเนื่อง<br>• Dynamic: leg swing หน้า–หลัง ×8/ข้าง · ด้านข้าง ×8/ข้าง · world’s greatest stretch ×4/ข้าง · cat-cow ×6 · ankle dorsiflexion rock ×8/ข้าง · bodyweight squat ×5<br>• Activation: glute bridge ×10 · band walk ×10/ข้าง · scapular pull-up ×5<br>• Pogo hop 3×15: เด้งจากข้อเท้า เข่าแทบไม่งอ · ground contact ให้สั้นที่สุด'},
@@ -897,7 +889,7 @@ const PLAN=[
 
  ]},
 
- {dow:'FRI',sub:'part 1',title:'Home gym',kind:'strength',items:[
+ {dow:'FRI',title:'Friday 1',kind:'strength',items:[
    {id:'wu3',noWeight:1,rest:'rest 60s',name:'Warm-up',dose:'10 นาที · ก่อนเวททุกครั้ง',
     target:'• Raise temperature → open ROM → activate key muscles → prime speed ก่อน working sets',
     note:'• 3 min: jumping jack + step-up ต่อเนื่อง<br>• Dynamic: leg swing หน้า–หลัง ×8/ข้าง · ด้านข้าง ×8/ข้าง · world’s greatest stretch ×4/ข้าง · cat-cow ×6 · ankle dorsiflexion rock ×8/ข้าง · bodyweight squat ×5<br>• Activation: glute bridge ×10 · band walk ×10/ข้าง · scapular pull-up ×5<br>• Pogo hop 3×15: เด้งจากข้อเท้า เข่าแทบไม่งอ · ground contact ให้สั้นที่สุด'},
@@ -921,7 +913,7 @@ const PLAN=[
 
  ]},
 
- {dow:'FRI',sub:'part 2',title:'Neck · wrists · calves',kind:'strength',items:[
+ {dow:'FRI',title:'Friday 2',kind:'strength',items:[
    {id:'n3',ss:'D',name:'Side-lying Neck Lateral Flexion, plate on head',dose:'2 × 12 /side',
     target:'• Neck lateral flexors; เติม frontal-plane work ที่วันจันทร์ไม่มี',
     note:'• ศีรษะพ้นขอบม้านั่ง<br>• ทำ pure lateral flexion; no rotation<br>• คุม tempo ไม่ใช้ momentum'},
@@ -1730,7 +1722,6 @@ function dayHTML(day,i){
     style="--accent:${k.accent};--soft:${k.soft};--tint:${k.tint}">
     <button class="head" data-toggle="${i}" aria-expanded="false">
       <span class="stk">
-        <span class="dow">${day.dow}${day.sub?` <span class="sub">${esc(day.sub)}</span>`:''}</span>
         <span class="title">${esc(day.title)}</span>
       </span>
       <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></span>

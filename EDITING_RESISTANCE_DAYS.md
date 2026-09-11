@@ -10,13 +10,15 @@ Where to look next time the Monday/Wednesday/Friday strength routine changes.
 exercises in display order.
 
 Monday and Friday are each ONE session split across TWO cards, purely so
-neither card is a ten-item scroll. Both halves carry the same `dow` and are
-told apart by `sub:'part 1'` / `sub:'part 2'`, which prints beside the day
-name in the card header. Nothing downstream treats a part as its own day:
-`buildWeek` opens every card whose `dow` is today, and the copied exercise
-list groups by `dow`, so both Monday cards land under one `# Monday`.
-To re-balance the split, move items between the two objects; to add a third
-part, copy a card object and give it the same `dow` with a new `sub`.
+neither card is a ten-item scroll. Both halves carry the same `dow`, and only
+`title` tells them apart — `'Monday 1'` / `'Monday 2'`. The card header shows
+that title and nothing else; the small uppercase `dow` line that used to sit
+above it is gone, and so is the `sub` field it carried. Nothing downstream
+treats a part as its own day: `buildWeek` opens every card whose `dow` is
+today, and the copied exercise list groups by `dow`, so both Monday cards land
+under one `# Monday`. To re-balance the split, move items between the two
+objects; to add a third part, copy a card object, keep its `dow`, and title it
+`'Monday 3'`.
 
 Each item looks like:
 
@@ -38,7 +40,6 @@ Fields:
   { for c in $(git rev-list --all); do git show $c:index.html; done; \
     cat training\ v*.html; } | grep -o "id:'[a-z0-9]*'" | sort -u
   ```
-- `sub` — day-card subtitle (`'part 1'`), for a day written as two cards.
 - `dose` — the set/rep scheme. **The leading number before `×`/`x` is parsed
   by `itemSetsText()`** (see below) to build the "x N sets" suffix in the
   copied exercise list, so keep that number accurate to the actual set count.
@@ -52,6 +53,10 @@ Fields:
   number means more progress (e.g. Assisted Pull-up's assistance level).
 - `rest` — free text shown as the rest period; omit for items that don't need
   one (e.g. between superset partners).
+
+The session object itself carries `dow` (which weekday it belongs to — two
+cards may share one), `title` (the card header, the only text in it) and
+`kind` (picks the accent colour from `KIND`).
 
 ## Things that must stay in sync when you add/rename/remove an exercise
 
