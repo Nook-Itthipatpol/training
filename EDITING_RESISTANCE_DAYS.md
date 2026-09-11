@@ -88,17 +88,21 @@ cards may share one), `title` (the card header, the only text in it) and
 ## Running the tests
 
 ```sh
-npm install jsdom --no-save          # not vendored in the repo
-node test.js index.html              # the arg matters, see below
+npm install jsdom --no-save                       # not vendored in the repo
+TZ=Asia/Bangkok node test.js index.html           # both parts matter, see below
 ```
 
-`test.js` defaults to the frozen `training v62.html` snapshot, not the live
-file. Always pass `index.html` explicitly, or you will be testing a build from
-three versions ago (and seeing ~15 failures that are only that snapshot's).
+The suite is **green — 53 passed, 0 failed** — but only when run exactly like
+that. Two things will make it look broken when it isn't:
 
-Note: as of writing, `node test.js index.html` has 8 pre-existing failures
-unrelated to the resistance-day plan (timezone/rollover/history tests, import/
-export round-trips). Compare failure counts before/after your change (e.g.
-`git stash` and rerun) rather than assuming a red run means you broke
-something — but do make sure you haven't *added* any new failures, and that
-the "copy exercise list" tests pass if you touched a resistance day.
+- **`TZ`.** The app reads "now" in local time and the tests pin the clock to
+  `+07:00` timestamps. On a UTC machine every date lands a day early, which
+  fails 8 tests (the rollover and archive ones, and anything reading seeded
+  history). `TZ=Asia/Bangkok` fixes all 8 — they are not pre-existing failures,
+  they are a wrong timezone.
+- **The filename.** `test.js` defaults to the frozen `training v62.html`
+  snapshot, not the live file. Pass `index.html` explicitly, or you are testing
+  a build from three versions ago.
+
+If anything is red after that, it is your change. Compare against the previous
+commit (`git stash` and rerun) before assuming otherwise.
