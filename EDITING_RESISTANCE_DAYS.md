@@ -73,9 +73,10 @@ cards may share one), `title` (the card header, the only text in it) and
    (`the copied exercise list suffixes each resistance name with its set
    count` and `...writes each superset as one bulleted line`) hardcode exact
    exercise names and set counts: Friday's Nordic Hamstring Curl, Monday
-   part 1's Incline DB Press / Chest-supported Row (superset B) and DB
-   Overhead Extension / Hammer Curl (superset C), Monday part 2's superset D,
-   and Wednesday's superset A. If you change any of those specific exercises
+   part 1's Incline DB Press / Chest-supported Row (superset A) and DB
+   Overhead Extension / Hammer Curl (superset C), Monday part 2's superset D
+   (Neck Extension / Neck Flexion), and Wednesday's superset A (Single-Arm
+   Cable Row / Cable Y-raise). If you change any of those specific exercises
    or their set counts, update the matching `ok(txt.includes(...))` strings in
    `test.js`. The boot suite also asserts the **number of day cards** (5) —
    update it if a day gains or loses a part.
