@@ -294,7 +294,7 @@
   /* v66: the same serif and the same ink as the title — size alone says which
      line is the name and which is the qualifier. */
   .sub{font-family:var(--serif);font-size:13px;font-weight:500;letter-spacing:-.005em;
-    line-height:1.25;margin-top:1px;text-align:center;}
+    line-height:1.15;margin-top:-2px;text-align:center;}
   .day.done .sub{color:var(--dim);}
   .chev{position:absolute;top:50%;right:16px;transform:translateY(-50%);
     width:16px;height:16px;color:var(--muted);transition:transform .2s;}
@@ -855,6 +855,14 @@ const PLAN=[
    {id:'h5',rest:'rest 90s',noWeight:0,name:'Suitcase Carry',dose:'2 × 30–40 ม. /ข้าง · ครบสองข้าง = 1 เที่ยว',
     target:'• Anti-lateral flexion + grip + hip stability ระหว่างเดิน<br>• เป้าหมายคือรักษาลำตัวตรงภายใต้ unilateral load',
     note:'• ถือ DB/KB ข้างเดียว; ไหล่สองข้างระดับเดียวกัน ห้าม counter-lean<br>• Scapula down, chest open, เดินก้าวปกติและหายใจต่อเนื่อง<br>• ครบสองข้าง = 1 trip<br>• Progress ด้วย load ไม่ใช่ระยะ; เลือกน้ำหนักจากความสามารถในการเดินตรง ไม่ใช่จาก grip อย่างเดียว'},
+   {id:'h18',rest:'rest 60s',noWeight:1,name:'Push-up Plus',dose:'2 × 10–12',
+    target:'• Serratus anterior — กล้ามที่หมุนสะบักขึ้นและกดสะบักให้ติดซี่โครง; ตัวกันไหล่ชนในวันที่ press หนัก',
+    note:'• ท่า push-up ปกติ (หรือวางมือบนม้านั่งถ้ายังหนัก)<br>• ดันขึ้นจนแขนเหยียดก่อน แล้ว<b>ดันต่ออีกนิด</b>ให้สะบักกางออกจากกัน ค้าง 1 s<br>• ปล่อยให้สะบักหุบกลับช้าๆ — ช่วง “plus” คือทั้งหมดของท่านี้<br>• ลำตัวเป็นเส้นตรง ไม่ให้สะโพกตกตอนดัน',
+    mistake:'• งอ-เหยียดศอกแทนการขยับสะบัก · ก้มคอ · เร็วจนช่วง plus หายไป'},
+   {id:'h19',rest:'rest 60s',name:'External Rotation',dose:'2 × 12–15 /side',
+    target:'• Infraspinatus + teres minor — rotator cuff ฝั่งที่อ่อนกว่าเสมอเมื่อเทียบกับ internal rotators ที่ press ทุกวัน',
+    note:'• ยืนข้าง cable/band ระดับเอว จับด้วยมือฝั่งไกล ศอกแนบลำตัว งอ 90°<br>• หนีบผ้าเช็ดตัวม้วนไว้ใต้รักแร้เพื่อล็อกศอก<br>• หมุนปลายแขนออกนอกลำตัวเท่าที่ไหล่ยังไม่ขยับ ค้าง 1 s<br>• กลับช้า ~3 s; load เบา — ท่านี้ไม่ใช่ท่าเอาน้ำหนัก',
+    mistake:'• ศอกลอยออกจากลำตัว · บิดลำตัวช่วยหมุน · หนักจนกลายเป็นการเหวี่ยงไหล่'},
    {id:'n1',ss:'D',name:'Neck Extension',dose:'2 × 12–15',
     target:'• Direct neck extensor work; complement daily isometric holds',
     note:'• นั่งใส่ head harness; โน้มลำตัวไปหน้า ~45°<br>• 3 s eccentric + 1 s pause at stretch<br>• ขึ้นถึง neutral เท่านั้น; movement ต้อง controlled'},
@@ -928,6 +936,14 @@ const PLAN=[
     target:'• Gastrocnemius — เข่าเหยียดทำให้ gastroc รับงานแทน soleus<br>• Achilles ตอบสนองต่อความสม่ำเสมอมากกว่าต่อเซ็ตหนักครั้งเดียว',
     note:'• ยืนปลายเท้าบนขอบแท่น เข่าเหยียด (ไม่ล็อกแข็ง)<br>• ขึ้นสุด + hold 2 s<br>• ลงช้าจนส้นต่ำกว่าระดับแท่นเพื่อได้ full stretch<br>• ทำต่อเนื่องอย่างน้อย 8–12 สัปดาห์',
     mistake:'• เด้งจาก Achilles แทนการออกแรงน่อง · ROM สั้นเพราะโหลดหนักเกิน'},
+   {id:'h20',rest:'rest 60s',noWeight:1,name:'Push-up Plus',dose:'2 × 10–12',
+    target:'• Serratus anterior ครั้งที่สองของสัปดาห์; สะบักที่เลื่อนได้ดีคือเงื่อนไขของ pressing ที่ไม่เจ็บ',
+    note:'• ท่า push-up ปกติ (หรือวางมือบนม้านั่งถ้ายังหนัก)<br>• ดันขึ้นจนแขนเหยียดก่อน แล้ว<b>ดันต่ออีกนิด</b>ให้สะบักกางออกจากกัน ค้าง 1 s<br>• ปล่อยให้สะบักหุบกลับช้าๆ — ช่วง “plus” คือทั้งหมดของท่านี้<br>• ลำตัวเป็นเส้นตรง ไม่ให้สะโพกตกตอนดัน',
+    mistake:'• งอ-เหยียดศอกแทนการขยับสะบัก · ก้มคอ · เร็วจนช่วง plus หายไป'},
+   {id:'h21',rest:'rest 60s',name:'External Rotation',dose:'2 × 12–15 /side',
+    target:'• Rotator cuff ครั้งที่สองของสัปดาห์; ความถี่สำคัญกว่าน้ำหนักสำหรับกล้ามมัดเล็กกลุ่มนี้',
+    note:'• ยืนข้าง cable/band ระดับเอว จับด้วยมือฝั่งไกล ศอกแนบลำตัว งอ 90°<br>• หนีบผ้าเช็ดตัวม้วนไว้ใต้รักแร้เพื่อล็อกศอก<br>• หมุนปลายแขนออกนอกลำตัวเท่าที่ไหล่ยังไม่ขยับ ค้าง 1 s<br>• กลับช้า ~3 s; load เบา — ท่านี้ไม่ใช่ท่าเอาน้ำหนัก',
+    mistake:'• ศอกลอยออกจากลำตัว · บิดลำตัวช่วยหมุน · หนักจนกลายเป็นการเหวี่ยงไหล่'},
    {id:'n3',ss:'D',name:'Neck Lateral Flexion',dose:'2 × 12 /side',
     target:'• Neck lateral flexors; เติม frontal-plane work ที่วันจันทร์ไม่มี',
     note:'• นอนตะแคงบนม้านั่ง ศีรษะพ้นขอบ วางแผ่นน้ำหนักบนศีรษะด้านบน (รองผ้า)<br>• ทำ pure lateral flexion; no rotation<br>• คุม tempo ไม่ใช้ momentum'},
