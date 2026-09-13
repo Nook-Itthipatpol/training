@@ -181,6 +181,7 @@
      Open enough cards and the auto margin goes to zero — the footer then sits
      under the last card the way it always did, and scrolls with it. */
   body{
+    position:relative;
     margin:0 auto;max-width:560px;min-height:100vh;min-height:100dvh;
     display:flex;flex-direction:column;
     padding:18px 16px calc(48px + env(safe-area-inset-bottom));
@@ -190,11 +191,10 @@
     -webkit-font-smoothing:antialiased;
     font-variant-numeric:tabular-nums;
   }
-  /* v39: the light source is painted on a fixed layer, so its geometry is the
-     viewport's, not the document's. On body it was sized to the page, which meant
-     opening a card re-scaled and repainted the whole gradient. */
+  /* the light source is painted on body (now the positioned ancestor), so it
+     scrolls with the page content instead of staying pinned to the viewport. */
   body::before{
-    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+    content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
     background:radial-gradient(88% 34% at 50% -6%,#2A3540 0%,rgba(42,53,64,0) 68%);
   }
   /* v42: grain. The source is a wide, low-contrast wash over near-black — the
