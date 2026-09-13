@@ -172,7 +172,10 @@
     --mono:var(--sans);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html{background:var(--paper);}
+  /* overflow-x:clip, not hidden: the lit layer below is 100vw wide to escape
+     body's 560px column, and on a desktop scrollbar 100vw is wider than the
+     content box. `clip` trims that without turning html into a scroll container. */
+  html{background:var(--paper);overflow-x:clip;}
   /* one light source, top centre — the page reads as a lit object instead of a
      flat black rectangle, and the cards below it have something to sit on */
   /* v66: a sticky footer. The page is a column at least one viewport tall, and
@@ -190,20 +193,35 @@
     -webkit-font-smoothing:antialiased;
     font-variant-numeric:tabular-nums;
   }
-  /* v39: the light source is painted on a fixed layer, so its geometry is the
-     viewport's, not the document's. On body it was sized to the page, which meant
-     opening a card re-scaled and repainted the whole gradient. */
+  /* v66: the light travels with the page again. Fixed (v39) kept its geometry
+     off the document, but it also meant the cards slid underneath a lamp that
+     never moved — the one thing that gave away that this is a scrolling list and
+     not a lit object. Absolute on body puts it back in the page.
+     The box is 30vh taller than the viewport at each end so the wash has room to
+     start above the first card and carry on past the fold instead of ending on a
+     screen edge, and the gradient is restated in the taller box's own percentages
+     (40% of 180vh ≈ 72vh of light, twice v39's reach) with its centre at 12%,
+     which lands ~8vh above the top of the page — where -6% used to put it.
+     left/width escape body's 560px column so the wash still spans the window.
+     Height is fixed rather than `bottom:0` on purpose: tied to the document it
+     would re-scale every time a card opened, which is what v39 was avoiding. */
+  body{position:relative;}
   body::before{
-    content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
-    background:radial-gradient(88% 34% at 50% -6%,#2A3540 0%,rgba(42,53,64,0) 68%);
+    content:"";position:absolute;z-index:-1;pointer-events:none;
+    left:calc(50% - 50vw);width:100vw;top:-30vh;height:180vh;
+    background:radial-gradient(88% 40% at 50% 12%,#2A3540 0%,rgba(42,53,64,0) 72%);
   }
   /* v42: grain. The source is a wide, low-contrast wash over near-black — the
      exact condition that bands into visible rings on an OLED. Noise at 7% in
      overlay costs one data-URI and makes the gradient continuous. It sits above
      everything so the cards are grained too; without that the cards look like
-     cut-outs pasted onto a textured page. */
+     cut-outs pasted onto a textured page.
+     v66: absolute, and over the whole document plus 30vh of overhang at each
+     end — grain that stayed put while the page moved read as dirt on the glass
+     rather than tooth in the paper. It tiles, so any height is free. */
   body::after{
-    content:"";position:fixed;inset:0;z-index:9;pointer-events:none;
+    content:"";position:absolute;z-index:9;pointer-events:none;
+    left:calc(50% - 50vw);width:100vw;top:-30vh;bottom:-30vh;
     opacity:.07;mix-blend-mode:overlay;
     background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='.5'/></svg>");
   }
