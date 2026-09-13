@@ -10,15 +10,17 @@ Where to look next time the Monday/Wednesday/Friday strength routine changes.
 exercises in display order.
 
 Monday and Friday are each ONE session split across TWO cards, purely so
-neither card is a ten-item scroll. Both halves carry the same `dow`, and only
-`title` tells them apart — `'Monday 1'` / `'Monday 2'`. The card header shows
-that title and nothing else; the small uppercase `dow` line that used to sit
-above it is gone, and so is the `sub` field it carried. Nothing downstream
-treats a part as its own day: `buildWeek` opens every card whose `dow` is
-today, and the copied exercise list groups by `dow`, so both Monday cards land
-under one `# Monday`. To re-balance the split, move items between the two
-objects; to add a third part, copy a card object, keep its `dow`, and title it
-`'Monday 3'`.
+neither card is a ten-item scroll. Both halves carry the same `dow` AND the
+same `title` (`'Monday'`); what tells them apart is `sub` — the second card
+carries `sub:'accessory'`, rendered as a smaller, dimmer second line under the
+title. The header is that stack and nothing else, and `.head` centres the stack
+rather than the title, so a two-line card reads as one block on the card's
+middle. Omit `sub` and the card is a single centred line, exactly as before.
+Nothing downstream treats a part as its own day: `buildWeek` opens every card
+whose `dow` is today, and the copied exercise list groups by `dow`, so both
+Monday cards land under one `# Monday`. To re-balance the split, move items
+between the two objects; to add a third part, copy a card object, keep its
+`dow` and `title`, and give it its own `sub`.
 
 Each item looks like:
 

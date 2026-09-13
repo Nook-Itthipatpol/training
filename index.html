@@ -282,12 +282,20 @@
     touch-action:manipulation;
   }
   /* v65: one line, centred in the header — the .dow eyebrow above it is gone, and
-     with it the gap and the -6.5px lift that balanced a two-line stack. */
+     with it the gap and the -6.5px lift that balanced a two-line stack.
+     v66: a card may carry a second, smaller line (`sub`). `.head` already centres
+     whatever `.stk` contains, so the two lines land as one block on the card's
+     middle — no lift, and the one-line cards are untouched. */
   .stk{display:flex;flex-direction:column;align-items:center;width:100%;}
     /* v41: the title is the one piece of prose on the card — everything else is a
      number, a code or a state. A serif says that without a rule or a colour. */
   .title{font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:-.005em;
     line-height:1.2;text-align:center;}
+  /* the qualifier, not the name: small, dim, and out of the serif so it never
+     competes with the day it sits under. */
+  .sub{font-family:var(--tag);font-size:11px;letter-spacing:.02em;font-weight:500;
+    color:var(--dim);line-height:1.3;margin-top:2px;text-align:center;}
+  .day.done .sub{opacity:.7;}
   .chev{position:absolute;top:50%;right:16px;transform:translateY(-50%);
     width:16px;height:16px;color:var(--muted);transition:transform .2s;}
   .chev svg{width:16px;height:16px;display:block;fill:none;stroke:currentColor;stroke-width:3;}
@@ -808,9 +816,11 @@ const PLAN=[
     — so both halves keep the same `dow` and only the `title` tells them apart.
     buildWeek already opened every card whose dow is today, so nothing below
     this line needed to learn about parts.
-    v65: the title is the day now ('Monday 1'), so the uppercase `dow` eyebrow
-    that used to sit above it has gone — it was the same word, twice, smaller. */
- {dow:'MON',title:'Monday 1',kind:'strength',items:[
+    v66: both halves are titled with the plain day ('Monday'); the second card
+    adds `sub:'accessory'`, a smaller second line under the title. The pair is
+    centred as one block, so the accessory cards read a hair lower than the
+    plain ones by design — the stack is what is centred, not the title. */
+ {dow:'MON',title:'Monday',kind:'strength',items:[
    {id:'wu1',noWeight:1,rest:'rest 60s',name:'Warm-up',dose:'10 นาที · ก่อนเวททุกครั้ง',
     target:'• Raise temperature → open ROM → activate key muscles → prime speed ก่อน working sets',
     note:'• 3 min: jumping jack + step-up ต่อเนื่อง<br>• Dynamic: leg swing หน้า–หลัง ×8/ข้าง · ด้านข้าง ×8/ข้าง · world’s greatest stretch ×4/ข้าง · cat-cow ×6 · ankle dorsiflexion rock ×8/ข้าง · bodyweight squat ×5<br>• Activation: glute bridge ×10 · band walk ×10/ข้าง · scapular pull-up ×5<br>• Pogo hop 3×15: เด้งจากข้อเท้า เข่าแทบไม่งอ · ground contact ให้สั้นที่สุด'},
@@ -841,7 +851,7 @@ const PLAN=[
 
  ]},
 
- {dow:'MON',title:'Monday 2',kind:'strength',items:[
+ {dow:'MON',title:'Monday',sub:'accessory',kind:'strength',items:[
    {id:'h5',rest:'rest 90s',noWeight:0,name:'Suitcase Carry',dose:'2 × 30–40 ม. /ข้าง · ครบสองข้าง = 1 เที่ยว',
     target:'• Anti-lateral flexion + grip + hip stability ระหว่างเดิน<br>• เป้าหมายคือรักษาลำตัวตรงภายใต้ unilateral load',
     note:'• ถือ DB/KB ข้างเดียว; ไหล่สองข้างระดับเดียวกัน ห้าม counter-lean<br>• Scapula down, chest open, เดินก้าวปกติและหายใจต่อเนื่อง<br>• ครบสองข้าง = 1 trip<br>• Progress ด้วย load ไม่ใช่ระยะ; เลือกน้ำหนักจากความสามารถในการเดินตรง ไม่ใช่จาก grip อย่างเดียว'},
@@ -885,7 +895,7 @@ const PLAN=[
 
  ]},
 
- {dow:'FRI',title:'Friday 1',kind:'strength',items:[
+ {dow:'FRI',title:'Friday',kind:'strength',items:[
    {id:'wu3',noWeight:1,rest:'rest 60s',name:'Warm-up',dose:'10 นาที · ก่อนเวททุกครั้ง',
     target:'• Raise temperature → open ROM → activate key muscles → prime speed ก่อน working sets',
     note:'• 3 min: jumping jack + step-up ต่อเนื่อง<br>• Dynamic: leg swing หน้า–หลัง ×8/ข้าง · ด้านข้าง ×8/ข้าง · world’s greatest stretch ×4/ข้าง · cat-cow ×6 · ankle dorsiflexion rock ×8/ข้าง · bodyweight squat ×5<br>• Activation: glute bridge ×10 · band walk ×10/ข้าง · scapular pull-up ×5<br>• Pogo hop 3×15: เด้งจากข้อเท้า เข่าแทบไม่งอ · ground contact ให้สั้นที่สุด'},
@@ -909,7 +919,7 @@ const PLAN=[
 
  ]},
 
- {dow:'FRI',title:'Friday 2',kind:'strength',items:[
+ {dow:'FRI',title:'Friday',sub:'accessory',kind:'strength',items:[
    {id:'h17',ss:'C',name:'Prone Y-raise',dose:'2 × 12–15',
     target:'• Lower traps + posterior shoulder ในท่านอนคว่ำ ที่แรงต้านหนักที่สุดตอนแขนอยู่สูงสุด',
     note:'• นอนคว่ำบน incline bench ~30°; ปล่อยแขนห้อยตรง นิ้วโป้งชี้ขึ้น<br>• ยกแขนเป็นรูป Y จนอยู่ระดับหู ค้าง 1 s<br>• ลงช้า ~3 s; คอ neutral ไม่เงยหน้า<br>• Load เบามาก — ท่านี้วัดที่การคุมสะบัก ไม่ใช่ตัวเลข',
@@ -1723,6 +1733,7 @@ function dayHTML(day,i){
     <button class="head" data-toggle="${i}" aria-expanded="false">
       <span class="stk">
         <span class="title">${esc(day.title)}</span>
+        ${day.sub?`<span class="sub">${esc(day.sub)}</span>`:''}
       </span>
       <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></span>
     </button>
