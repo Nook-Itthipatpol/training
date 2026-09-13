@@ -231,13 +231,13 @@ async function suiteRollover() {
 async function suiteWeek() {
   console.log('\n[resistance]');
 
-  await test('a checkbox writes state and moves the progress bar', async () => {
+  await test('a checkbox writes state', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const cb = t.doc.querySelector('[data-check]');
     cb.click(); await tick(20);
     eq(t.win.eval('state.checks["' + cb.dataset.check + '"]'), true, 'checked');
     eq(cb.getAttribute('aria-pressed'), 'true', 'aria');
-    ok(parseFloat(t.doc.querySelector('[data-prog="0"]').style.width) > 0, 'progress');
+    ok(!t.doc.querySelector('.prog'), 'no per-card progress bar is rendered');
     t.close();
   });
 
