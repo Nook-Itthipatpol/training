@@ -71,7 +71,7 @@ cards may share one), `title` (the card header, the only text in it) and
    to the default" and "no deload rule points at an id that left the plan")
    fails if you rename/remove an id without removing its now-orphaned rule.
 
-2. **`test.js`** — the "copy exercise list" tests
+2. **`test.js`** — the "copy exercise" tests
    (`the copied exercise list suffixes each resistance name with its set
    count` and `...writes each superset as one bulleted line`) hardcode exact
    exercise names and set counts: Friday's Nordic Hamstring Curl, Monday

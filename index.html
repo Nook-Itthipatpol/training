@@ -75,8 +75,8 @@
   v64 — cosmetic only
   ---------------------------------------------------------------------------
   A  CSS · .bwver's gap under Body weight was margin-top:2px, visibly
-           tighter than the 16px row-gap footer uses when export json /
-           import json wrap onto their own line. Both are now 16px, so
+           tighter than the 16px row-gap footer uses when the export /
+           import buttons wrap onto their own line. Both are now 16px, so
            the two gaps read as the same rhythm.
   ============================================================================
 -->
@@ -265,7 +265,7 @@
      The day name is the object of the card and sits on the card's true vertical
      centre. A flow-centred stack would put the STACK's middle there, leaving the
      title half a dow-block low; the transform lifts it by exactly that half
-     without moving the layout box, so the chevron stays put.
+     without moving the layout box.
      v39: 84 → 66px. The stack is 42px tall, so at 66 the dow sits ~2.5px off the
      top edge and the title still lands on the card's exact middle — the transform
      is unchanged because it depends on the stack, not the card.
@@ -277,7 +277,7 @@
      card stays 66. */
   .head{
     position:relative;display:flex;align-items:center;justify-content:center;
-    width:100%;min-height:66px;padding:10px 46px;
+    width:100%;min-height:66px;padding:10px 20px;
     background:none;border:0;font:inherit;color:inherit;cursor:pointer;
     touch-action:manipulation;
   }
@@ -296,10 +296,6 @@
   .sub{font-family:var(--serif);font-size:13px;font-weight:500;letter-spacing:-.005em;
     line-height:1.15;margin-top:-2px;text-align:center;}
   .day.done .sub{color:var(--dim);}
-  .chev{position:absolute;top:50%;right:16px;transform:translateY(-50%);
-    width:16px;height:16px;color:var(--muted);transition:transform .2s;}
-  .chev svg{width:16px;height:16px;display:block;fill:none;stroke:currentColor;stroke-width:3;}
-  .day.open .chev{transform:translateY(-50%) rotate(180deg);}
 
   /* v66: the 2px brass fill under each card is gone. It was a third voice saying
      what the ticked boxes and the dimmed header already say, and at the foot of
@@ -463,8 +459,8 @@
   /* v64: a footer-level item, not nested inside .bwcard's own flex-wrap — v63
      tried nesting it and that inflated #bwcard's measured width, misplacing
      every button after it (see the v63 §B note below). flex-basis:100% here
-     just forces its own line the same way footer already wraps import json
-     onto one, so the two line-gaps share the same footer `gap` and always
+     just forces its own line the same way footer already wraps the import
+     button onto one, so the two line-gaps share the same footer `gap` and always
      match, instead of a hand-tuned margin trying to approximate it. */
   .bwver{flex-basis:100%;order:9;font-size:var(--s4);font-weight:400;color:#586369;}
   .bwcard .wtin{height:28px;width:60px;font-size:var(--s3);}
@@ -473,7 +469,9 @@
   }
   .bwcard details{margin:0;flex:none;}
   .bwcard details[open]{flex-basis:100%;}
-  .bwcard .wtin{background:#0B0D10;}
+  /* v66: one number a week, and not a lift — it reads in --muted so the brass
+     stays the colour of the numbers you are trying to move. */
+  .bwcard .wtin{background:#0B0D10;color:var(--muted);}
 
   /* ---------- deload tab ---------- */
   .prbox{
@@ -738,10 +736,10 @@
   <main id="days"></main>
   <footer>
     <section class="bwcard" id="bwcard"></section>
-    <button class="link" id="dltoggle" type="button" aria-pressed="false">deload week</button>
-    <button class="link" id="export" aria-expanded="false">export json</button>
-    <button class="link" id="import" aria-expanded="false">import json</button>
-    <button class="link" id="copylist" type="button">copy exercise list</button>
+    <button class="link" id="dltoggle" type="button" aria-pressed="false">deload</button>
+    <button class="link" id="export" aria-expanded="false">export</button>
+    <button class="link" id="import" aria-expanded="false">import</button>
+    <button class="link" id="copylist" type="button">copy exercise</button>
     <span class="bwver" id="bwver"></span>
   </footer>
   <section class="io" id="io" hidden></section>
@@ -1735,7 +1733,6 @@ function dayHTML(day,i){
         <span class="title">${esc(day.title)}</span>
         ${day.sub?`<span class="sub">${esc(day.sub)}</span>`:''}
       </span>
-      <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg></span>
     </button>
     <div class="body">${inner}<div class="grp finishgrp"><div class="item finish${stopped?' on':''}">
         <button class="box${stopped?' on':''}" data-stopday="${i}" aria-pressed="${stopped?'true':'false'}" aria-label="finish the day">${CHECK}</button>
@@ -2121,7 +2118,7 @@ copyListBtn.addEventListener('click',async()=>{
   }
   clearTimeout(copyListTimer);
   copyListBtn.textContent = done ? 'copied' : 'copy failed';
-  copyListTimer=setTimeout(()=>{ copyListBtn.textContent='copy exercise list'; },1500);
+  copyListTimer=setTimeout(()=>{ copyListBtn.textContent='copy exercise'; },1500);
 });
 
 let pending=null;                      /* a parsed dump waiting for the second press */
