@@ -85,10 +85,11 @@
      all removed, which retires the v63 §A/§B and v64 §A notes above — keep
      them as the record of why the element existed, not as live guidance.
      Nothing now needs bumping in this file when a new version is cut.
-  B  footer · one left-aligned row. `justify-content:flex-end` plus a
+  B  footer · two stacked rows. `justify-content:flex-end` plus a
      `margin-right:auto` on .bwcard had pushed deload / export / import /
      copy exercise to the far right, reading as a second column arguing with
-     Body weight across an empty gap. They now follow History in the same row.
+     Body weight across an empty gap. The footer is now a column: Body weight
+     and History on top, the four links on their own row at the very bottom.
   ============================================================================
 -->
 <html lang="th">
@@ -561,16 +562,18 @@
     font:inherit;font-size:var(--s2);color:var(--ink);outline:none;line-height:1.5;letter-spacing:-.01em;
   }
   textarea:focus{border-color:var(--brass2);}
-  /* v66: one left-aligned row — Body weight, its number, History, then the four
-     links. They used to be pushed to the far right by `justify-content:flex-end`
-     plus a `margin-right:auto` on .bwcard, which read as a second column arguing
-     with the first across an empty gap. */
-  footer{display:flex;justify-content:flex-start;align-items:center;gap:18px;margin-top:16px;padding:0 2px;}
+  /* v66: two stacked rows, not one. Body weight belongs to the week above it;
+     the four links are what you do to the whole file, so they sit on their own
+     row at the very bottom — always, not only when the row runs out of width.
+     A column footer with a flex .flinks row does that without the auto-margin
+     and flex-end that used to shove them into a second column on the right. */
+  footer{display:flex;flex-direction:column;align-items:stretch;gap:16px;
+    margin-top:16px;padding:0 2px;}
+  .flinks{display:flex;flex-wrap:wrap;align-items:center;gap:16px;}
   .link{background:none;border:0;padding:8px 2px;font:inherit;font-size:var(--s4);color:#586369;
     cursor:pointer;text-decoration:underline;text-decoration-color:#FFFFFF1F;text-underline-offset:3px;
     transition:color .15s;}
   .link[aria-expanded="true"],.link[aria-pressed="true"]{color:var(--brass);text-decoration-color:var(--brass2);}
-  footer{flex-wrap:wrap;gap:16px;}
 
   /* ---------- transfer panel ----------
      No download, no file picker, no alert: the artifact runs in a sandboxed
@@ -744,10 +747,12 @@
   <main id="days"></main>
   <footer>
     <section class="bwcard" id="bwcard"></section>
-    <button class="link" id="dltoggle" type="button" aria-pressed="false">deload</button>
-    <button class="link" id="export" aria-expanded="false">export</button>
-    <button class="link" id="import" aria-expanded="false">import</button>
-    <button class="link" id="copylist" type="button">copy exercise</button>
+    <nav class="flinks">
+      <button class="link" id="dltoggle" type="button" aria-pressed="false">deload</button>
+      <button class="link" id="export" aria-expanded="false">export</button>
+      <button class="link" id="import" aria-expanded="false">import</button>
+      <button class="link" id="copylist" type="button">copy exercise</button>
+    </nav>
   </footer>
   <section class="io" id="io" hidden></section>
 </section>
