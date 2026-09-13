@@ -78,6 +78,17 @@
            tighter than the 16px row-gap footer uses when the export /
            import buttons wrap onto their own line. Both are now 16px, so
            the two gaps read as the same rhythm.
+
+  v66 — cosmetic only
+  ---------------------------------------------------------------------------
+  A  The on-screen version line is gone: .bwver, #bwver and APP_VERSION are
+     all removed, which retires the v63 §A/§B and v64 §A notes above — keep
+     them as the record of why the element existed, not as live guidance.
+     Nothing now needs bumping in this file when a new version is cut.
+  B  footer · one left-aligned row. `justify-content:flex-end` plus a
+     `margin-right:auto` on .bwcard had pushed deload / export / import /
+     copy exercise to the far right, reading as a second column arguing with
+     Body weight across an empty gap. They now follow History in the same row.
   ============================================================================
 -->
 <html lang="th">
@@ -453,16 +464,9 @@
   .bwcard{
     display:flex;align-items:center;gap:9px;flex-wrap:wrap;
     background:none;border:0;border-radius:0;
-    padding:0;margin:0 auto 0 0;
+    padding:0;margin:0;
   }
   .bwlab{font-size:var(--s4);font-weight:400;color:#586369;flex:none;}
-  /* v64: a footer-level item, not nested inside .bwcard's own flex-wrap — v63
-     tried nesting it and that inflated #bwcard's measured width, misplacing
-     every button after it (see the v63 §B note below). flex-basis:100% here
-     just forces its own line the same way footer already wraps the import
-     button onto one, so the two line-gaps share the same footer `gap` and always
-     match, instead of a hand-tuned margin trying to approximate it. */
-  .bwver{flex-basis:100%;order:9;font-size:var(--s4);font-weight:400;color:#586369;}
   .bwcard .wtin{height:28px;width:60px;font-size:var(--s3);}
   .bwd{
     width:100%;font-family:var(--mono);font-size:var(--s4);color:var(--dim);margin-top:2px;
@@ -557,7 +561,11 @@
     font:inherit;font-size:var(--s2);color:var(--ink);outline:none;line-height:1.5;letter-spacing:-.01em;
   }
   textarea:focus{border-color:var(--brass2);}
-  footer{display:flex;justify-content:flex-end;align-items:flex-start;gap:18px;margin-top:16px;padding:0 2px;}
+  /* v66: one left-aligned row — Body weight, its number, History, then the four
+     links. They used to be pushed to the far right by `justify-content:flex-end`
+     plus a `margin-right:auto` on .bwcard, which read as a second column arguing
+     with the first across an empty gap. */
+  footer{display:flex;justify-content:flex-start;align-items:center;gap:18px;margin-top:16px;padding:0 2px;}
   .link{background:none;border:0;padding:8px 2px;font:inherit;font-size:var(--s4);color:#586369;
     cursor:pointer;text-decoration:underline;text-decoration-color:#FFFFFF1F;text-underline-offset:3px;
     transition:color .15s;}
@@ -740,7 +748,6 @@
     <button class="link" id="export" aria-expanded="false">export</button>
     <button class="link" id="import" aria-expanded="false">import</button>
     <button class="link" id="copylist" type="button">copy exercise</button>
-    <span class="bwver" id="bwver"></span>
   </footer>
   <section class="io" id="io" hidden></section>
 </section>
@@ -757,7 +764,6 @@
 
 <script>
 /* ================= config ================= */
-const APP_VERSION = 'v64';              /* bump with every new training vNN.html */
 const KEY    = 'trainweek:v11';         /* v21: ids remapped Mon–Sun → clean reset */
 const HIDX   = 'trainweek:hist:index';
 const HSHARD = y  => `trainweek:hist:${y}`;
@@ -1858,7 +1864,6 @@ function aeroNow(){
    The delta is deliberately NOT coloured. Up is not failure and down is not
    success, and a tracker that grades the scale gets read as a verdict. */
 const bwEl=document.getElementById('bwcard');
-document.getElementById('bwver').textContent=APP_VERSION;
 function bwLast(){ for(const r of histRecs){ if(r.bw!=null) return {w:r.bw,week:r.week}; } return null; }
 /* v51: bwDeltaText() removed. It wrote into a [data-bwd] node that buildBW has
    not rendered for several versions, so the line never appeared. The same
