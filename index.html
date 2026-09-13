@@ -192,10 +192,12 @@
     font-variant-numeric:tabular-nums;
   }
   /* the light source is painted on body (now the positioned ancestor), so it
-     scrolls with the page content instead of staying pinned to the viewport. */
+     scrolls with the page content instead of staying pinned to the viewport.
+     The vertical size and offset are in vh, not %, so opening a card and
+     growing body's height doesn't stretch the gradient along with it. */
   body::before{
     content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
-    background:radial-gradient(88% 34% at 50% -6%,#2A3540 0%,rgba(42,53,64,0) 68%);
+    background:radial-gradient(88% 34vh at 50% -6vh,#2A3540 0%,rgba(42,53,64,0) 68%);
   }
   /* v42: grain. The source is a wide, low-contrast wash over near-black — the
      exact condition that bands into visible rings on an OLED. Noise at 7% in
