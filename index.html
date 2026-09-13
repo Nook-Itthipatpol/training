@@ -291,11 +291,11 @@
      number, a code or a state. A serif says that without a rule or a colour. */
   .title{font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:-.005em;
     line-height:1.2;text-align:center;}
-  /* the qualifier, not the name: small, dim, and out of the serif so it never
-     competes with the day it sits under. */
-  .sub{font-family:var(--tag);font-size:11px;letter-spacing:.02em;font-weight:500;
-    color:var(--dim);line-height:1.3;margin-top:2px;text-align:center;}
-  .day.done .sub{opacity:.7;}
+  /* v66: the same serif and the same ink as the title — size alone says which
+     line is the name and which is the qualifier. */
+  .sub{font-family:var(--serif);font-size:13px;font-weight:500;letter-spacing:-.005em;
+    line-height:1.25;margin-top:1px;text-align:center;}
+  .day.done .sub{color:var(--dim);}
   .chev{position:absolute;top:50%;right:16px;transform:translateY(-50%);
     width:16px;height:16px;color:var(--muted);transition:transform .2s;}
   .chev svg{width:16px;height:16px;display:block;fill:none;stroke:currentColor;stroke-width:3;}
