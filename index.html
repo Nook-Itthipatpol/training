@@ -826,7 +826,7 @@ const PLAN=[
  /* v65: Monday and Friday are each ONE session written as TWO cards. The split
     is presentational — a 10-item card is a scroll, two 4-item cards are a list
     — so both halves keep the same `dow` and only the `title` tells them apart.
-    buildWeek already opened every card whose dow is today, so nothing below
+    dayHTML still marks whichever card's dow is today, so nothing below
     this line needed to learn about parts.
     v66: both halves are titled with the plain day ('Monday'); the second card
     adds `sub:'accessory'`, a smaller second line under the title. The pair is
@@ -1835,13 +1835,6 @@ function buildWeek(){
   daysEl.innerHTML=PLAN.map(dayHTML).join('');
   PLAN.forEach((_,i)=>sync(i));
   paintProg();
-  /* v28: Wednesday has two sessions, so "today" can open more than one card */
-  const td=dowOf(now());
-  PLAN.forEach((s,i)=>{
-    if(DOWI[s.dow]!==td) return;
-    const el=daysEl.querySelector(`[data-day="${i}"]`);
-    if(el){ el.classList.add('open'); el.querySelector('.head').setAttribute('aria-expanded','true'); }
-  });
   /* v33: no week number, no date. The week is the only thing on screen, and
      history rows already carry their own week key. Deload is the one state the
      bar still has to announce, and the toggle beside it says it. */
