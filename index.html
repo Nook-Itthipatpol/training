@@ -1222,8 +1222,6 @@ function makeRecord(st, weekKey, endedDay){
     if(any || AERO_NUMLESS[e.t]) ae.push(o);
   }
   if(ae.length) rec.aero=ae;
-  const bw=num(st.bw);            /* one number a week, archived with the week */
-  if(bw!=null) rec.bw=bw;
   if(st.deload) rec.dl=1;         /* so history can say why the week is bare */
   return rec;
 }
@@ -1430,7 +1428,7 @@ const store={
 
 /* ================= state ================= */
 const now = () => new Date();
-let state    = {weekStart:weekStartOf(now()),checks:{},weights:{},metrics:{},aero:[],bw:'',deload:false,stopped:{}};
+let state    = {weekStart:weekStartOf(now()),checks:{},weights:{},metrics:{},aero:[],deload:false,stopped:{}};
 let histRecs = [];     /* newest first */
 let dayLog   = {};     /* dayKey → {x3:1,…} */
 let histOK   = true;   /* false ⇒ the shard rollover would write into failed to read */
@@ -1455,7 +1453,6 @@ function applyState(s){
       metrics   : plainObj(s.metrics),
       /* an entry needs a session id and a type to be renderable or countable */
       aero      : (Array.isArray(s.aero)?s.aero:[]).filter(e=>e&&typeof e==='object'&&e.t),
-      bw        : (typeof s.bw==='number'||typeof s.bw==='string') ? s.bw : '',
       deload    : !!s.deload,
       stopped   : plainObj(s.stopped)
     };
@@ -1568,7 +1565,7 @@ async function rollIfStale(){
      nothing ticked, nothing weighed — used to fail this test and be discarded,
      which also meant aeroPeak() could never see it and the 10%-per-week ceiling
      stayed permanently below what had actually been done. */
-  if(Object.keys(rec.items).length||(rec.aero&&rec.aero.length)||rec.bw!=null||rec.dl){
+  if(Object.keys(rec.items).length||(rec.aero&&rec.aero.length)||rec.dl){
     const y=Number(prevKey.slice(0,4));
     const sh=mergeWeek(await store.get(HSHARD(y)),rec);
     if(!(await store.set(HSHARD(y),sh))) return false;    /* write failed → keep week open */
@@ -1576,7 +1573,7 @@ async function rollIfStale(){
     if(!Array.isArray(idx.years)) idx.years=[];
     if(!idx.years.includes(y)){ idx.years.push(y); await store.set(HIDX,idx); }
   }
-  state={weekStart:weekStartOf(now()),checks:{},weights:{},metrics:{},aero:[],bw:'',deload:false,stopped:{}};
+  state={weekStart:weekStartOf(now()),checks:{},weights:{},metrics:{},aero:[],deload:false,stopped:{}};
   await store.set(KEY,state);
   await loadHist();
   return true;
@@ -1604,6 +1601,7 @@ function save(){
 function flushWrites(){
   if(timer){ clearTimeout(timer); timer=null; store.set(KEY,state); }
   if(typeof aeroTimer!=='undefined' && aeroTimer){ clearTimeout(aeroTimer); aeroTimer=null; store.set(KEY,state); }
+  if(typeof bwTimer!=='undefined' && bwTimer){ clearTimeout(bwTimer); bwTimer=null; const fn=bwFlush; bwFlush=null; if(fn) fn(); }
   if(typeof habTimers!=='undefined'){
     for(const k of Object.keys(habTimers)){
       const t=habTimers[k]; if(!t) continue;
@@ -1871,43 +1869,58 @@ function aeroNow(){
   return aeroList({aero:state.aero});
 }
 
-/* ---- body weight · weekly ----
-   Not a daily habit: one number a week, stored on the week record it belongs to.
+/* ---- body weight · daily ----
+   v67: was one number a week on the week record; now one number a day on
+   dayLog, right beside the habits it is read next to. It rides the same
+   monthly shards and the same saveDaily chain as a habit field — bw is just
+   another key on the day's row, not something a habit's tick gates.
    The delta is deliberately NOT coloured. Up is not failure and down is not
    success, and a tracker that grades the scale gets read as a verdict. */
 const bwEl=document.getElementById('bwcard');
-function bwLast(){ for(const r of histRecs){ if(r.bw!=null) return {w:r.bw,week:r.week}; } return null; }
-/* v51: bwDeltaText() removed. It wrote into a [data-bwd] node that buildBW has
-   not rendered for several versions, so the line never appeared. The same
-   week-over-week difference is in the History table, uncoloured, which is where
-   the reasoning in the header above wanted it anyway. */
+/* newest first; only days that actually got weighed */
+function bwEntries(){
+  return Object.keys(dayLog).filter(k=>typeof dayLog[k].bw==='number').sort((a,b)=>a<b?1:-1);
+}
+function bwLast(){ const [dk]=bwEntries(); return dk? {w:dayLog[dk].bw,day:dk} : null; }
 function bwHistHTML(){
-  const rows=[];
-  for(const r of histRecs){ if(r.bw!=null) rows.push(r); if(rows.length>=8) break; }
+  const rows=bwEntries().slice(0,8);
   if(!rows.length) return '<p class="histcap">No history yet</p>';
-  let h='<p class="histcap">Last 8 weeks</p><table class="h">';
+  let h='<p class="histcap">Last 8 entries</p><table class="h">';
   for(let i=0;i<rows.length;i++){
-    const r=rows[i], prev=rows[i+1];
-    const d=prev? +(r.bw-prev.bw).toFixed(1) : null;
+    const dk=rows[i], w=dayLog[dk].bw, prevDk=rows[i+1], prev=prevDk?dayLog[prevDk].bw:null;
+    const d=prev!=null? +(w-prev).toFixed(1) : null;
     const txt=d==null?'':(d>0?`+${d}`:(d<0?`${d}`:'—'));
-    h+=`<tr><td class="w">${r.week.slice(5)}</td><td class="kg">${r.bw} kg</td><td class="d">${txt}</td></tr>`;
+    h+=`<tr><td class="w">${dk.slice(5)}</td><td class="kg">${w} kg</td><td class="d">${txt}</td></tr>`;
   }
   return h+'</table>';
 }
 function buildBW(){
-  const last=bwLast();
+  const day=dayKeyOf(now()), cur=dayLog[day]&&dayLog[day].bw, last=bwLast();
   bwEl.innerHTML=`<span class="bwlab">Body weight</span>
     <span class="wtwrap">
       <input class="wtin" id="bwin" type="number" step="0.1" inputmode="decimal"
-             value="${esc(state.bw??'')}" placeholder="${last?esc(last.w):''}" aria-label="body weight">
+             value="${cur!=null?esc(cur):''}" placeholder="${last?esc(last.w):''}" aria-label="body weight">
       <span class="unit">kg</span>
     </span>
     <details><summary>History</summary><div class="histbody">${bwHistHTML()}</div></details>`;
 }
+/* same debounce-per-field shape as the habit fields (habTimers/habFlush), kept
+   separate because bw is not tied to any habit's tick. flushWrites reaches it
+   the same way it reaches aeroTimer: a background/pagehide must not lose a
+   weight typed in the last 300ms. */
+let bwTimer=null, bwFlush=null;
 bwEl.addEventListener('input',e=>{
   if(!e.target.closest('#bwin')) return;
-  state.bw=e.target.value;
-  save();
+  const raw=e.target.value;
+  clearTimeout(bwTimer);
+  const run=()=>{
+    bwTimer=null; bwFlush=null;
+    const day=dayKeyOf(now()), row=dayLog[day]||(dayLog[day]={});
+    if(raw==='') delete row.bw; else row.bw=Number(raw);
+    saveDaily(day);
+  };
+  bwFlush=run;
+  bwTimer=setTimeout(run,300);
 });
 daysEl.addEventListener('click',e=>{
   const tg=e.target.closest('[data-toggle]');
