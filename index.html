@@ -472,11 +472,13 @@
      that iOS is free to throttle the moment the screen goes dark. */
   .rst{font-family:var(--mono);font-size:var(--s4);color:var(--dim);letter-spacing:.02em;}
 
-  /* ---------- body weight ----------
-     v67: no longer one number a week behind a History disclosure. It is a
-     .hab card like any other daily habit, but the 7 grid boxes hold a typed
-     kg value per day instead of a tick — any day, not just today, since a
-     missed weigh-in is worth backfilling. */
+  /* ---------- body-metric cards (weight, waist) ----------
+     v67: body weight stopped being one number a week behind a History
+     disclosure. It is a .hab card like any other daily habit, but the 7 grid
+     boxes hold a typed value per day instead of a tick — any day, not just
+     today, since a missed reading is worth backfilling.
+     v68: waist circumference reuses the same card shape and the same grid, so
+     both are driven by METRICS instead of copy-pasted markup. */
   .gval{
     width:100%;height:38px;padding:0;text-align:center;
     border:1px solid #FFFFFF1A;border-radius:var(--rc);background:#FFFFFF05;
@@ -487,9 +489,14 @@
   .gval:focus{border-color:var(--brass2);background:#FFFFFF08;}
   .gcell.today .gval{border-color:var(--muted);}
   .gcell.future .gval{opacity:.35;}
-  .bwmeta{font-family:var(--mono);font-size:var(--s4);color:var(--dim);
+  .trendmeta{font-family:var(--mono);font-size:var(--s4);color:var(--dim);
     margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
-  .bwmeta b{color:var(--ink);font-weight:600;}
+  /* v68: empty until 14 (or 35) days of readings exist. The div is always
+     rendered, never left out, so a later update can still find it by
+     selector — :empty just collapses its border/margin/padding until then,
+     rather than a fallback sentence taking the space instead. */
+  .trendmeta:empty{display:none;}
+  .trendmeta b{color:var(--ink);font-weight:600;}
 
   /* ---------- deload tab ---------- */
   .prbox{
@@ -536,7 +543,6 @@
   .habname{font-size:var(--s1);font-weight:600;letter-spacing:-.015em;flex:1;line-height:1.25;}
   .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:14px;}
   .gcell{display:flex;flex-direction:column;align-items:center;gap:5px;}
-  .gdow{font-family:var(--mono);font-size:var(--s4);color:var(--dim);font-weight:500;}
   .gbox{
     width:100%;height:38px;padding:0;
     border:1px solid #FFFFFF1A;border-radius:var(--rc);background:#FFFFFF05;cursor:pointer;
@@ -546,7 +552,6 @@
   .gbox svg{width:13px;height:13px;fill:none;stroke:#0A0C0D;stroke-width:3.2;opacity:0;transition:opacity .15s;}
   .gbox.on{background:var(--brass);border-color:var(--brass);}
   .gbox.on svg{opacity:1;}
-  .gcell.today .gdow{color:var(--ink);}
   .gcell.today .gbox{border-color:var(--muted);}
   .gcell.future .gbox{opacity:.35;}
   .todayrow{
@@ -1867,55 +1872,80 @@ function aeroNow(){
   return aeroList({aero:state.aero});
 }
 
-/* ---- body weight · daily ----
-   v67: was one number a week on the week record; now a .hab card like any
-   other daily habit — one kg value per day of the week, on dayLog, right
-   beside the habits it is read next to. It rides the same monthly shards
-   and the same saveDaily chain as a habit field — bw is just another key on
-   the day's row, not something a habit's tick gates.
+/* ---- body metrics · daily (weight, waist) ----
+   v67: body weight stopped being one number a week on the week record. Now a
+   .hab card like any other daily habit — one value per day of the week, on
+   dayLog, right beside the habits it is read next to. It rides the same
+   monthly shards and the same saveDaily chain as a habit field — the metric
+   is just another key on the day's row, not something a habit's tick gates.
    Any day's box (not just today's) takes a typed value directly, since a
-   missed weigh-in is worth backfilling.
-   The one-line summary is a least-squares trend over the last 14 days, not
-   a day-to-day delta — a single day's fluctuation says nothing about
-   whether the number is actually moving, up or down. */
-function bwBoxesHTML(){
+   missed reading is worth backfilling.
+   v68: waist circumference is the same card shape over a longer window, so
+   both are entries in METRICS instead of a second copy of every function.
+   Each summary line is a least-squares trend, not a day-to-day delta — a
+   single day's fluctuation says nothing about whether the number is moving.
+   `trend()` gets the raw slope in units/day plus the most recent reading, and
+   decides its own unit and target band; it returns '' while there is not
+   enough data, which .trendmeta:empty then collapses to nothing. */
+const METRICS=[
+  {id:'bw', label:'Body weight', step:0.1, days:14,
+   trend:(perDay,last)=>{
+     if(perDay==null||!last) return '';
+     const pct=perDay*7/last*100;
+     return `${pct>0?'+':''}${pct.toFixed(2)}% BW/week (target 0.1-0.3)`;
+   }},
+  {id:'waist', label:'Waist circumference', step:0.1, days:35,
+   trend:perDay=>{
+     if(perDay==null) return '';
+     const perMonth=perDay*30;
+     return `${perMonth>0?'+':''}${perMonth.toFixed(2)} cm/month (target < 1)`;
+   }}
+];
+function metricBoxesHTML(m){
   const keys=weekDayKeys(), td=dowOf(now());
   return keys.map((k,i)=>{
-    const v=dayLog[k]&&dayLog[k].bw;
+    const v=dayLog[k]&&dayLog[k][m.id];
     const cls=i===td?' today':(i>td?' future':'');
-    return `<div class="gcell${cls}"><span class="gdow">${DOW_TH[i]}</span>
-      <input class="gval" type="number" step="0.1" inputmode="decimal" data-bwday="${k}"
+    return `<div class="gcell${cls}">
+      <input class="gval" type="number" step="${m.step}" inputmode="decimal" data-mday="${m.id}:${k}"
              value="${v!=null?esc(v):''}" placeholder="—"${i>td?' disabled':''}
-             aria-label="Body weight ${DOW_TH[i]}"></div>`;
+             aria-label="${esc(m.label)} ${DOW_TH[i]}"></div>`;
   }).join('');
 }
-/* least-squares slope over the last 14 days (today and the 13 before it),
-   expressed as kg/week; null until at least two of those days are logged */
-function bwTrend(){
+/* least-squares slope over the metric's own window (today and the N-1 days
+   before it), in units per DAY; null until at least two of those days are
+   logged. Callers turn this into their own per-week or per-month text. */
+function metricSlope(m){
   const pts=[];
-  for(let i=13;i>=0;i--){
+  for(let i=m.days-1;i>=0;i--){
     const d=new Date(now().getTime()); d.setDate(d.getDate()-i);
-    const v=(dayLog[dayKeyOf(d)]||{}).bw;
-    if(typeof v==='number') pts.push({x:13-i,y:v});
+    const v=(dayLog[dayKeyOf(d)]||{})[m.id];
+    if(typeof v==='number') pts.push({x:m.days-1-i,y:v});
   }
   if(pts.length<2) return null;
   const n=pts.length;
   const sx=pts.reduce((a,p)=>a+p.x,0), sy=pts.reduce((a,p)=>a+p.y,0);
   const sxy=pts.reduce((a,p)=>a+p.x*p.y,0), sxx=pts.reduce((a,p)=>a+p.x*p.x,0);
   const denom=n*sxx-sx*sx;
-  return denom? (n*sxy-sx*sy)/denom*7 : null;
+  return denom? (n*sxy-sx*sy)/denom : null;
 }
-function bwMetaHTML(){
-  const slope=bwTrend();
-  if(slope==null) return '<div class="bwmeta">trend needs at least two weigh-ins in the last 14 days</div>';
-  const txt=slope>0?`+${slope.toFixed(2)}`:slope.toFixed(2);
-  return `<div class="bwmeta">trend <b>${txt} kg/wk</b> · last 14 days</div>`;
+/* most recently logged value for a metric, walking back from today */
+function metricLast(m){
+  for(let i=0;i<m.days*3;i++){
+    const d=new Date(now().getTime()); d.setDate(d.getDate()-i);
+    const v=(dayLog[dayKeyOf(d)]||{})[m.id];
+    if(typeof v==='number') return v;
+  }
+  return null;
 }
-function bwCardHTML(){
-  return `<section class="hab">
-    <div class="habtop"><span class="habname">Body weight</span></div>
-    <div class="grid">${bwBoxesHTML()}</div>
-    ${bwMetaHTML()}
+function metricMetaHTML(m){
+  return `<div class="trendmeta">${m.trend(metricSlope(m),metricLast(m))}</div>`;
+}
+function metricCardHTML(m){
+  return `<section class="hab" data-metric="${m.id}">
+    <div class="habtop"><span class="habname">${esc(m.label)}</span></div>
+    <div class="grid">${metricBoxesHTML(m)}</div>
+    ${metricMetaHTML(m)}
   </section>`;
 }
 daysEl.addEventListener('click',e=>{
@@ -2275,7 +2305,7 @@ function buildDaily(){
     const cells=keys.map((k,i)=>{
       const on=(dayLog[k]||{})[h.id]?' on':'';
       const cls=i===td?' today':(i>td?' future':'');
-      return `<div class="gcell${cls}"><span class="gdow">${DOW_TH[i]}</span>
+      return `<div class="gcell${cls}">
         <button class="gbox${on}" data-hab="${h.id}" data-day="${k}" aria-pressed="${on?'true':'false'}"
           aria-label="${esc(h.name)} ${DOW_TH[i]}">${CHECK}</button></div>`;
     }).join('');
@@ -2290,7 +2320,7 @@ function buildDaily(){
       <div class="grid">${cells}</div>
       ${fieldRow(h)}
     </section>`;
-  }).join('')+bwCardHTML();
+  }).join('')+METRICS.map(metricCardHTML).join('');
   document.getElementById('dailyno').innerHTML='';
 }
 /* v21: numbers are edited for TODAY only, below the grid.
@@ -2311,12 +2341,14 @@ function fieldRow(h){
          a button inside a label fires the label's own activation behaviour too,
          which is a second click waiting to happen; and the row is a group of
          controls, not a caption for one. A div with the same class styles
-         identically. */
+         identically.
+         v68: the visible "Quality" word is gone — the label still reaches
+         screen readers via aria-label, but a sighted reader can already tell
+         a 1–5 score set from a minutes box without a caption over each. */
       return `<div class="mt" role="group" aria-label="${esc(f.label)} ${esc(h.name)}">
-        <span class="mtlab">${esc(f.label)}</span>
         <span class="scoreset">${btns}</span></div>`;
     }
-    return `<label class="mt"><span class="mtlab">${esc(f.label)}</span>
+    return `<label class="mt">
       <span class="mtbox">
         <input class="wtin mtin" type="number" step="${f.step}" inputmode="decimal"
                data-hf="${h.id}" data-fk="${f.k}" value="${esc(cur[f.k]??'')}"
@@ -2374,17 +2406,18 @@ const habTimers={};
    before the 300ms is up. One entry per field, cleared as soon as it has run. */
 const habFlush={};
 habEl.addEventListener('input',e=>{
-  const bw=e.target.closest('[data-bwday]');
-  if(bw){
-    const day=bw.dataset.bwday, raw=bw.value, tk='bw:'+day;
+  const md=e.target.closest('[data-mday]');
+  if(md){
+    const [mid,day]=md.dataset.mday.split(':'), raw=md.value, tk='m:'+mid+':'+day;
     clearTimeout(habTimers[tk]);
     const run=()=>{
       delete habTimers[tk]; delete habFlush[tk];
       const row=dayLog[day]||(dayLog[day]={});
-      if(raw==='') delete row.bw; else row.bw=Number(raw);
+      if(raw==='') delete row[mid]; else row[mid]=Number(raw);
       saveDaily(day);
-      const meta=habEl.querySelector('.bwmeta');
-      if(meta) meta.outerHTML=bwMetaHTML();
+      const m=METRICS.find(x=>x.id===mid);
+      const card=md.closest('[data-metric]'), meta=card&&card.querySelector('.trendmeta');
+      if(m&&meta) meta.outerHTML=metricMetaHTML(m);
     };
     habFlush[tk]=run;
     habTimers[tk]=setTimeout(run,300);
