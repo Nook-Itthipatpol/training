@@ -573,11 +573,13 @@
     font:inherit;font-size:var(--s2);color:var(--ink);outline:none;line-height:1.5;letter-spacing:-.01em;
   }
   textarea:focus{border-color:var(--brass2);}
-  /* v66: two stacked rows, not one. Body weight belongs to the week above it;
-     the four links are what you do to the whole file, so they sit on their own
-     row at the very bottom — always, not only when the row runs out of width.
-     A column footer with a flex .flinks row does that without the auto-margin
-     and flex-end that used to shove them into a second column on the right. */
+  /* v66: the four links are what you do to the whole file, so they sit on
+     their own row at the very bottom — always, not only when the row runs out
+     of width. A column footer with a flex .flinks row does that without the
+     auto-margin and flex-end that used to shove them into a second column on
+     the right.
+     v67: Body weight moved to its own footer on the Routines tab — it is a
+     weekly log entry, not a control over the resistance plan above it. */
   footer{display:flex;flex-direction:column;align-items:stretch;gap:16px;
     margin-top:auto;padding-top:16px;padding-left:2px;padding-right:2px;}
   .flinks{display:flex;flex-wrap:wrap;align-items:center;gap:16px;}
@@ -757,7 +759,6 @@
   <div id="dlintro"></div>
   <main id="days"></main>
   <footer>
-    <section class="bwcard" id="bwcard"></section>
     <nav class="flinks">
       <button class="link" id="dltoggle" type="button" aria-pressed="false">deload</button>
       <button class="link" id="export" aria-expanded="false">export</button>
@@ -776,6 +777,9 @@
 <section class="pane" id="pane-daily" role="tabpanel" tabindex="0" aria-labelledby="tab-daily">
   <div class="weekbar"><span class="weekno" id="dailyno"></span></div>
   <main id="habits"></main>
+  <footer>
+    <section class="bwcard" id="bwcard"></section>
+  </footer>
 </section>
 
 <script>
@@ -1845,7 +1849,6 @@ function buildWeek(){
   tg.setAttribute('aria-pressed', state.deload?'true':'false');
   document.getElementById('dlintro').innerHTML =
     histWarnHTML() + (state.deload ? deloadIntroHTML() : '');
-  buildBW();
 }
 
 /* v49: a silent history gap used to look identical to "no history yet" — the
@@ -2280,6 +2283,7 @@ function buildDaily(){
     </section>`;
   }).join('');
   document.getElementById('dailyno').innerHTML='';
+  buildBW();
 }
 /* v21: numbers are edited for TODAY only, below the grid.
    Putting an editor behind every cell would turn a one-tap habit tracker into a
