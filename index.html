@@ -472,22 +472,24 @@
      that iOS is free to throttle the moment the screen goes dark. */
   .rst{font-family:var(--mono);font-size:var(--s4);color:var(--dim);letter-spacing:.02em;}
 
-  /* ---------- body weight ---------- */
-  .bwcard{
-    display:flex;align-items:center;gap:9px;flex-wrap:wrap;
-    background:none;border:0;border-radius:0;
-    padding:0;margin:0;
+  /* ---------- body weight ----------
+     v67: no longer one number a week behind a History disclosure. It is a
+     .hab card like any other daily habit, but the 7 grid boxes hold a typed
+     kg value per day instead of a tick — any day, not just today, since a
+     missed weigh-in is worth backfilling. */
+  .gval{
+    width:100%;height:38px;padding:0;text-align:center;
+    border:1px solid #FFFFFF1A;border-radius:var(--rc);background:#FFFFFF05;
+    font:inherit;font-family:var(--mono);font-size:13px;color:var(--brass);
+    outline:none;letter-spacing:-.01em;transition:background .15s,border-color .15s;
   }
-  .bwlab{font-size:var(--s4);font-weight:400;color:#586369;flex:none;}
-  .bwcard .wtin{height:28px;width:60px;font-size:var(--s3);}
-  .bwd{
-    width:100%;font-family:var(--mono);font-size:var(--s4);color:var(--dim);margin-top:2px;
-  }
-  .bwcard details{margin:0;flex:none;}
-  .bwcard details[open]{flex-basis:100%;}
-  /* v66: one number a week, and not a lift — it reads in --muted so the brass
-     stays the colour of the numbers you are trying to move. */
-  .bwcard .wtin{background:#0B0D10;color:var(--muted);}
+  .gval::placeholder{color:#4E5B60;font-size:11px;}
+  .gval:focus{border-color:var(--brass2);background:#FFFFFF08;}
+  .gcell.today .gval{border-color:var(--muted);}
+  .gcell.future .gval{opacity:.35;}
+  .bwmeta{font-family:var(--mono);font-size:var(--s4);color:var(--dim);
+    margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+  .bwmeta b{color:var(--ink);font-weight:600;}
 
   /* ---------- deload tab ---------- */
   .prbox{
@@ -777,9 +779,6 @@
 <section class="pane" id="pane-daily" role="tabpanel" tabindex="0" aria-labelledby="tab-daily">
   <div class="weekbar"><span class="weekno" id="dailyno"></span></div>
   <main id="habits"></main>
-  <footer>
-    <section class="bwcard" id="bwcard"></section>
-  </footer>
 </section>
 
 <script>
@@ -1601,7 +1600,6 @@ function save(){
 function flushWrites(){
   if(timer){ clearTimeout(timer); timer=null; store.set(KEY,state); }
   if(typeof aeroTimer!=='undefined' && aeroTimer){ clearTimeout(aeroTimer); aeroTimer=null; store.set(KEY,state); }
-  if(typeof bwTimer!=='undefined' && bwTimer){ clearTimeout(bwTimer); bwTimer=null; const fn=bwFlush; bwFlush=null; if(fn) fn(); }
   if(typeof habTimers!=='undefined'){
     for(const k of Object.keys(habTimers)){
       const t=habTimers[k]; if(!t) continue;
@@ -1870,58 +1868,56 @@ function aeroNow(){
 }
 
 /* ---- body weight · daily ----
-   v67: was one number a week on the week record; now one number a day on
-   dayLog, right beside the habits it is read next to. It rides the same
-   monthly shards and the same saveDaily chain as a habit field — bw is just
-   another key on the day's row, not something a habit's tick gates.
-   The delta is deliberately NOT coloured. Up is not failure and down is not
-   success, and a tracker that grades the scale gets read as a verdict. */
-const bwEl=document.getElementById('bwcard');
-/* newest first; only days that actually got weighed */
-function bwEntries(){
-  return Object.keys(dayLog).filter(k=>typeof dayLog[k].bw==='number').sort((a,b)=>a<b?1:-1);
+   v67: was one number a week on the week record; now a .hab card like any
+   other daily habit — one kg value per day of the week, on dayLog, right
+   beside the habits it is read next to. It rides the same monthly shards
+   and the same saveDaily chain as a habit field — bw is just another key on
+   the day's row, not something a habit's tick gates.
+   Any day's box (not just today's) takes a typed value directly, since a
+   missed weigh-in is worth backfilling.
+   The one-line summary is a least-squares trend over the last 14 days, not
+   a day-to-day delta — a single day's fluctuation says nothing about
+   whether the number is actually moving, up or down. */
+function bwBoxesHTML(){
+  const keys=weekDayKeys(), td=dowOf(now());
+  return keys.map((k,i)=>{
+    const v=dayLog[k]&&dayLog[k].bw;
+    const cls=i===td?' today':(i>td?' future':'');
+    return `<div class="gcell${cls}"><span class="gdow">${DOW_TH[i]}</span>
+      <input class="gval" type="number" step="0.1" inputmode="decimal" data-bwday="${k}"
+             value="${v!=null?esc(v):''}" placeholder="—"${i>td?' disabled':''}
+             aria-label="Body weight ${DOW_TH[i]}"></div>`;
+  }).join('');
 }
-function bwLast(){ const [dk]=bwEntries(); return dk? {w:dayLog[dk].bw,day:dk} : null; }
-function bwHistHTML(){
-  const rows=bwEntries().slice(0,8);
-  if(!rows.length) return '<p class="histcap">No history yet</p>';
-  let h='<p class="histcap">Last 8 entries</p><table class="h">';
-  for(let i=0;i<rows.length;i++){
-    const dk=rows[i], w=dayLog[dk].bw, prevDk=rows[i+1], prev=prevDk?dayLog[prevDk].bw:null;
-    const d=prev!=null? +(w-prev).toFixed(1) : null;
-    const txt=d==null?'':(d>0?`+${d}`:(d<0?`${d}`:'—'));
-    h+=`<tr><td class="w">${dk.slice(5)}</td><td class="kg">${w} kg</td><td class="d">${txt}</td></tr>`;
+/* least-squares slope over the last 14 days (today and the 13 before it),
+   expressed as kg/week; null until at least two of those days are logged */
+function bwTrend(){
+  const pts=[];
+  for(let i=13;i>=0;i--){
+    const d=new Date(now().getTime()); d.setDate(d.getDate()-i);
+    const v=(dayLog[dayKeyOf(d)]||{}).bw;
+    if(typeof v==='number') pts.push({x:13-i,y:v});
   }
-  return h+'</table>';
+  if(pts.length<2) return null;
+  const n=pts.length;
+  const sx=pts.reduce((a,p)=>a+p.x,0), sy=pts.reduce((a,p)=>a+p.y,0);
+  const sxy=pts.reduce((a,p)=>a+p.x*p.y,0), sxx=pts.reduce((a,p)=>a+p.x*p.x,0);
+  const denom=n*sxx-sx*sx;
+  return denom? (n*sxy-sx*sy)/denom*7 : null;
 }
-function buildBW(){
-  const day=dayKeyOf(now()), cur=dayLog[day]&&dayLog[day].bw, last=bwLast();
-  bwEl.innerHTML=`<span class="bwlab">Body weight</span>
-    <span class="wtwrap">
-      <input class="wtin" id="bwin" type="number" step="0.1" inputmode="decimal"
-             value="${cur!=null?esc(cur):''}" placeholder="${last?esc(last.w):''}" aria-label="body weight">
-      <span class="unit">kg</span>
-    </span>
-    <details><summary>History</summary><div class="histbody">${bwHistHTML()}</div></details>`;
+function bwMetaHTML(){
+  const slope=bwTrend();
+  if(slope==null) return '<div class="bwmeta">trend needs at least two weigh-ins in the last 14 days</div>';
+  const txt=slope>0?`+${slope.toFixed(2)}`:slope.toFixed(2);
+  return `<div class="bwmeta">trend <b>${txt} kg/wk</b> · last 14 days</div>`;
 }
-/* same debounce-per-field shape as the habit fields (habTimers/habFlush), kept
-   separate because bw is not tied to any habit's tick. flushWrites reaches it
-   the same way it reaches aeroTimer: a background/pagehide must not lose a
-   weight typed in the last 300ms. */
-let bwTimer=null, bwFlush=null;
-bwEl.addEventListener('input',e=>{
-  if(!e.target.closest('#bwin')) return;
-  const raw=e.target.value;
-  clearTimeout(bwTimer);
-  const run=()=>{
-    bwTimer=null; bwFlush=null;
-    const day=dayKeyOf(now()), row=dayLog[day]||(dayLog[day]={});
-    if(raw==='') delete row.bw; else row.bw=Number(raw);
-    saveDaily(day);
-  };
-  bwFlush=run;
-  bwTimer=setTimeout(run,300);
-});
+function bwCardHTML(){
+  return `<section class="hab">
+    <div class="habtop"><span class="habname">Body weight</span></div>
+    <div class="grid">${bwBoxesHTML()}</div>
+    ${bwMetaHTML()}
+  </section>`;
+}
 daysEl.addEventListener('click',e=>{
   const tg=e.target.closest('[data-toggle]');
   if(tg){
@@ -2294,9 +2290,8 @@ function buildDaily(){
       <div class="grid">${cells}</div>
       ${fieldRow(h)}
     </section>`;
-  }).join('');
+  }).join('')+bwCardHTML();
   document.getElementById('dailyno').innerHTML='';
-  buildBW();
 }
 /* v21: numbers are edited for TODAY only, below the grid.
    Putting an editor behind every cell would turn a one-tap habit tracker into a
@@ -2379,6 +2374,22 @@ const habTimers={};
    before the 300ms is up. One entry per field, cleared as soon as it has run. */
 const habFlush={};
 habEl.addEventListener('input',e=>{
+  const bw=e.target.closest('[data-bwday]');
+  if(bw){
+    const day=bw.dataset.bwday, raw=bw.value, tk='bw:'+day;
+    clearTimeout(habTimers[tk]);
+    const run=()=>{
+      delete habTimers[tk]; delete habFlush[tk];
+      const row=dayLog[day]||(dayLog[day]={});
+      if(raw==='') delete row.bw; else row.bw=Number(raw);
+      saveDaily(day);
+      const meta=habEl.querySelector('.bwmeta');
+      if(meta) meta.outerHTML=bwMetaHTML();
+    };
+    habFlush[tk]=run;
+    habTimers[tk]=setTimeout(run,300);
+    return;
+  }
   const f=e.target.closest('[data-hf]');
   if(!f) return;
   const id=f.dataset.hf, k=f.dataset.fk, raw=f.value;
