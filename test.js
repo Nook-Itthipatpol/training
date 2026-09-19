@@ -94,7 +94,7 @@ async function suiteBoot() {
   await test('boots clean, paints all three tabs, no errors', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     eq(t.doc.body.dataset.ready, '1', 'ready flag');
-    eq(t.doc.querySelectorAll('[data-day]').length, 5, 'day cards: Mon and Fri are two cards each');
+    eq(t.doc.querySelectorAll('[data-day]').length, 3, 'day cards: one per training day');
     ok(t.doc.querySelectorAll('[data-item]').length > 20, 'exercise rows');
     t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
     ok(t.doc.querySelector('#aprog'), 'weekly progress card');
@@ -391,18 +391,49 @@ async function suiteAero() {
   await test('the copied exercise list writes each superset as one bulleted line', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
-    // Monday part 1: e4+e3 are superset A (3 sets each), e9+e11 are superset C (2 sets each)
-    ok(txt.includes('- Superset A: Incline DB Press x 3 sets + Chest-supported Row x 3 sets'),
+    // v67: Monday's only superset is the neck pair, A
+    ok(txt.includes('- Superset A: Neck Extension x 2 sets + Neck Flexion x 2 sets'),
       'superset A on one line, each exercise keeping its own set count');
-    ok(txt.includes('- Superset C: DB Overhead Extension x 2 sets + Hammer Curl x 2 sets'),
-      'superset C: both exercises keeping their set count');
-    // Monday part 2 is a separate card, and its superset letters land under the
-    // same '# Monday' header as part 1's — one day, one list.
-    ok(txt.includes('- Superset D: Neck Extension x 2 sets + Neck Flexion x 2 sets'),
-      'a second card on the same day keeps its own superset letters');
-    // the letters are per day, so Wednesday opens at A again without merging
-    ok(txt.includes('- Superset A: Single-Arm Cable Row x 3 sets + Cable Y-raise x 3 sets'),
+    // Friday holds two, and its letters start at A again rather than carrying
+    // on from Monday's — the letters are per day, not per week
+    ok(txt.includes('- Superset A: Incline DB Press x 3 sets + Single-arm DB Row x 3 sets'),
       'a repeated letter on another day is its own superset');
+    ok(txt.includes('- Superset B: Neck Lateral Flexion x 2 sets + DB shrug x 2 sets'),
+      'a second superset on the same day keeps its own letter');
+    // an exercise outside a superset is still its own bullet
+    ok(txt.includes('- Lateral Raise x 2 sets'), 'a straight-set exercise stays on its own line');
+    t.close();
+  });
+
+  await test('the what-to-add panel opens, lists both queues, and toggles shut', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
+    const btn = t.doc.getElementById('addlist');
+    ok(btn, 'the footer carries a what-to-add link');
+    eq(btn.getAttribute('aria-expanded'), 'false', 'starts collapsed');
+    btn.click(); await tick(10);
+    const io = t.doc.getElementById('io');
+    ok(!io.hidden, 'the io panel is shown');
+    eq(btn.getAttribute('aria-expanded'), 'true', 'the link reports itself open');
+    const heads = [...io.querySelectorAll('.addh')].map(x => x.textContent);
+    eq(heads, ['Add when ready to add volume', 'Add when its problem arise'], 'both queues, in order');
+    const names = [...io.querySelectorAll('.addul li')].map(x => x.textContent);
+    ok(names.includes('Copenhagen plank'), 'a volume-queue exercise is listed');
+    ok(names.includes('Standing Calf Raise'), 'a problem-queue exercise is listed');
+    ok(!io.querySelector('.addul input, .addul button'), 'nothing in the list is tickable');
+    btn.click(); await tick(10);
+    ok(io.hidden, 'a second press closes it');
+    eq(btn.getAttribute('aria-expanded'), 'false', 'and the link says so');
+    eq(t.errors, [], 'errors');
+    t.close();
+  });
+
+  await test('what-to-add and export share one panel, so opening one closes the other', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
+    t.doc.getElementById('addlist').click(); await tick(10);
+    t.doc.getElementById('export').click(); await tick(50);
+    eq(t.doc.getElementById('addlist').getAttribute('aria-expanded'), 'false', 'what-to-add reports closed');
+    eq(t.doc.getElementById('export').getAttribute('aria-expanded'), 'true', 'export reports open');
+    ok(!t.doc.getElementById('io').querySelector('.addh'), 'the add lists are gone from the panel');
     t.close();
   });
 
