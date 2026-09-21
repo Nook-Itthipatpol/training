@@ -383,7 +383,7 @@ async function suiteAero() {
   await test('the copied exercise list suffixes each resistance name with its dose', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
-    ok(txt.includes('- Nordic Hamstring Curl — 2 × 3–5'), 'name first, sets × reps suffixed, bulleted');
+    ok(txt.includes('- Nordic Hamstring Curl — 2 × 3–6'), 'name first, sets × reps suffixed, bulleted');
     ok(!txt.includes('Warm-up —'), 'Warm-up is still excluded, not just left unsuffixed');
     t.close();
   });
@@ -392,16 +392,16 @@ async function suiteAero() {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
     // v67: Monday's only superset is the neck pair, A
-    ok(txt.includes('- Superset A: Neck Extension — 2 × 12–15 + Neck Flexion — 2 × 15–20'),
+    ok(txt.includes('- Superset A: Neck Extension — 2 × 12–20 + Neck Flexion — 2 × 12–20'),
       'superset A on one line, each exercise keeping its own sets × reps');
     // Friday holds two, and its letters start at A again rather than carrying
     // on from Monday's — the letters are per day, not per week
-    ok(txt.includes('- Superset A: Incline DB Press — 3 × 8–10 + Single-arm DB Row — 3 × 10–12'),
+    ok(txt.includes('- Superset A: Incline DB Press — 3 × 8–12 + Single-arm DB Row — 3 × 8–12'),
       'a repeated letter on another day is its own superset');
-    ok(txt.includes('- Superset B: Neck Lateral Flexion — 2 × 12 + DB shrug — 2 × 12–15'),
+    ok(txt.includes('- Superset B: Neck Lateral Flexion — 2 × 12–20 + DB shrug — 2 × 12–15'),
       'a second superset on the same day keeps its own letter');
     // an exercise outside a superset is still its own bullet
-    ok(txt.includes('- Lateral Raise — 2 × 12–15'), 'a straight-set exercise stays on its own line');
+    ok(txt.includes('- Lateral Raise — 2 × 12–20'), 'a straight-set exercise stays on its own line');
     t.close();
   });
 
