@@ -380,6 +380,18 @@ async function suiteAero() {
     t.close();
   });
 
+  await test('v69 exercise substitutions and RDL dose are reflected in the copied plan', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
+    const txt = t.win.eval('planListText()');
+    ok(txt.includes('- Wrist Extensions — 2 × 12–20'), 'Wrist Extensions is in Monday');
+    ok(txt.includes('- Sorensen Hold — 3 × 20–45'), 'Sorensen Hold is in Monday');
+    ok(txt.includes('- Romanian Deadlift — 3 × 10–15'), 'RDL uses the requested rep range');
+    ok(txt.includes('- Incline Prone Y-Raise — 2 × 12–20'), 'Incline Prone Y-Raise is in Friday');
+    ok(!txt.includes('Bird-dog') && !txt.includes('Wrist Roller') && !txt.includes('DB shrug'),
+      'replaced exercises are absent');
+    t.close();
+  });
+
   await test('the copied exercise list suffixes each resistance name with its dose', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
@@ -398,10 +410,11 @@ async function suiteAero() {
     // on from Monday's — the letters are per day, not per week
     ok(txt.includes('- Superset A: Incline DB Press — 3 × 8–12 + Single-arm DB Row — 3 × 8–12'),
       'a repeated letter on another day is its own superset');
-    ok(txt.includes('- Superset B: Neck Lateral Flexion — 2 × 12–20 + DB shrug — 2 × 12–15'),
-      'a second superset on the same day keeps its own letter');
-    // an exercise outside a superset is still its own bullet
-    ok(txt.includes('- Lateral Raise — 2 × 12–20'), 'a straight-set exercise stays on its own line');
+    ok(!txt.includes('Superset B:'), 'Friday has no second superset after shrug is removed');
+    ok(txt.includes('- Neck Lateral Flexion — 2 × 12–20'), 'neck lateral flexion becomes a straight set');
+    const y = txt.indexOf('- Incline Prone Y-Raise — 2 × 12–20');
+    const lat = txt.indexOf('- Lateral Raise — 2 × 12–20', txt.indexOf('# Friday'));
+    ok(y >= 0 && lat > y, 'Incline Prone Y-Raise sits before Friday Lateral Raise');
     t.close();
   });
 
@@ -417,8 +430,8 @@ async function suiteAero() {
     const heads = [...io.querySelectorAll('.addh')].map(x => x.textContent);
     eq(heads, ['Add when ready to add volume', 'Add when its problem arise'], 'both queues, in order');
     const names = [...io.querySelectorAll('.addul li')].map(x => x.textContent);
-    ok(names.includes('Copenhagen plank'), 'a volume-queue exercise is listed');
-    ok(names.includes('Standing Calf Raise'), 'a problem-queue exercise is listed');
+    eq(names, ['DB Overhead Extension','Copenhagen plank','Hammer Curl',
+      'Push-up Plus','External Rotation','Standing Calf Raise'], 'both queues contain only the requested exercises');
     ok(!io.querySelector('.addul input, .addul button'), 'nothing in the list is tickable');
     btn.click(); await tick(10);
     ok(io.hidden, 'a second press closes it');
