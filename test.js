@@ -396,7 +396,9 @@ async function suiteAero() {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
     ok(txt.includes('- Nordic Hamstring Curl — 2 × 3–6'), 'name first, sets × reps suffixed, bulleted');
-    ok(!txt.includes('Warm-up —'), 'Warm-up is still excluded, not just left unsuffixed');
+    ok(!txt.includes('Warm-up —'), 'Warm-up is absent from the plan');
+    eq(t.win.eval(`PLAN.map(d=>d.items.some(it=>it.name==='Warm-up'))`), [false,false,false],
+      'no resistance day contains a Warm-up item');
     t.close();
   });
 
