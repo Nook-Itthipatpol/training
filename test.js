@@ -380,14 +380,20 @@ async function suiteAero() {
     t.close();
   });
 
-  await test('v69 exercise substitutions and RDL dose are reflected in the copied plan', async () => {
+  await test('v71 routine has the requested order and doses', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
-    ok(txt.includes('- Wrist Extensions — 2 × 12–20'), 'Wrist Extensions is in Monday');
-    ok(txt.includes('- Sorensen Hold — 3 × 20–45'), 'Sorensen Hold is in Monday');
-    ok(txt.includes('- Romanian Deadlift — 3 × 10–15'), 'RDL uses the requested rep range');
+    eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.name))'), [
+      ['Flat Barbell Press','Reverse pec deck machine','Smith Machine Squat','Lats pulldown','Overhead cable triceps extension','Single-arm Bayesian cable curl','Cable Crunch','Roman Chair Hold'],
+      ['DB RDL','Incline DB Press','Chest-supported Row','Lateral Raise','Neck Extension','Neck Flexion','Reverse curl → hammer-curl drop set','Suitcase Carry'],
+      ['Single-leg Step Down','Sliding Hamstring Curl','Incline DB Press','Single-arm DB Row','Incline Prone Y-Raise','Lateral Raise','Neck Lateral Flexion']
+    ], 'day order');
+    ok(txt.includes('- Superset B: Overhead cable triceps extension — 2 × 10–15 + Single-arm Bayesian cable curl — 2–3 × 8–15'), 'Monday arms dose');
+    ok(txt.includes('- Superset C: Cable Crunch — 2 × 10–15 + Roman Chair Hold — 2 × 20–45'), 'Monday core dose');
+    ok(txt.includes('- DB RDL — 3 × 10–15'), 'DB RDL dose');
+    ok(txt.includes('- Sliding Hamstring Curl — 2 × 8–15'), 'Sliding Hamstring Curl dose');
     ok(txt.includes('- Incline Prone Y-Raise — 2 × 12–20'), 'Incline Prone Y-Raise is in Friday');
-    ok(!txt.includes('Bird-dog') && !txt.includes('Wrist Roller') && !txt.includes('DB shrug'),
+    ok(!txt.includes('Nordic Hamstring Curl') && !txt.includes('Wrist Extensions') && !txt.includes('Sorensen Hold'),
       'replaced exercises are absent');
     t.close();
   });
@@ -395,7 +401,7 @@ async function suiteAero() {
   await test('the copied exercise list suffixes each resistance name with its dose', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
-    ok(txt.includes('- Nordic Hamstring Curl — 2 × 3–6'), 'name first, sets × reps suffixed, bulleted');
+    ok(txt.includes('- Single-leg Step Down — 2 × 8–12'), 'name first, sets × reps suffixed, bulleted');
     ok(!txt.includes('Warm-up —'), 'Warm-up is absent from the plan');
     eq(t.win.eval(`PLAN.map(d=>d.items.some(it=>it.name==='Warm-up'))`), [false,false,false],
       'no resistance day contains a Warm-up item');
@@ -405,17 +411,14 @@ async function suiteAero() {
   await test('the copied exercise list writes each superset as one bulleted line', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
-    // v67: Monday's only superset is the neck pair, A
-    ok(txt.includes('- Superset A: Neck Extension — 2 × 12–20 + Neck Flexion — 2 × 12–20'),
+    ok(txt.includes('- Superset A: Flat Barbell Press — 3 × 5–8 + Reverse pec deck machine — 3 × 12–20'),
       'superset A on one line, each exercise keeping its own sets × reps');
-    // Friday holds two, and its letters start at A again rather than carrying
-    // on from Monday's — the letters are per day, not per week
+    ok(txt.includes('- Superset A: Neck Extension — 2 × 12–20 + Neck Flexion — 2 × 12–20'), 'Wednesday neck superset');
     ok(txt.includes('- Superset A: Incline DB Press — 3 × 8–12 + Single-arm DB Row — 3 × 8–12'),
       'a repeated letter on another day is its own superset');
-    ok(!txt.includes('Superset B:'), 'Friday has no second superset after shrug is removed');
     ok(txt.includes('- Neck Lateral Flexion — 2 × 12–20'), 'neck lateral flexion becomes a straight set');
     const y = txt.indexOf('- Incline Prone Y-Raise — 2 × 12–20');
-    const lat = txt.indexOf('- Lateral Raise — 2 × 12–20', txt.indexOf('# Friday'));
+    const lat = txt.indexOf('- Lateral Raise — 3 × 12–20', txt.indexOf('# Friday'));
     ok(y >= 0 && lat > y, 'Incline Prone Y-Raise sits before Friday Lateral Raise');
     t.close();
   });
