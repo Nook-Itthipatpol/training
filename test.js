@@ -380,15 +380,15 @@ async function suiteAero() {
     t.close();
   });
 
-  await test('v72 routine has the requested methods, names and doses', async () => {
+  await test('v73 routine has the requested methods, names and doses', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.name))'), [
-      ['Flat Barbell Press','Reverse pec deck machine','Smith Machine Squat','Lats pulldown → straight-arm pulldown','Overhead cable triceps extension','Single-arm Bayesian cable curl','Cable Crunch','Roman Chair Hold'],
-      ['DB RDL','Incline DB Press','Chest-supported Row → Kelso shrug','Lateral Raise','Neck Extension','Neck Flexion','Reverse curl → hammer-curl drop set','Suitcase Carry'],
-      ['Single-leg Step Down','Sliding Hamstring Curl','Incline DB Press','1-arm DB row → 1-arm Kelso shrug','Incline Prone Y-Raise','Lateral Raise','Neck Lateral Flexion']
+      ['Flat Barbell Press','Reverse pec deck machine → myo-reps','Smith Machine Squat','Lats pulldown → straight-arm pulldown','Overhead cable triceps extension → myo-reps','Single-arm Bayesian cable curl → myo-reps','Cable Crunch','Roman Chair Hold'],
+      ['DB RDL','Incline DB Press','Chest-supported Row → Kelso shrug','Lateral Raise → myo-reps','Neck Extension','Neck Flexion','Reverse curl → hammer-curl drop set','Suitcase Carry'],
+      ['Single-leg Step Down','Sliding Hamstring Curl','Incline DB Press','1-arm DB row → 1-arm Kelso shrug','Incline Prone Y-Raise','Lateral Raise → myo-reps','Neck Lateral Flexion']
     ], 'day order');
-    ok(txt.includes('- Superset B: Overhead cable triceps extension — 2 × 10–15 + Single-arm Bayesian cable curl — 2–3 × 8–15'), 'Monday arms dose');
+    ok(txt.includes('- Superset B: Overhead cable triceps extension → myo-reps — 2 × 10–15 + Single-arm Bayesian cable curl → myo-reps — 2–3 × 8–15'), 'Monday arms dose');
     ok(txt.includes('- Superset C: Cable Crunch — 2 × 10–15 + Roman Chair Hold — 2 × 20–45'), 'Monday core dose');
     ok(txt.includes('- DB RDL — 3 × 10–15'), 'DB RDL dose');
     ok(txt.includes('- Sliding Hamstring Curl — 2 × 8–15'), 'Sliding Hamstring Curl dose');
@@ -414,14 +414,14 @@ async function suiteAero() {
   await test('the copied exercise list writes each superset as one bulleted line', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
-    ok(txt.includes('- Superset A: Flat Barbell Press — 3 × 5–8 + Reverse pec deck machine — 3 × 12–20'),
+    ok(txt.includes('- Superset A: Flat Barbell Press — 3 × 5–8 + Reverse pec deck machine → myo-reps — 3 × 12–20'),
       'superset A on one line, each exercise keeping its own sets × reps');
     ok(txt.includes('- Superset A: Neck Extension — 2 × 12–20 + Neck Flexion — 2 × 12–20'), 'Wednesday neck superset');
     ok(txt.includes('- Superset A: Incline DB Press — 3 × 8–12 + 1-arm DB row → 1-arm Kelso shrug — 3 × 8–12'),
       'a repeated letter on another day is its own superset');
     ok(txt.includes('- Neck Lateral Flexion — 2 × 12–20'), 'neck lateral flexion becomes a straight set');
     const y = txt.indexOf('- Incline Prone Y-Raise — 2 × 12–20');
-    const lat = txt.indexOf('- Lateral Raise — 3 × 12–20', txt.indexOf('# Friday'));
+    const lat = txt.indexOf('- Lateral Raise → myo-reps — 3 × 12–20', txt.indexOf('# Friday'));
     ok(y >= 0 && lat > y, 'Incline Prone Y-Raise sits before Friday Lateral Raise');
     t.close();
   });
