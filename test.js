@@ -380,19 +380,22 @@ async function suiteAero() {
     t.close();
   });
 
-  await test('v71 routine has the requested order and doses', async () => {
+  await test('v72 routine has the requested methods, names and doses', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.name))'), [
-      ['Flat Barbell Press','Reverse pec deck machine','Smith Machine Squat','Lats pulldown','Overhead cable triceps extension','Single-arm Bayesian cable curl','Cable Crunch','Roman Chair Hold'],
-      ['DB RDL','Incline DB Press','Chest-supported Row','Lateral Raise','Neck Extension','Neck Flexion','Reverse curl → hammer-curl drop set','Suitcase Carry'],
-      ['Single-leg Step Down','Sliding Hamstring Curl','Incline DB Press','Single-arm DB Row','Incline Prone Y-Raise','Lateral Raise','Neck Lateral Flexion']
+      ['Flat Barbell Press','Reverse pec deck machine','Smith Machine Squat','Lats pulldown → straight-arm pulldown','Overhead cable triceps extension','Single-arm Bayesian cable curl','Cable Crunch','Roman Chair Hold'],
+      ['DB RDL','Incline DB Press','Chest-supported Row → Kelso shrug','Lateral Raise','Neck Extension','Neck Flexion','Reverse curl → hammer-curl drop set','Suitcase Carry'],
+      ['Single-leg Step Down','Sliding Hamstring Curl','Incline DB Press','1-arm DB row → 1-arm Kelso shrug','Incline Prone Y-Raise','Lateral Raise','Neck Lateral Flexion']
     ], 'day order');
     ok(txt.includes('- Superset B: Overhead cable triceps extension — 2 × 10–15 + Single-arm Bayesian cable curl — 2–3 × 8–15'), 'Monday arms dose');
     ok(txt.includes('- Superset C: Cable Crunch — 2 × 10–15 + Roman Chair Hold — 2 × 20–45'), 'Monday core dose');
     ok(txt.includes('- DB RDL — 3 × 10–15'), 'DB RDL dose');
     ok(txt.includes('- Sliding Hamstring Curl — 2 × 8–15'), 'Sliding Hamstring Curl dose');
     ok(txt.includes('- Incline Prone Y-Raise — 2 × 12–20'), 'Incline Prone Y-Raise is in Friday');
+    ok(t.win.eval("PLAN.find(d=>d.dow==='MON').items.find(it=>it.id==='t1').note").includes('pause 1–2 sec'), 'Smith squat pause cue');
+    eq(t.win.eval("PLAN.flatMap(d=>d.items).filter(it=>['h28','h29','h30','h3','e18'].includes(it.id)).map(it=>it.dose.includes('myo-reps'))"), [true,true,true,true,true], 'myo-reps on each requested final set');
+    eq(t.win.eval("PLAN.flatMap(d=>d.items).filter(it=>['h34','h35','h36'].includes(it.id)).map(it=>it.dose.includes('mechanical drop set'))"), [true,true,true], 'mechanical drop sets are explicit');
     ok(!txt.includes('Nordic Hamstring Curl') && !txt.includes('Wrist Extensions') && !txt.includes('Sorensen Hold'),
       'replaced exercises are absent');
     t.close();
@@ -414,7 +417,7 @@ async function suiteAero() {
     ok(txt.includes('- Superset A: Flat Barbell Press — 3 × 5–8 + Reverse pec deck machine — 3 × 12–20'),
       'superset A on one line, each exercise keeping its own sets × reps');
     ok(txt.includes('- Superset A: Neck Extension — 2 × 12–20 + Neck Flexion — 2 × 12–20'), 'Wednesday neck superset');
-    ok(txt.includes('- Superset A: Incline DB Press — 3 × 8–12 + Single-arm DB Row — 3 × 8–12'),
+    ok(txt.includes('- Superset A: Incline DB Press — 3 × 8–12 + 1-arm DB row → 1-arm Kelso shrug — 3 × 8–12'),
       'a repeated letter on another day is its own superset');
     ok(txt.includes('- Neck Lateral Flexion — 2 × 12–20'), 'neck lateral flexion becomes a straight set');
     const y = txt.indexOf('- Incline Prone Y-Raise — 2 × 12–20');
@@ -435,7 +438,8 @@ async function suiteAero() {
     const heads = [...io.querySelectorAll('.addh')].map(x => x.textContent);
     eq(heads, ['Add when ready to add volume', 'Add when its problem arise'], 'both queues, in order');
     const names = [...io.querySelectorAll('.addul li')].map(x => x.textContent);
-    eq(names, ['DB Overhead Extension','Copenhagen plank','Hammer Curl',
+    eq(names, ['DB Overhead Extension','Copenhagen plank','Hammer Curl','Wrist extension',
+      'Lower Abdominal Training — focus on posterior pelvic tilt; bring the "belt buckle to the chin"',
       'Push-up Plus','External Rotation','Standing Calf Raise'], 'both queues contain only the requested exercises');
     ok(!io.querySelector('.addul input, .addul button'), 'nothing in the list is tickable');
     btn.click(); await tick(10);
@@ -452,6 +456,23 @@ async function suiteAero() {
     eq(t.doc.getElementById('addlist').getAttribute('aria-expanded'), 'false', 'what-to-add reports closed');
     eq(t.doc.getElementById('export').getAttribute('aria-expanded'), 'true', 'export reports open');
     ok(!t.doc.getElementById('io').querySelector('.addh'), 'the add lists are gone from the panel');
+    t.close();
+  });
+
+  await test('only one resistance day or What to add is open', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
+    const heads = [...t.doc.querySelectorAll('[data-toggle]')];
+    const add = t.doc.getElementById('addlist');
+    const open = () => heads.map(h => h.getAttribute('aria-expanded'));
+    heads[0].click(); eq(open(), ['true','false','false'], 'Monday opens');
+    heads[1].click(); eq(open(), ['false','true','false'], 'Wednesday closes Monday');
+    heads[2].click(); eq(open(), ['false','false','true'], 'Friday closes Wednesday');
+    add.click(); eq(open(), ['false','false','false'], 'What to add closes Friday');
+    eq(add.getAttribute('aria-expanded'), 'true', 'What to add opens');
+    heads[0].click(); eq(open(), ['true','false','false'], 'Monday reopens');
+    eq(add.getAttribute('aria-expanded'), 'false', 'Monday closes What to add');
+    ok(t.doc.getElementById('io').hidden, 'the add panel is hidden');
+    heads[0].click(); eq(open(), ['false','false','false'], 'pressing an open day closes it');
     t.close();
   });
 
