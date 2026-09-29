@@ -4,6 +4,8 @@ The live app is `index.html`. Keep a byte-identical numbered snapshot (`training
 
 An exercise item has a stable `id`, `name`, `dose`, and optional `rest`, `target`, `note`, `mistake`, `noWeight`, and `ss`. Keep an existing ID when moving or adjusting the same exercise; use a fresh ID for a different movement, including when its name resembles a retired one. IDs must not be reused from old snapshots or Git history because archived weight records still refer to them.
 
+Use title case for displayed exercise names in `PLAN` and `ADDLIST`: capitalize the main words and both parts of compound terms (for example, `Chest-Supported Row` and `Single-Arm Cable Row`), keep abbreviations such as `DB` and `RDL` uppercase, and leave short prepositions such as `with` lowercase.
+
 Items with the same `ss` letter **and adjacent positions** form one superset. Superset letters restart for each day. Put the rest period on the last partner. The `dose` field is displayed on the card and parsed by `itemSetsText()` for the copied exercise list. It accepts a set count such as `2 × 10–15` or range such as `2–3 × 8–15 /side`.
 
 ## Keep these in sync
