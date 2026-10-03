@@ -868,6 +868,196 @@ async function suiteMarkup() {
 }
 
 /* =========================================================================
+   v76 · backward-compatible weight and reps logging
+   ========================================================================= */
+async function suiteReps() {
+  console.log('\n[weight and reps]');
+
+  await test('v76 · old current weights and archived records survive adding reps', async () => {
+    const oldWeek = { week: '2026-W34', items: { t1: { done: 1, w: 37.5 }, retired: { done: 1, w: 90 } } };
+    const seed = {
+      'trainweek:v11': STATE({ weights: { t1: '42.5', retired: '90' } }),
+      'trainweek:hist:index': JSON.stringify({ years: [2026] }),
+      'trainweek:hist:2026': JSON.stringify({ v: 1, weeks: { '2026-W34': oldWeek } })
+    };
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed });
+    const w = t.doc.querySelector('[data-wt="t1"]');
+    const r = t.doc.querySelector('[data-rp="t1"]');
+    eq(w.value, '42.5', 'existing weight rendered');
+    eq(r.value, '', 'old record has no invented reps');
+    input(t.win, r, '10');
+    t.win.dispatchEvent(new t.win.Event('pagehide')); await tick(20);
+    const saved = JSON.parse(t.mem.get('trainweek:v11'));
+    eq(saved.weights, { t1: '42.5', retired: '90' }, 'live and retired weights intact');
+    eq(saved.reps.t1, '10', 'reps added');
+    eq(t.mem.get('trainweek:hist:2026'), seed['trainweek:hist:2026'], 'archive never rewritten');
+    const restored = await boot({ now: '2026-08-31T09:00:00+07:00', seed: Object.fromEntries(t.mem) });
+    eq(restored.doc.querySelector('[data-wt="t1"]').value, '42.5', 'weight survives reload');
+    eq(restored.doc.querySelector('[data-rp="t1"]').value, '10', 'reps survive reload');
+    restored.close(); t.close();
+  });
+
+  await test('v76 · previous weights and reps are placeholders, not new records', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: {
+      'trainweek:hist:index': JSON.stringify({ years: [2026] }),
+      'trainweek:hist:2026': JSON.stringify({ v: 1, weeks: {
+        '2026-W34': { week: '2026-W34', items: { t1: { done: 1, w: 40, r: 12 } } }
+      } })
+    } });
+    const w = t.doc.querySelector('[data-wt="t1"]'), r = t.doc.querySelector('[data-rp="t1"]');
+    eq([w.value, w.placeholder, r.value, r.placeholder], ['', '40', '', '12'], 'reference values only');
+    ok(!w.closest('.logfield').classList.contains('recorded'), 'reference weight stays pale');
+    eq(t.win.eval('JSON.stringify(state.weights)'), '{}', 'weight not auto-filled');
+    eq(t.win.eval('JSON.stringify(state.reps)'), '{}', 'reps not auto-filled');
+    w.closest('.item').querySelector('[data-check]').click();
+    eq(JSON.parse(t.win.eval('JSON.stringify(makeRecord(state,"2026-W35","2026-09-06"))')).items.t1,
+      { done: 1 }, 'checking without entry cannot archive reference values');
+    eq(t.errors, [], 'boot clean'); t.close();
+  });
+
+  await test('v76 · one reps field per repetition exercise; none on holds or carries', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
+    const ids = JSON.parse(t.win.eval('JSON.stringify(PLAN.flatMap(d=>d.items).filter(it=>!it.noWeight&&!/\\bsec\\b/.test(it.dose)).map(it=>it.id))'));
+    eq(t.doc.querySelectorAll('[data-rp]').length, ids.length, 'exactly one reps input per eligible exercise');
+    for (const id of ids) eq(t.doc.querySelectorAll('[data-rp="'+id+'"]').length, 1, 'one for '+id);
+    eq(t.doc.querySelectorAll('[data-rp="h5"], [data-rp="t16"]').length, 0, 'timed movements do not count reps');
+    t.close();
+  });
+
+  await test('v76 · Enter in kg focuses and selects reps for the same exercise', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
+    const w = t.doc.querySelector('[data-wt]'), r = w.closest('.item').querySelector('[data-rp]');
+    w.closest('[data-day]').querySelector('[data-toggle]').click();
+    w.focus(); input(t.win, w, '50');
+    const event = new t.win.KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    w.dispatchEvent(event);
+    eq(t.doc.activeElement, r, 'focus moved directly to reps');
+    ok(event.defaultPrevented, 'Enter handled');
+    eq(w.getAttribute('enterkeyhint'), 'next', 'mobile next hint');
+    const composing = new t.win.KeyboardEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true });
+    w.focus(); w.dispatchEvent(composing);
+    eq(t.doc.activeElement, w, 'IME confirmation does not move focus');
+    t.close();
+  });
+
+  await test('v76 · entered and cleared values update color and compact width', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
+    const r = t.doc.querySelector('[data-rp]');
+    input(t.win, r, '12');
+    ok(r.closest('.logfield').classList.contains('recorded'), 'entered reps brass');
+    const wider = parseFloat(r.style.width);
+    input(t.win, r, '8');
+    ok(parseFloat(r.style.width) < wider, 'unit follows a shorter number');
+    input(t.win, r, '');
+    ok(!r.closest('.logfield').classList.contains('recorded'), 'cleared reps return to pale');
+    eq(t.win.eval('state.checks["'+r.dataset.rp+'"]'), true, 'clearing does not untick exercise');
+    t.close();
+  });
+
+  await test('v76 · reps alone auto-tick and survive immediate iPhone backgrounding', async () => {
+    for (const event of ['pagehide', 'visibilitychange']) {
+      const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
+      const r = t.doc.querySelector('[data-rp]');
+      input(t.win, r, '9');
+      if (event==='pagehide') t.win.dispatchEvent(new t.win.Event(event));
+      else {
+        Object.defineProperty(t.doc, 'hidden', { value: true, configurable: true });
+        t.doc.dispatchEvent(new t.win.Event(event));
+      }
+      await tick(20);
+      const saved = JSON.parse(t.mem.get('trainweek:v11'));
+      eq(saved.reps[r.dataset.rp], '9', event+' flushes reps before debounce');
+      eq(saved.checks[r.dataset.rp], true, 'auto-ticked');
+      eq(saved.weights, {}, 'no invented weight'); t.close();
+    }
+  });
+
+  await test('v76 · rollover archives weight and reps together and resets only the new week', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: {
+      'trainweek:v11': STATE({ weekStart: '2026-08-24', checks: { t1: true, e19: true }, weights: { t1: '40' }, reps: { t1: '12', e19: '9' } })
+    } });
+    const record = Object.values(JSON.parse(t.mem.get('trainweek:hist:2026')).weeks)[0];
+    eq(record.items, { t1: { done: 1, w: 40, r: 12 }, e19: { done: 1, r: 9 } }, 'archive includes reps-only and weight+reps');
+    const current = JSON.parse(t.mem.get('trainweek:v11'));
+    eq(current.weights, {}, 'new week weight empty'); eq(current.reps, {}, 'new week reps empty');
+    eq(t.doc.querySelector('[data-rp="t1"]').placeholder, '12', 'previous week rep reference');
+    t.close();
+  });
+
+  await test('v76 · history shows weight+reps, reps-only and old weight-only records', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: {
+      'trainweek:hist:index': JSON.stringify({ years: [2026] }),
+      'trainweek:hist:2026': JSON.stringify({ v: 1, weeks: {
+        '2026-W34': { week: '2026-W34', items: { t1: { done: 1, w: 40, r: 12 } } },
+        '2026-W33': { week: '2026-W33', items: { t1: { done: 1, r: 10 } } },
+        '2026-W32': { week: '2026-W32', items: { t1: { done: 1, w: 35 } } }
+      } })
+    } });
+    const rows = [...t.doc.querySelector('[data-item="t1"]').nextElementSibling.querySelectorAll('tr')];
+    ok(rows[0].textContent.includes('40 kg · 12 reps'), 'combined measurement visible');
+    ok(rows[1].textContent.includes('10 reps'), 'reps without kg visible');
+    ok(rows[2].textContent.includes('35 kg'), 'old weight visible');
+    ok(!rows[2].textContent.includes('reps'), 'old reps not invented');
+    ok(rows[0].textContent.includes('+5'), 'weight delta still uses previous measured weight');
+    t.close();
+  });
+
+  await test('v76 · exports and imports round-trip current reps and history without changing weights', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: {
+      'trainweek:v11': STATE({ weights: { t1: '45' }, reps: { t1: '11' } }),
+      'trainweek:hist:index': JSON.stringify({ years: [2026] }),
+      'trainweek:hist:2026': JSON.stringify({ v: 1, weeks: { '2026-W34': { week: '2026-W34', items: { t1: { done: 1, w: 40, r: 12 } } } } })
+    } });
+    const dump = await t.win.eval('buildDump()');
+    const restored = await boot({ now: '2026-08-31T09:00:00+07:00' });
+    restored.win.__incoming = JSON.parse(JSON.stringify(dump));
+    await restored.win.eval('runImport(window.__incoming)');
+    const saved = JSON.parse(restored.mem.get('trainweek:v11'));
+    eq(saved.weights, { t1: '45' }, 'current weight retained');
+    eq(saved.reps, { t1: '11' }, 'current reps retained');
+    eq(JSON.parse(restored.mem.get('trainweek:hist:2026')).weeks['2026-W34'].items.t1,
+      { done: 1, w: 40, r: 12 }, 'history retained');
+    const oldDump = { app: 'training-week-v52', current: { ...dump.current }, history: {}, daily: {} };
+    delete oldDump.current.reps;
+    restored.win.__incoming = JSON.parse(JSON.stringify(oldDump));
+    await restored.win.eval('runImport(window.__incoming)');
+    eq(restored.doc.querySelector('[data-wt="t1"]').value, '45', 'old import still reads weights');
+    eq(restored.doc.querySelector('[data-rp="t1"]').value, '', 'old import defaults only missing reps');
+    restored.close(); t.close();
+  });
+
+  await test('v76 · malformed reps cannot stop weight saves or archive fractional counts', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: {
+      'trainweek:v11': STATE({ weights: { t1: '40' }, reps: 'broken' })
+    } });
+    const r = t.doc.querySelector('[data-rp="t1"]');
+    input(t.win, r, '12'); input(t.win, r, '1.5');
+    eq(t.win.eval('state.reps.t1'), '12', 'fractional count cannot replace valid reps');
+    input(t.win, r, '0');
+    t.win.dispatchEvent(new t.win.Event('pagehide')); await tick(20);
+    const saved = JSON.parse(t.mem.get('trainweek:v11'));
+    eq(saved.weights.t1, '40', 'weight unaffected by corrupt reps map');
+    eq(saved.reps.t1, '0', 'zero reps is a real count');
+    const items = JSON.parse(t.win.eval('JSON.stringify(makeRecord({checks:{a:true,b:true,c:true}, reps:{a:"1.5",b:"-2",c:"0"}},"2026-W35","2026-09-06").items)'));
+    eq(items, { a: { done: 1 }, b: { done: 1 }, c: { done: 1, r: 0 } }, 'archive only whole nonnegative counts');
+    eq(t.errors, [], 'no errors'); t.close();
+  });
+
+  await test('v76 · deload hides reps without erasing existing measurements', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: {
+      'trainweek:v11': STATE({ weights: { t1: '45' }, reps: { t1: '11' } })
+    } });
+    t.doc.getElementById('dltoggle').click(); await tick(40);
+    eq(t.doc.querySelectorAll('[data-rp]').length, 0, 'no rep entry in deload');
+    eq(t.win.eval('state.reps.t1'), '11', 'stored reps retained');
+    eq(t.win.eval('state.weights.t1'), '45', 'stored weight retained');
+    t.doc.getElementById('dltoggle').click(); await tick(40);
+    eq(t.doc.querySelector('[data-rp="t1"]').value, '11', 'returning to normal restores reps');
+    t.close();
+  });
+}
+
+/* =========================================================================
    run
    ========================================================================= */
 (async () => {
@@ -882,6 +1072,7 @@ async function suiteMarkup() {
   await suiteTransfer();
   await suiteDurability();
   await suiteMarkup();
+  await suiteReps();
   console.log('\n' + '='.repeat(58));
   console.log(pass + ' passed, ' + fail + ' failed');
   if (fail) { console.log('\nfailures:'); failures.forEach(([n, m]) => console.log('  · ' + n + '\n      ' + m)); }
