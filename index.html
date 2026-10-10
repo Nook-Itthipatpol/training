@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   ============================================================================
-  Training Week — v77
+  Training Week — v78
   ============================================================================
 
   WORKING RULES (ask Claude to follow these on every edit)
@@ -22,6 +22,14 @@
      on the new one.
   6. Say what changed and why. A fix with no note becomes a mystery on the next
      pass — most of the comments in this file exist because of that.
+
+  v78 — updated resistance sessions and future-exercise queue
+  ---------------------------------------------------------------------------
+  Replace the three resistance days with the requested order, doses, and two
+  supersets. Move the row, curls, and triceps work while preserving their IDs.
+  New crossover, back-extension, and step-down movements get fresh IDs; move
+  the five removed movements to What to add and promote Step-Down out of it.
+  The carry remains timed in seconds, with side-switching cues in its details.
 
   v77 — shorter exercise names
   ---------------------------------------------------------------------------
@@ -951,80 +959,77 @@ const DOW_FULL=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','S
    warm-up for no longer opens with power work. */
 const PLAN=[
  {dow:'MON',title:'Monday',kind:'strength',items:[
-   {id:'t1',rest:'rest 3 min',name:'Smith Machine Squat',dose:'2 × 6–10',
-    target:'• Squat pattern สำหรับขา + สะโพก; Smith rail ช่วยให้โหลดหนักได้อย่าง stable<br>• สองเซ็ตโดยตั้งใจ; คุมช่วงลงและรักษาแนวเข่า',
-    note:'• วางเท้าออกหน้าบาร์เล็กน้อย; ส้นเท้าติดพื้น<br>• Brace ก่อนลงทุก rep; เข่าตามแนวปลายเท้า<br>• ลงลึกเท่าที่ยังคุมหลังได้; pause 1–2 sec ในตำแหน่งลึก ไม่ bounce<br>• ตั้ง safety pin ใต้ bottom position'},
-   {id:'e19',ss:'A',name:'Flat Barbell Press',dose:'3 × 5–8',
+   {id:'e19',rest:'rest 2 min',name:'Flat Barbell Press',dose:'3 × 5–8',
     target:'• Main horizontal press ของสัปดาห์; barbell ทำให้โหลดหนักกว่า incline DB วันศุกร์',
     note:'• สะบักหุบและกดติดเบาะตลอด; เท้ายันพื้น<br>• ศอก ~45° กับลำตัว ไม่กาง 90°<br>• บาร์ลงระดับอกล่าง แตะเบา ไม่ bounce<br>• มี safety pin หรือคนช่วยเสมอเมื่อเข้าใกล้ failure'},
-   {id:'h28',ss:'A',rest:'rest 2 min',name:'Reverse Pec Deck Machine',dose:'3 × 12–20',
-    target:'• Rear delts + upper back; balances horizontal pressing',
-    note:'• Set handles near shoulder height; keep chest against the pad<br>• Open arms without shrugging; pause briefly at the back<br>• Return slowly with control'},
    {id:'h34',rest:'rest 2 min',name:'Lats Pulldown',dose:'3 × 8–12',
     target:'• Vertical pull สำหรับ lats; เติม pattern ที่ horizontal row ไม่ครอบคลุม<br>• โหลดปรับได้ทีละขั้น จึง progress ตรงกว่า pull-up ที่ต้องเล่นกับ assistance',
     note:'• จับกว้างกว่าไหล่เล็กน้อย; นั่งให้ต้นขาล็อกใต้แป้น<br>• เริ่มด้วย depress scapula ก่อน แล้วค่อยดึงศอกลงหาซี่โครง<br>• เอนหลังได้ไม่เกิน ~15° และค้างมุมนั้นไว้ ไม่โยกตามจังหวะ<br>• ปล่อยขึ้นช้า ~3 s จนแขนเหยียดและสะบักยืดสุด<br>• Mechanical drop set: ต่อด้วย straight-arm pulldown โดยไม่พัก',
     mistake:'• โยกลำตัวเพื่อช่วยดึง · ดึงบาร์ลงหลังคอ · ROM สั้นเพราะโหลดหนักเกิน'},
-   {id:'v74cablelat',rest:'rest 90s',name:'Cable Lateral Raise',dose:'3 × 12–20',
-    target:'• Lateral delts with cable tension through the range',
-    note:'• Stand side-on to a low pulley; keep a soft elbow<br>• Lift to shoulder height without shrugging or swinging<br>• Lower slowly and match reps on both sides'},
-   {id:'h24',ss:'B',name:'Cable Crunch',dose:'3 × 10–15',
-    target:'• Direct trunk flexion ที่โหลดได้จริง — ส่วนที่ Roman Chair Hold และ carry (anti-movement ล้วน) ไม่ครอบคลุม',
+   {id:'v78crossover',rest:'rest 90s',name:'Cable Crossover',dose:'3 × 8–12',
+    target:'• Chest isolation with cable tension through the range',
+    note:'• Set pulleys near chest height; stagger the stance and keep a soft elbow<br>• Bring the handles together in front of the chest without rolling the shoulders forward<br>• Return slowly into a comfortable chest stretch',
+    mistake:'• Turning the movement into a press · Swinging the torso · Forcing the shoulder stretch'},
+   {id:'v78reversecrossover',rest:'rest 90s',name:'Reverse Cable Crossover',dose:'3 × 10–15',
+    target:'• Rear delts and upper back; balances chest pressing and crossover work',
+    note:'• Take the opposite cable in each hand; set pulleys near shoulder height<br>• Open the arms with soft elbows while keeping the torso still<br>• Pause briefly at the back, then return slowly',
+    mistake:'• Shrugging toward the ears · Swinging the torso · Pulling past a comfortable shoulder range'},
+   {id:'h24',rest:'rest 90s',name:'Cable Crunch',dose:'3 × 10–15',
+    target:'• Direct trunk flexion with adjustable cable resistance; complements back extension and suitcase carry work',
     note:'• คุกเข่าหน้า cable สูง จับเชือกไว้ข้างหู<br>• งอตัวจากซี่โครงลงหาเชิงกราน ปล่อยหลังส่วนบนโค้ง; สะโพกอยู่กับที่<br>• ค้าง 1 s ตอนหดสุด แล้วคลายขึ้นช้า ~3 s จนรู้สึกยืด<br>• หายใจออกตอนม้วนลง',
     mistake:'• ย่อสะโพกลงแทนการม้วนลำตัว = กลายเป็น hip hinge · ดึงด้วยแขน · load หนักจนเหลือแค่การโยก'},
-   {id:'h26',ss:'B',rest:'rest 90s',noWeight:1,name:'Roman Chair Hold',dose:'3 × 20–45 sec',
-    target:'• Isometric endurance ของ spinal erectors + glutes + hamstrings',
-    note:'• ล็อกขาและสะโพกกับ Roman chair ให้ลำตัวพ้นขอบและขนานพื้น<br>• เกร็งก้นและหน้าท้อง รักษาหลัง neutral; กอดอกหรือวางมือแตะไหล่<br>• จบ set เมื่อรักษาแนวลำตัวไม่ได้ ไม่ต้องฝืนให้ครบเวลา',
-    mistake:'• แอ่นหลังล่างเพื่อยื้อเวลา · ปล่อยสะโพกตก · กลั้นหายใจ'}
+   {id:'v78backextension',rest:'rest 90s',name:'Roman Chair Back Extension',dose:'3 × 10–15',
+    target:'• Dynamic hip extension for glutes, hamstrings, and spinal erectors',
+    note:'• Set the pad below the hip crease and secure the feet<br>• Hinge at the hips with a neutral spine; lower only as far as you can control<br>• Squeeze the glutes to return until the body forms a straight line<br>• Start with body weight; add a load held at the chest when all reps stay controlled',
+    mistake:'• Hyperextending the lower back at the top · Bouncing from the bottom · Rounding the spine to gain range'}
  ]},
 
  {dow:'WED',title:'Wednesday',kind:'strength',items:[
-   {id:'e4',rest:'rest 2 min',name:'Incline DB Press',dose:'3 × 6–10',
-    target:'• Upper chest + anterior delts; main press ของวันพุธ',
-    note:'• Bench ~30°<br>• สะบักกดติดเบาะ; ศอก ~45° กับลำตัว<br>• ลงจนอกตึงโดยไม่ดึงไหล่หน้า แล้ว press ขึ้นให้ DB เข้าหากันเล็กน้อย<br>• คนละช่องน้ำหนักกับ Incline DB Press วันศุกร์ — ล็อกคนละวัน ตัวเลขจึงมักไม่เท่ากัน'},
-   {id:'h35',rest:'rest 2 min',name:'Chest-Supported Row',dose:'3 × 8–12',
-    target:'• Mid-back work โดยแทบไม่เพิ่ม load ให้ lower back',
-    note:'• Bench ~30–45°; นอนคว่ำและให้อกติดเบาะตลอด<br>• Drive elbows ไปด้านหลัง; squeeze scapula 1 s ตอนสุด<br>• ต่อด้วย Kelso shrug โดยไม่พัก: แขนเกือบตรง ดึงสะบักเข้าหากันโดยไม่ยกอก<br>• อย่ายกอกหรือ shrug เพื่อช่วยน้ำหนัก'},
+   {id:'v78stepdown',rest:'rest 90s',name:'Single-Leg Step-Down',dose:'3 × 10–15',
+    target:'• Unilateral quad work and controlled knee tracking',
+    note:'• Stand on a low step with one foot near the edge<br>• Bend the supporting knee and hip; lower slowly until the free heel lightly touches the floor<br>• Keep the pelvis level and the knee tracking over the toes<br>• Push through the supporting foot to return; complete the prescribed reps on each side',
+    mistake:'• Pushing off the free foot · Letting the knee collapse inward · Using a step too high to control'},
+   {id:'h36',rest:'rest 2 min',name:'1-Arm DB Row',dose:'3 × 8–12',
+    target:'• Horizontal pull on Wednesday; unilateral work helps address left-right differences',
+    note:'• เข่าและมือข้างเดียวกันยันม้านั่ง; หลังขนานพื้นและ neutral<br>• ดึงศอกไปหลังชิดลำตัว จบด้วย scapular retraction<br>• ปล่อยลงจนแขนเหยียดและสะบักยืดสุด<br>• ต่อด้วย 1-arm Kelso shrug โดยไม่พัก: แขนเกือบตรง ดึงสะบักถอยหลัง<br>• ลำตัวนิ่ง ไม่บิดสะโพกช่วยดึง',
+    mistake:'• บิดลำตัวขึ้นทุก rep = load หนักเกิน'},
+   {id:'h32',rest:'rest 90s',name:'Reverse Curl → Hammer-Curl',dose:'3 × 8–15',
+    target:'• Brachioradialis and brachialis work with a grip change',
+    note:'• Start each set with reverse curls using a light load<br>• When clean reverse-curl reps end, switch immediately to a neutral hammer grip<br>• Finish when form breaks; keep elbows near the torso'},
+   {id:'h3',rest:'rest 90s',name:'Lateral Raise',dose:'3 × 12–20',
+    target:'• Lateral delts',
+    note:'• เอนตัวไปหน้าเล็กน้อย<br>• ยกถึง shoulder height; eccentric ~3 s',
+    mistake:'• ถ้าต้องเหวี่ยงสะโพกเพื่อยก = load หนักเกิน'},
+   {id:'n1',ss:'A',name:'Neck Extension',dose:'2 × 12–20',
+    target:'• Direct neck extensor work; complement daily isometric holds',
+    note:'• นั่งใส่ head harness; โน้มลำตัวไปหน้า ~45°<br>• 3 s eccentric + 1 s pause at stretch<br>• ขึ้นถึง neutral เท่านั้น; movement ต้อง controlled'},
+   {id:'n2',ss:'A',rest:'rest 90s',name:'Neck Flexion',dose:'2 × 12–20',
+    target:'• Direct neck flexor work; complement daily isometric holds',
+    note:'• นอนหงายบนม้านั่ง ศีรษะพ้นขอบ วางแผ่นน้ำหนักบนหน้าผาก (รองผ้า)<br>• Chin tuck ก่อน แล้วคง tuck ไว้ตลอด curl<br>• ถ้า chin tuck หลุด = จบ set<br>• คุมจังหวะ; ไม่ใช้ head momentum'}
+ ]},
+
+ {dow:'FRI',title:'Friday',kind:'strength',items:[
+   {id:'e14',rest:'rest 2 min',name:'Incline DB Press',dose:'3 × 8–12',
+    target:'• Upper chest + anterior delts; main press ของวันศุกร์',
+    note:'• Bench ~30°<br>• สะบักกดติดเบาะ; ศอก ~45° กับลำตัว<br>• ลงจนอกตึงโดยไม่ดึงไหล่หน้า แล้ว press ขึ้นให้ DB เข้าหากันเล็กน้อย<br>• Keep feet planted and avoid lifting the hips to finish a rep'},
    {id:'h29',ss:'A',name:'Overhead Triceps Extension',dose:'3 × 10–15',
     target:'• Triceps, especially the long head, through an overhead stretch',
     note:'• Face away from the pulley with elbows pointing forward<br>• Keep upper arms still; extend elbows fully without swinging<br>• Return slowly into a comfortable stretch'},
    {id:'v74curl',ss:'A',rest:'rest 90s',name:'Incline DB Curl',dose:'3 × 8–15',
     target:'• Biceps work with the upper arm behind the torso',
     note:'• Set the bench to a comfortable incline and let arms hang back<br>• Keep upper arms still while curling; avoid swinging<br>• Lower slowly into a comfortable stretch'},
-   {id:'h3',rest:'rest 90s',name:'Lateral Raise',dose:'3 × 12–20',
-    target:'• Lateral delts',
-    note:'• เอนตัวไปหน้าเล็กน้อย<br>• ยกถึง shoulder height; eccentric ~3 s',
-    mistake:'• ถ้าต้องเหวี่ยงสะโพกเพื่อยก = load หนักเกิน'},
-   {id:'n1',ss:'B',name:'Neck Extension',dose:'2 × 12–20',
-    target:'• Direct neck extensor work; complement daily isometric holds',
-    note:'• นั่งใส่ head harness; โน้มลำตัวไปหน้า ~45°<br>• 3 s eccentric + 1 s pause at stretch<br>• ขึ้นถึง neutral เท่านั้น; movement ต้อง controlled'},
-   {id:'n2',ss:'B',rest:'rest 90s',name:'Neck Flexion',dose:'2 × 12–20',
-    target:'• Direct neck flexor work; complement daily isometric holds',
-    note:'• นอนหงายบนม้านั่ง ศีรษะพ้นขอบ วางแผ่นน้ำหนักบนหน้าผาก (รองผ้า)<br>• Chin tuck ก่อน แล้วคง tuck ไว้ตลอด curl<br>• ถ้า chin tuck หลุด = จบ set<br>• คุมจังหวะ; ไม่ใช้ head momentum'},
- ]},
-
- {dow:'FRI',title:'Friday',kind:'strength',items:[
-   {id:'e14',ss:'A',name:'Incline DB Press',dose:'3 × 8–12',
-    target:'• Upper chest + anterior delts; main press ของวันศุกร์',
-    note:'• Bench ~30°<br>• สะบักกดติดเบาะ; ศอก ~45° กับลำตัว<br>• ลงจนอกตึงโดยไม่ดึงไหล่หน้า แล้ว press ขึ้นให้ DB เข้าหากันเล็กน้อย<br>• คนละช่องน้ำหนักกับวันพุธ — วันศุกร์มาทีหลังในสัปดาห์ ตัวเลขจึงมักต่ำกว่า'},
-   {id:'h36',ss:'A',rest:'rest 2 min',name:'1-Arm DB Row',dose:'3 × 8–12 /side',
-    target:'• Horizontal pull ของวันศุกร์; unilateral จึงแก้ความต่างซ้าย-ขวาได้ตรงกว่า row สองมือ',
-    note:'• เข่าและมือข้างเดียวกันยันม้านั่ง; หลังขนานพื้นและ neutral<br>• ดึงศอกไปหลังชิดลำตัว จบด้วย scapular retraction<br>• ปล่อยลงจนแขนเหยียดและสะบักยืดสุด<br>• ต่อด้วย 1-arm Kelso shrug โดยไม่พัก: แขนเกือบตรง ดึงสะบักถอยหลัง<br>• ลำตัวนิ่ง ไม่บิดสะโพกช่วยดึง',
-    mistake:'• บิดลำตัวขึ้นทุก rep = load หนักเกิน'},
-   {id:'h32',rest:'rest 90s',name:'Reverse Curl → Hammer-Curl',dose:'2 × 8–15',
-    target:'• Brachioradialis and brachialis work with a grip change',
-    note:'• Start each set with reverse curls using a light load<br>• When clean reverse-curl reps end, switch immediately to a neutral hammer grip<br>• Finish when form breaks; keep elbows near the torso'},
    {id:'e18',rest:'rest 90s',name:'Lateral Raise',dose:'3 × 12–20',
-    target:'• Lateral delts after Monday cable raises and Wednesday lateral raises',
+    target:'• Lateral delts; complements Wednesday lateral raises',
     note:'• เอนตัวไปหน้าเล็กน้อย<br>• ยกถึง shoulder height; eccentric ~3 s',
     mistake:'• ถ้าต้องเหวี่ยงสะโพกเพื่อยก = load หนักเกิน'},
    {id:'h27',rest:'rest 90s',name:'Incline Prone Y-Raise',dose:'2 × 12–20',
     target:'• Lower traps + scapular upward rotation; light scapular work',
     note:'• ตั้งม้านั่ง incline ต่ำ นอนคว่ำให้อกติดเบาะและปล่อยแขนลง<br>• ยกแขนเป็นรูป Y โดยให้นิ้วโป้งชี้ขึ้น; ค้างสั้นๆ แล้วลดลงช้า ~3 s<br>• ใช้น้ำหนักเบาและรักษาคอ neutral',
     mistake:'• Shrug ไหล่ขึ้นหาหู · แอ่นหลังหรือยกอกช่วย · ใช้น้ำหนักจน ROM สั้น'},
-   {id:'h5',rest:'rest 90s',noWeight:0,name:'Suitcase Carry',dose:'2 × 30–60 sec /side continuous',
+   {id:'h5',rest:'rest 90s',noWeight:0,name:'Suitcase Carry',dose:'2 × 30–60 sec',
     target:'• Anti-lateral flexion + hip stability ระหว่างเดิน<br>• เป้าหมายคือรักษาลำตัวตรงภายใต้ unilateral load',
     note:'• ใช้ straps ถือ DB/KB ข้างเดียว; ไหล่สองข้างระดับเดียวกัน ห้าม counter-lean<br>• Scapula down, chest open, เดินก้าวปกติและหายใจต่อเนื่อง<br>• เปลี่ยนข้างทันทีโดยไม่พัก; ครบสองข้าง = 1 set<br>• Progress ด้วย load ไม่ใช่เวลา; เลือกน้ำหนักจากความสามารถในการเดินตรง'},
-   {id:'n3',rest:'rest 90s',name:'Neck Lateral Flexion',dose:'2 × 12–20 /side',
+   {id:'n3',rest:'rest 90s',name:'Neck Lateral Flexion',dose:'2 × 12–20',
     target:'• Neck lateral flexors; adds frontal-plane work alongside extension and flexion',
     note:'• นอนตะแคงบนม้านั่ง ศีรษะพ้นขอบ วางแผ่นน้ำหนักบนศีรษะด้านบน (รองผ้า)<br>• ทำ pure lateral flexion; no rotation<br>• คุม tempo ไม่ใช้ momentum'}
  ]}
@@ -2289,8 +2294,10 @@ const ADDLIST=[
    why:'เพิ่มได้เมื่อของเดิมยังทำครบและฟื้นทัน — ทีละท่า ไม่ใช่ทั้งชุด',
    items:['DB Fly','Single-Arm Seated Cable Fly','DB Overhead Extension','Copenhagen Plank',
      'Hammer Curl','Wrist Extension','Lying Leg Raises → Tuck Dragon Flag → Dragon Flag',
-     'Single-Leg Step Down','Sliding Hamstring Curl','Cable Leg Extension',
-     'Seated Cable Leg Curl','Single-Arm Cable Row','DB RDL']},
+     'Sliding Hamstring Curl','Cable Leg Extension',
+     'Seated Cable Leg Curl','Single-Arm Cable Row','DB RDL',
+     'Smith Machine Squat','Reverse Pec Deck Machine','Cable Lateral Raise',
+     'Roman Chair Hold','Chest-Supported Row']},
   {h:'Add when its problem arise',
    why:'ยังไม่ต้องใส่ตอนนี้ — ใส่เมื่ออาการที่ท่านั้นแก้โผล่ขึ้นมาจริง',
    items:['Push-Up Plus','External Rotation','Standing Calf Raise']}
@@ -2768,7 +2775,7 @@ const DELOAD_DEFAULT='2 sets · same load';
 const DELOAD_RULES={
   /* v72: the pulldown combination keeps the old pulldown's lighter deload. */
   h34:{dose:'2 × 10–12 · <b>−20% load</b>',tag:'lighter'},
-  h5:{dose:'1 × 30–60 sec /side continuous · <b>−30% load</b>',tag:'lighter'}
+  h5:{dose:'1 × 30–60 sec · <b>−30% load</b>',tag:'lighter'}
 };
 /* what this item becomes in a deload week */
 function deloadOf(it){

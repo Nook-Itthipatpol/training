@@ -95,7 +95,7 @@ async function suiteBoot() {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     eq(t.doc.body.dataset.ready, '1', 'ready flag');
     eq(t.doc.querySelectorAll('[data-day]').length, 3, 'day cards: one per training day');
-    ok(t.doc.querySelectorAll('[data-item]').length > 20, 'exercise rows');
+    eq(t.doc.querySelectorAll('[data-item]').length, 19, 'exercise rows');
     t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
     ok(t.doc.querySelector('#aprog'), 'weekly progress card');
     t.doc.querySelector('[data-tab="daily"]').click(); await tick(200);
@@ -380,39 +380,69 @@ async function suiteAero() {
     t.close();
   });
 
-  await test('v77 routine has the requested names, order, doses, and stable IDs', async () => {
+  await test('v78 routine has the requested names, order, doses, and stable IDs', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.name))'), [
-      ['Smith Machine Squat','Flat Barbell Press','Reverse Pec Deck Machine','Lats Pulldown','Cable Lateral Raise','Cable Crunch','Roman Chair Hold'],
-      ['Incline DB Press','Chest-Supported Row','Overhead Triceps Extension','Incline DB Curl','Lateral Raise','Neck Extension','Neck Flexion'],
-      ['Incline DB Press','1-Arm DB Row','Reverse Curl → Hammer-Curl','Lateral Raise','Incline Prone Y-Raise','Suitcase Carry','Neck Lateral Flexion']
+      ['Flat Barbell Press','Lats Pulldown','Cable Crossover','Reverse Cable Crossover','Cable Crunch','Roman Chair Back Extension'],
+      ['Single-Leg Step-Down','1-Arm DB Row','Reverse Curl → Hammer-Curl','Lateral Raise','Neck Extension','Neck Flexion'],
+      ['Incline DB Press','Overhead Triceps Extension','Incline DB Curl','Lateral Raise','Incline Prone Y-Raise','Suitcase Carry','Neck Lateral Flexion']
     ], 'day order');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.dose))'), [
-      ['2 × 6–10','3 × 5–8','3 × 12–20','3 × 8–12','3 × 12–20','3 × 10–15','3 × 20–45 sec'],
-      ['3 × 6–10','3 × 8–12','3 × 10–15','3 × 8–15','3 × 12–20','2 × 12–20','2 × 12–20'],
-      ['3 × 8–12','3 × 8–12 /side','2 × 8–15','3 × 12–20','2 × 12–20','2 × 30–60 sec /side continuous','2 × 12–20 /side']
+      ['3 × 5–8','3 × 8–12','3 × 8–12','3 × 10–15','3 × 10–15','3 × 10–15'],
+      ['3 × 10–15','3 × 8–12','3 × 8–15','3 × 12–20','2 × 12–20','2 × 12–20'],
+      ['3 × 8–12','3 × 10–15','3 × 8–15','3 × 12–20','2 × 12–20','2 × 30–60 sec','2 × 12–20']
     ], 'doses');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.ss||null))'), [
-      [null,'A','A',null,null,'B','B'],
-      [null,null,'A','A',null,'B','B'],
-      ['A','A',null,null,null,null,null]
+      [null,null,null,null,null,null],
+      [null,null,null,null,'A','A'],
+      [null,'A','A',null,null,null,null]
     ], 'superset adjacency');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.id))'), [
-      ['t1','e19','h28','h34','v74cablelat','h24','h26'],
-      ['e4','h35','h29','v74curl','h3','n1','n2'],
-      ['e14','h36','h32','e18','h27','h5','n3']
+      ['e19','h34','v78crossover','v78reversecrossover','h24','v78backextension'],
+      ['v78stepdown','h36','h32','h3','n1','n2'],
+      ['e14','h29','v74curl','e18','h27','h5','n3']
     ], 'moved exercises keep their IDs; new movements use new IDs');
-    ok(t.win.eval("PLAN.find(d=>d.dow==='MON').items.find(it=>it.id==='t1').note").includes('pause 1–2 sec'), 'Smith squat pause cue');
-    ok(t.win.eval("PLAN.flatMap(d=>d.items).filter(it=>['h34','h35','h36'].includes(it.id)).every(it=>it.note.includes('โดยไม่พัก'))"), 'compound movements retain drop-set cues');
+    ok(t.win.eval("PLAN.flatMap(d=>d.items).filter(it=>['h34','h36'].includes(it.id)).every(it=>it.note.includes('โดยไม่พัก'))"), 'retained movements keep their technique cues');
+    eq([...t.doc.querySelectorAll('[data-gcheck]')].map(b => b.dataset.gcheck), ['n1,n2','h29,v74curl'], 'only the requested supersets render');
     ok(!txt.includes('DB RDL') && !txt.includes('Single-Arm Seated Cable Fly'), 'deferred exercises are absent from the plan');
+    t.close();
+  });
+
+  await test('v78 · moved exercises keep logs and new movements cannot inherit retired records', async () => {
+    const weights = { h36: '30', h29: '15', v74curl: '12', t1: '70', h26: '25', h35: '40', e4: '20' };
+    const reps = { h36: '11', h29: '12', v74curl: '10', t1: '8', h35: '9' };
+    const history = JSON.stringify({ v: 1, weeks: {
+      '2026-W34': { week: '2026-W34', items: { h36: { done: 1, w: 28, r: 10 }, t1: { done: 1, w: 65 }, h26: { done: 1, w: 25 } } }
+    } });
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: {
+      'trainweek:v11': STATE({ weights, reps }),
+      'trainweek:hist:index': JSON.stringify({ years: [2026] }),
+      'trainweek:hist:2026': history
+    } });
+    for (const [id, day] of [['h36','1'],['h29','2'],['v74curl','2']]) {
+      const field = t.doc.querySelector('[data-wt="'+id+'"]');
+      eq(field.closest('[data-day]').dataset.day, day, 'moved to requested day: '+id);
+      eq(field.value, weights[id], 'weight retained: '+id);
+      eq(t.doc.querySelector('[data-rp="'+id+'"]').value, reps[id], 'reps retained: '+id);
+    }
+    ok(t.doc.querySelector('[data-item="h36"]').nextElementSibling.textContent.includes('28 kg · 10 reps'), 'row history follows its move');
+    for (const id of ['t1','h26','h35','e4','h28','v74cablelat']) {
+      ok(!t.doc.querySelector('[data-item="'+id+'"]'), 'retired slot absent: '+id);
+    }
+    for (const id of ['v78crossover','v78reversecrossover','v78backextension','v78stepdown']) {
+      eq(t.doc.querySelector('[data-wt="'+id+'"]').value, '', 'new weight starts empty: '+id);
+      eq(t.doc.querySelector('[data-rp="'+id+'"]').value, '', 'new reps start empty: '+id);
+    }
+    eq(t.win.eval('JSON.stringify(state.weights)'), JSON.stringify(weights), 'retired and moved weights remain stored');
+    eq(t.mem.get('trainweek:hist:2026'), history, 'historical records remain unchanged');
     t.close();
   });
 
   await test('the copied exercise list suffixes each resistance name with its dose', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
-    ok(txt.includes('- Smith Machine Squat — 2 × 6–10'), 'name first, sets × reps suffixed, bulleted');
+    ok(txt.includes('- Flat Barbell Press — 3 × 5–8'), 'name first, sets × reps suffixed, bulleted');
     ok(!txt.includes('Warm-up —'), 'Warm-up is absent from the plan');
     eq(t.win.eval(`PLAN.map(d=>d.items.some(it=>it.name==='Warm-up'))`), [false,false,false],
       'no resistance day contains a Warm-up item');
@@ -422,12 +452,13 @@ async function suiteAero() {
   await test('the copied exercise list writes each superset as one bulleted line', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
-    ok(txt.includes('- Superset A: Flat Barbell Press — 3 × 5–8 + Reverse Pec Deck Machine — 3 × 12–20'), 'Monday superset A');
+    ok(txt.includes('# Monday\n- Flat Barbell Press — 3 × 5–8'), 'Monday starts with standalone flat press');
     ok(txt.includes('- Lats Pulldown — 3 × 8–12'), 'Monday pulldown is a standalone drop set');
-    ok(txt.includes('- Superset B: Cable Crunch — 3 × 10–15 + Roman Chair Hold — 3 × 20–45'), 'Monday superset B');
-    ok(txt.includes('- Superset A: Overhead Triceps Extension — 3 × 10–15 + Incline DB Curl — 3 × 8–15'), 'Wednesday superset A');
-    ok(txt.includes('- Superset B: Neck Extension — 2 × 12–20 + Neck Flexion — 2 × 12–20'), 'Wednesday superset B');
-    ok(txt.includes('- Superset A: Incline DB Press — 3 × 8–12 + 1-Arm DB Row — 3 × 8–12'), 'Friday superset A');
+    ok(txt.includes('- Cable Crossover — 3 × 8–12\n- Reverse Cable Crossover — 3 × 10–15\n- Cable Crunch — 3 × 10–15\n- Roman Chair Back Extension — 3 × 10–15'), 'Monday accessory order and doses');
+    ok(txt.includes('# Wednesday\n- Single-Leg Step-Down — 3 × 10–15\n- 1-Arm DB Row — 3 × 8–12\n- Reverse Curl → Hammer-Curl — 3 × 8–15'), 'Wednesday starts with step-down, row, and curl');
+    ok(txt.includes('- Superset A: Neck Extension — 2 × 12–20 + Neck Flexion — 2 × 12–20'), 'Wednesday neck superset');
+    ok(txt.includes('# Friday\n- Incline DB Press — 3 × 8–12\n- Superset A: Overhead Triceps Extension — 3 × 10–15 + Incline DB Curl — 3 × 8–15'), 'Friday starts with standalone press and arm superset');
+    eq((txt.match(/Superset /g)||[]).length, 2, 'only two supersets in the copied list');
     const lat = txt.indexOf('- Lateral Raise — 3 × 12–20', txt.indexOf('# Friday'));
     const y = txt.indexOf('- Incline Prone Y-Raise — 2 × 12–20');
     ok(lat >= 0 && y > lat, 'Friday Lateral Raise sits before Y-Raise');
@@ -448,8 +479,9 @@ async function suiteAero() {
     const names = [...io.querySelectorAll('.addul li')].map(x => x.textContent);
     eq(names, ['DB Fly','Single-Arm Seated Cable Fly','DB Overhead Extension','Copenhagen Plank',
       'Hammer Curl','Wrist Extension','Lying Leg Raises → Tuck Dragon Flag → Dragon Flag',
-      'Single-Leg Step Down','Sliding Hamstring Curl','Cable Leg Extension',
+      'Sliding Hamstring Curl','Cable Leg Extension',
       'Seated Cable Leg Curl','Single-Arm Cable Row','DB RDL',
+      'Smith Machine Squat','Reverse Pec Deck Machine','Cable Lateral Raise','Roman Chair Hold','Chest-Supported Row',
       'Push-Up Plus','External Rotation','Standing Calf Raise'], 'both queues contain the updated exercises');
     ok(!io.querySelector('.addul input, .addul button'), 'nothing in the list is tickable');
     btn.click(); await tick(10);
@@ -874,26 +906,26 @@ async function suiteReps() {
   console.log('\n[weight and reps]');
 
   await test('v76 · old current weights and archived records survive adding reps', async () => {
-    const oldWeek = { week: '2026-W34', items: { t1: { done: 1, w: 37.5 }, retired: { done: 1, w: 90 } } };
+    const oldWeek = { week: '2026-W34', items: { h34: { done: 1, w: 37.5 }, retired: { done: 1, w: 90 } } };
     const seed = {
-      'trainweek:v11': STATE({ weights: { t1: '42.5', retired: '90' } }),
+      'trainweek:v11': STATE({ weights: { h34: '42.5', retired: '90' } }),
       'trainweek:hist:index': JSON.stringify({ years: [2026] }),
       'trainweek:hist:2026': JSON.stringify({ v: 1, weeks: { '2026-W34': oldWeek } })
     };
     const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed });
-    const w = t.doc.querySelector('[data-wt="t1"]');
-    const r = t.doc.querySelector('[data-rp="t1"]');
+    const w = t.doc.querySelector('[data-wt="h34"]');
+    const r = t.doc.querySelector('[data-rp="h34"]');
     eq(w.value, '42.5', 'existing weight rendered');
     eq(r.value, '', 'old record has no invented reps');
     input(t.win, r, '10');
     t.win.dispatchEvent(new t.win.Event('pagehide')); await tick(20);
     const saved = JSON.parse(t.mem.get('trainweek:v11'));
-    eq(saved.weights, { t1: '42.5', retired: '90' }, 'live and retired weights intact');
-    eq(saved.reps.t1, '10', 'reps added');
+    eq(saved.weights, { h34: '42.5', retired: '90' }, 'live and retired weights intact');
+    eq(saved.reps.h34, '10', 'reps added');
     eq(t.mem.get('trainweek:hist:2026'), seed['trainweek:hist:2026'], 'archive never rewritten');
     const restored = await boot({ now: '2026-08-31T09:00:00+07:00', seed: Object.fromEntries(t.mem) });
-    eq(restored.doc.querySelector('[data-wt="t1"]').value, '42.5', 'weight survives reload');
-    eq(restored.doc.querySelector('[data-rp="t1"]').value, '10', 'reps survive reload');
+    eq(restored.doc.querySelector('[data-wt="h34"]').value, '42.5', 'weight survives reload');
+    eq(restored.doc.querySelector('[data-rp="h34"]').value, '10', 'reps survive reload');
     restored.close(); t.close();
   });
 
@@ -901,16 +933,16 @@ async function suiteReps() {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: {
       'trainweek:hist:index': JSON.stringify({ years: [2026] }),
       'trainweek:hist:2026': JSON.stringify({ v: 1, weeks: {
-        '2026-W34': { week: '2026-W34', items: { t1: { done: 1, w: 40, r: 12 } } }
+        '2026-W34': { week: '2026-W34', items: { h34: { done: 1, w: 40, r: 12 } } }
       } })
     } });
-    const w = t.doc.querySelector('[data-wt="t1"]'), r = t.doc.querySelector('[data-rp="t1"]');
+    const w = t.doc.querySelector('[data-wt="h34"]'), r = t.doc.querySelector('[data-rp="h34"]');
     eq([w.value, w.placeholder, r.value, r.placeholder], ['', '40', '', '12'], 'reference values only');
     ok(!w.closest('.logfield').classList.contains('recorded'), 'reference weight stays pale');
     eq(t.win.eval('JSON.stringify(state.weights)'), '{}', 'weight not auto-filled');
     eq(t.win.eval('JSON.stringify(state.reps)'), '{}', 'reps not auto-filled');
     w.closest('.item').querySelector('[data-check]').click();
-    eq(JSON.parse(t.win.eval('JSON.stringify(makeRecord(state,"2026-W35","2026-09-06"))')).items.t1,
+    eq(JSON.parse(t.win.eval('JSON.stringify(makeRecord(state,"2026-W35","2026-09-06"))')).items.h34,
       { done: 1 }, 'checking without entry cannot archive reference values');
     eq(t.errors, [], 'boot clean'); t.close();
   });
@@ -920,7 +952,7 @@ async function suiteReps() {
     const ids = JSON.parse(t.win.eval('JSON.stringify(PLAN.flatMap(d=>d.items).filter(it=>!it.noWeight&&!/\\bsec\\b/.test(it.dose)).map(it=>it.id))'));
     eq(t.doc.querySelectorAll('[data-rp]').length, ids.length, 'exactly one reps input per eligible exercise');
     for (const id of ids) eq(t.doc.querySelectorAll('[data-rp="'+id+'"]').length, 1, 'one for '+id);
-    eq(t.doc.querySelectorAll('[data-rp="h5"], [data-rp="t16"]').length, 0, 'timed movements do not count reps');
+    eq(t.doc.querySelectorAll('[data-rp="h5"]').length, 0, 'timed carry does not count reps');
     t.close();
   });
 
@@ -974,13 +1006,13 @@ async function suiteReps() {
 
   await test('v76 · rollover archives weight and reps together and resets only the new week', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: {
-      'trainweek:v11': STATE({ weekStart: '2026-08-24', checks: { t1: true, e19: true }, weights: { t1: '40' }, reps: { t1: '12', e19: '9' } })
+      'trainweek:v11': STATE({ weekStart: '2026-08-24', checks: { h34: true, e19: true }, weights: { h34: '40' }, reps: { h34: '12', e19: '9' } })
     } });
     const record = Object.values(JSON.parse(t.mem.get('trainweek:hist:2026')).weeks)[0];
-    eq(record.items, { t1: { done: 1, w: 40, r: 12 }, e19: { done: 1, r: 9 } }, 'archive includes reps-only and weight+reps');
+    eq(record.items, { h34: { done: 1, w: 40, r: 12 }, e19: { done: 1, r: 9 } }, 'archive includes reps-only and weight+reps');
     const current = JSON.parse(t.mem.get('trainweek:v11'));
     eq(current.weights, {}, 'new week weight empty'); eq(current.reps, {}, 'new week reps empty');
-    eq(t.doc.querySelector('[data-rp="t1"]').placeholder, '12', 'previous week rep reference');
+    eq(t.doc.querySelector('[data-rp="h34"]').placeholder, '12', 'previous week rep reference');
     t.close();
   });
 
@@ -988,12 +1020,12 @@ async function suiteReps() {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: {
       'trainweek:hist:index': JSON.stringify({ years: [2026] }),
       'trainweek:hist:2026': JSON.stringify({ v: 1, weeks: {
-        '2026-W34': { week: '2026-W34', items: { t1: { done: 1, w: 40, r: 12 } } },
-        '2026-W33': { week: '2026-W33', items: { t1: { done: 1, r: 10 } } },
-        '2026-W32': { week: '2026-W32', items: { t1: { done: 1, w: 35 } } }
+        '2026-W34': { week: '2026-W34', items: { h34: { done: 1, w: 40, r: 12 } } },
+        '2026-W33': { week: '2026-W33', items: { h34: { done: 1, r: 10 } } },
+        '2026-W32': { week: '2026-W32', items: { h34: { done: 1, w: 35 } } }
       } })
     } });
-    const rows = [...t.doc.querySelector('[data-item="t1"]').nextElementSibling.querySelectorAll('tr')];
+    const rows = [...t.doc.querySelector('[data-item="h34"]').nextElementSibling.querySelectorAll('tr')];
     ok(rows[0].textContent.includes('40 kg · 12 reps'), 'combined measurement visible');
     ok(rows[1].textContent.includes('10 reps'), 'reps without kg visible');
     ok(rows[2].textContent.includes('35 kg'), 'old weight visible');
@@ -1004,40 +1036,40 @@ async function suiteReps() {
 
   await test('v76 · exports and imports round-trip current reps and history without changing weights', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: {
-      'trainweek:v11': STATE({ weights: { t1: '45' }, reps: { t1: '11' } }),
+      'trainweek:v11': STATE({ weights: { h34: '45' }, reps: { h34: '11' } }),
       'trainweek:hist:index': JSON.stringify({ years: [2026] }),
-      'trainweek:hist:2026': JSON.stringify({ v: 1, weeks: { '2026-W34': { week: '2026-W34', items: { t1: { done: 1, w: 40, r: 12 } } } } })
+      'trainweek:hist:2026': JSON.stringify({ v: 1, weeks: { '2026-W34': { week: '2026-W34', items: { h34: { done: 1, w: 40, r: 12 } } } } })
     } });
     const dump = await t.win.eval('buildDump()');
     const restored = await boot({ now: '2026-08-31T09:00:00+07:00' });
     restored.win.__incoming = JSON.parse(JSON.stringify(dump));
     await restored.win.eval('runImport(window.__incoming)');
     const saved = JSON.parse(restored.mem.get('trainweek:v11'));
-    eq(saved.weights, { t1: '45' }, 'current weight retained');
-    eq(saved.reps, { t1: '11' }, 'current reps retained');
-    eq(JSON.parse(restored.mem.get('trainweek:hist:2026')).weeks['2026-W34'].items.t1,
+    eq(saved.weights, { h34: '45' }, 'current weight retained');
+    eq(saved.reps, { h34: '11' }, 'current reps retained');
+    eq(JSON.parse(restored.mem.get('trainweek:hist:2026')).weeks['2026-W34'].items.h34,
       { done: 1, w: 40, r: 12 }, 'history retained');
     const oldDump = { app: 'training-week-v52', current: { ...dump.current }, history: {}, daily: {} };
     delete oldDump.current.reps;
     restored.win.__incoming = JSON.parse(JSON.stringify(oldDump));
     await restored.win.eval('runImport(window.__incoming)');
-    eq(restored.doc.querySelector('[data-wt="t1"]').value, '45', 'old import still reads weights');
-    eq(restored.doc.querySelector('[data-rp="t1"]').value, '', 'old import defaults only missing reps');
+    eq(restored.doc.querySelector('[data-wt="h34"]').value, '45', 'old import still reads weights');
+    eq(restored.doc.querySelector('[data-rp="h34"]').value, '', 'old import defaults only missing reps');
     restored.close(); t.close();
   });
 
   await test('v76 · malformed reps cannot stop weight saves or archive fractional counts', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: {
-      'trainweek:v11': STATE({ weights: { t1: '40' }, reps: 'broken' })
+      'trainweek:v11': STATE({ weights: { h34: '40' }, reps: 'broken' })
     } });
-    const r = t.doc.querySelector('[data-rp="t1"]');
+    const r = t.doc.querySelector('[data-rp="h34"]');
     input(t.win, r, '12'); input(t.win, r, '1.5');
-    eq(t.win.eval('state.reps.t1'), '12', 'fractional count cannot replace valid reps');
+    eq(t.win.eval('state.reps.h34'), '12', 'fractional count cannot replace valid reps');
     input(t.win, r, '0');
     t.win.dispatchEvent(new t.win.Event('pagehide')); await tick(20);
     const saved = JSON.parse(t.mem.get('trainweek:v11'));
-    eq(saved.weights.t1, '40', 'weight unaffected by corrupt reps map');
-    eq(saved.reps.t1, '0', 'zero reps is a real count');
+    eq(saved.weights.h34, '40', 'weight unaffected by corrupt reps map');
+    eq(saved.reps.h34, '0', 'zero reps is a real count');
     const items = JSON.parse(t.win.eval('JSON.stringify(makeRecord({checks:{a:true,b:true,c:true}, reps:{a:"1.5",b:"-2",c:"0"}},"2026-W35","2026-09-06").items)'));
     eq(items, { a: { done: 1 }, b: { done: 1 }, c: { done: 1, r: 0 } }, 'archive only whole nonnegative counts');
     eq(t.errors, [], 'no errors'); t.close();
@@ -1045,14 +1077,14 @@ async function suiteReps() {
 
   await test('v76 · deload hides reps without erasing existing measurements', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: {
-      'trainweek:v11': STATE({ weights: { t1: '45' }, reps: { t1: '11' } })
+      'trainweek:v11': STATE({ weights: { h34: '45' }, reps: { h34: '11' } })
     } });
     t.doc.getElementById('dltoggle').click(); await tick(40);
     eq(t.doc.querySelectorAll('[data-rp]').length, 0, 'no rep entry in deload');
-    eq(t.win.eval('state.reps.t1'), '11', 'stored reps retained');
-    eq(t.win.eval('state.weights.t1'), '45', 'stored weight retained');
+    eq(t.win.eval('state.reps.h34'), '11', 'stored reps retained');
+    eq(t.win.eval('state.weights.h34'), '45', 'stored weight retained');
     t.doc.getElementById('dltoggle').click(); await tick(40);
-    eq(t.doc.querySelector('[data-rp="t1"]').value, '11', 'returning to normal restores reps');
+    eq(t.doc.querySelector('[data-rp="h34"]').value, '11', 'returning to normal restores reps');
     t.close();
   });
 }
