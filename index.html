@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   ============================================================================
-  Training Week — v76
+  Training Week — v77
   ============================================================================
 
   WORKING RULES (ask Claude to follow these on every edit)
@@ -22,6 +22,11 @@
      on the new one.
   6. Say what changed and why. A fix with no note becomes a mystery on the next
      pass — most of the comments in this file exist because of that.
+
+  v77 — shorter exercise names
+  ---------------------------------------------------------------------------
+  Simplify the pulldown, row, reverse/hammer curl, and suitcase carry labels.
+  Exercise IDs, doses, technique cues, and logging behavior remain unchanged.
 
   v76 — compact weight and reps logging
   ---------------------------------------------------------------------------
@@ -955,7 +960,7 @@ const PLAN=[
    {id:'h28',ss:'A',rest:'rest 2 min',name:'Reverse Pec Deck Machine',dose:'3 × 12–20',
     target:'• Rear delts + upper back; balances horizontal pressing',
     note:'• Set handles near shoulder height; keep chest against the pad<br>• Open arms without shrugging; pause briefly at the back<br>• Return slowly with control'},
-   {id:'h34',rest:'rest 2 min',name:'Lats Pulldown → Straight-Arm Pulldown',dose:'3 × 8–12',
+   {id:'h34',rest:'rest 2 min',name:'Lats Pulldown',dose:'3 × 8–12',
     target:'• Vertical pull สำหรับ lats; เติม pattern ที่ horizontal row ไม่ครอบคลุม<br>• โหลดปรับได้ทีละขั้น จึง progress ตรงกว่า pull-up ที่ต้องเล่นกับ assistance',
     note:'• จับกว้างกว่าไหล่เล็กน้อย; นั่งให้ต้นขาล็อกใต้แป้น<br>• เริ่มด้วย depress scapula ก่อน แล้วค่อยดึงศอกลงหาซี่โครง<br>• เอนหลังได้ไม่เกิน ~15° และค้างมุมนั้นไว้ ไม่โยกตามจังหวะ<br>• ปล่อยขึ้นช้า ~3 s จนแขนเหยียดและสะบักยืดสุด<br>• Mechanical drop set: ต่อด้วย straight-arm pulldown โดยไม่พัก',
     mistake:'• โยกลำตัวเพื่อช่วยดึง · ดึงบาร์ลงหลังคอ · ROM สั้นเพราะโหลดหนักเกิน'},
@@ -976,7 +981,7 @@ const PLAN=[
    {id:'e4',rest:'rest 2 min',name:'Incline DB Press',dose:'3 × 6–10',
     target:'• Upper chest + anterior delts; main press ของวันพุธ',
     note:'• Bench ~30°<br>• สะบักกดติดเบาะ; ศอก ~45° กับลำตัว<br>• ลงจนอกตึงโดยไม่ดึงไหล่หน้า แล้ว press ขึ้นให้ DB เข้าหากันเล็กน้อย<br>• คนละช่องน้ำหนักกับ Incline DB Press วันศุกร์ — ล็อกคนละวัน ตัวเลขจึงมักไม่เท่ากัน'},
-   {id:'h35',rest:'rest 2 min',name:'Chest-Supported Row → Kelso Shrug',dose:'3 × 8–12',
+   {id:'h35',rest:'rest 2 min',name:'Chest-Supported Row',dose:'3 × 8–12',
     target:'• Mid-back work โดยแทบไม่เพิ่ม load ให้ lower back',
     note:'• Bench ~30–45°; นอนคว่ำและให้อกติดเบาะตลอด<br>• Drive elbows ไปด้านหลัง; squeeze scapula 1 s ตอนสุด<br>• ต่อด้วย Kelso shrug โดยไม่พัก: แขนเกือบตรง ดึงสะบักเข้าหากันโดยไม่ยกอก<br>• อย่ายกอกหรือ shrug เพื่อช่วยน้ำหนัก'},
    {id:'h29',ss:'A',name:'Overhead Triceps Extension',dose:'3 × 10–15',
@@ -1001,11 +1006,11 @@ const PLAN=[
    {id:'e14',ss:'A',name:'Incline DB Press',dose:'3 × 8–12',
     target:'• Upper chest + anterior delts; main press ของวันศุกร์',
     note:'• Bench ~30°<br>• สะบักกดติดเบาะ; ศอก ~45° กับลำตัว<br>• ลงจนอกตึงโดยไม่ดึงไหล่หน้า แล้ว press ขึ้นให้ DB เข้าหากันเล็กน้อย<br>• คนละช่องน้ำหนักกับวันพุธ — วันศุกร์มาทีหลังในสัปดาห์ ตัวเลขจึงมักต่ำกว่า'},
-   {id:'h36',ss:'A',rest:'rest 2 min',name:'1-Arm DB Row → 1-Arm Kelso Shrug',dose:'3 × 8–12 /side',
+   {id:'h36',ss:'A',rest:'rest 2 min',name:'1-Arm DB Row',dose:'3 × 8–12 /side',
     target:'• Horizontal pull ของวันศุกร์; unilateral จึงแก้ความต่างซ้าย-ขวาได้ตรงกว่า row สองมือ',
     note:'• เข่าและมือข้างเดียวกันยันม้านั่ง; หลังขนานพื้นและ neutral<br>• ดึงศอกไปหลังชิดลำตัว จบด้วย scapular retraction<br>• ปล่อยลงจนแขนเหยียดและสะบักยืดสุด<br>• ต่อด้วย 1-arm Kelso shrug โดยไม่พัก: แขนเกือบตรง ดึงสะบักถอยหลัง<br>• ลำตัวนิ่ง ไม่บิดสะโพกช่วยดึง',
     mistake:'• บิดลำตัวขึ้นทุก rep = load หนักเกิน'},
-   {id:'h32',rest:'rest 90s',name:'Reverse Curl → Hammer-Curl Drop Set',dose:'2 × 8–15',
+   {id:'h32',rest:'rest 90s',name:'Reverse Curl → Hammer-Curl',dose:'2 × 8–15',
     target:'• Brachioradialis and brachialis work with a grip change',
     note:'• Start each set with reverse curls using a light load<br>• When clean reverse-curl reps end, switch immediately to a neutral hammer grip<br>• Finish when form breaks; keep elbows near the torso'},
    {id:'e18',rest:'rest 90s',name:'Lateral Raise',dose:'3 × 12–20',
@@ -1016,7 +1021,7 @@ const PLAN=[
     target:'• Lower traps + scapular upward rotation; light scapular work',
     note:'• ตั้งม้านั่ง incline ต่ำ นอนคว่ำให้อกติดเบาะและปล่อยแขนลง<br>• ยกแขนเป็นรูป Y โดยให้นิ้วโป้งชี้ขึ้น; ค้างสั้นๆ แล้วลดลงช้า ~3 s<br>• ใช้น้ำหนักเบาและรักษาคอ neutral',
     mistake:'• Shrug ไหล่ขึ้นหาหู · แอ่นหลังหรือยกอกช่วย · ใช้น้ำหนักจน ROM สั้น'},
-   {id:'h5',rest:'rest 90s',noWeight:0,name:'Suitcase Carry with Straps',dose:'2 × 30–60 sec /side continuous',
+   {id:'h5',rest:'rest 90s',noWeight:0,name:'Suitcase Carry',dose:'2 × 30–60 sec /side continuous',
     target:'• Anti-lateral flexion + hip stability ระหว่างเดิน<br>• เป้าหมายคือรักษาลำตัวตรงภายใต้ unilateral load',
     note:'• ใช้ straps ถือ DB/KB ข้างเดียว; ไหล่สองข้างระดับเดียวกัน ห้าม counter-lean<br>• Scapula down, chest open, เดินก้าวปกติและหายใจต่อเนื่อง<br>• เปลี่ยนข้างทันทีโดยไม่พัก; ครบสองข้าง = 1 set<br>• Progress ด้วย load ไม่ใช่เวลา; เลือกน้ำหนักจากความสามารถในการเดินตรง'},
    {id:'n3',rest:'rest 90s',name:'Neck Lateral Flexion',dose:'2 × 12–20 /side',

@@ -380,13 +380,13 @@ async function suiteAero() {
     t.close();
   });
 
-  await test('v75 routine has the requested order, doses, and stable IDs', async () => {
+  await test('v77 routine has the requested names, order, doses, and stable IDs', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.name))'), [
-      ['Smith Machine Squat','Flat Barbell Press','Reverse Pec Deck Machine','Lats Pulldown → Straight-Arm Pulldown','Cable Lateral Raise','Cable Crunch','Roman Chair Hold'],
-      ['Incline DB Press','Chest-Supported Row → Kelso Shrug','Overhead Triceps Extension','Incline DB Curl','Lateral Raise','Neck Extension','Neck Flexion'],
-      ['Incline DB Press','1-Arm DB Row → 1-Arm Kelso Shrug','Reverse Curl → Hammer-Curl Drop Set','Lateral Raise','Incline Prone Y-Raise','Suitcase Carry with Straps','Neck Lateral Flexion']
+      ['Smith Machine Squat','Flat Barbell Press','Reverse Pec Deck Machine','Lats Pulldown','Cable Lateral Raise','Cable Crunch','Roman Chair Hold'],
+      ['Incline DB Press','Chest-Supported Row','Overhead Triceps Extension','Incline DB Curl','Lateral Raise','Neck Extension','Neck Flexion'],
+      ['Incline DB Press','1-Arm DB Row','Reverse Curl → Hammer-Curl','Lateral Raise','Incline Prone Y-Raise','Suitcase Carry','Neck Lateral Flexion']
     ], 'day order');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.dose))'), [
       ['2 × 6–10','3 × 5–8','3 × 12–20','3 × 8–12','3 × 12–20','3 × 10–15','3 × 20–45 sec'],
@@ -423,11 +423,11 @@ async function suiteAero() {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
     ok(txt.includes('- Superset A: Flat Barbell Press — 3 × 5–8 + Reverse Pec Deck Machine — 3 × 12–20'), 'Monday superset A');
-    ok(txt.includes('- Lats Pulldown → Straight-Arm Pulldown — 3 × 8–12'), 'Monday pulldown is a standalone drop set');
+    ok(txt.includes('- Lats Pulldown — 3 × 8–12'), 'Monday pulldown is a standalone drop set');
     ok(txt.includes('- Superset B: Cable Crunch — 3 × 10–15 + Roman Chair Hold — 3 × 20–45'), 'Monday superset B');
     ok(txt.includes('- Superset A: Overhead Triceps Extension — 3 × 10–15 + Incline DB Curl — 3 × 8–15'), 'Wednesday superset A');
     ok(txt.includes('- Superset B: Neck Extension — 2 × 12–20 + Neck Flexion — 2 × 12–20'), 'Wednesday superset B');
-    ok(txt.includes('- Superset A: Incline DB Press — 3 × 8–12 + 1-Arm DB Row → 1-Arm Kelso Shrug — 3 × 8–12'), 'Friday superset A');
+    ok(txt.includes('- Superset A: Incline DB Press — 3 × 8–12 + 1-Arm DB Row — 3 × 8–12'), 'Friday superset A');
     const lat = txt.indexOf('- Lateral Raise — 3 × 12–20', txt.indexOf('# Friday'));
     const y = txt.indexOf('- Incline Prone Y-Raise — 2 × 12–20');
     ok(lat >= 0 && y > lat, 'Friday Lateral Raise sits before Y-Raise');
