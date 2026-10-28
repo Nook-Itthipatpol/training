@@ -384,7 +384,7 @@ async function suiteAero() {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.name))'), [
-      ['Flat Barbell Press','Cable Crossover','Lats Pulldown','Overhead Cable Triceps Extension','Cable Lateral Raise','Cable Crunch','Roman Chair Back Extension','Wrist Extension'],
+      ['Flat Barbell Press','Cable Crossover','Lats Pulldown','Overhead Cable Triceps Extension','Cable Y-Raise','Cable Crunch','Roman Chair Back Extension','Wrist Extension'],
       ['Single-Leg Step-Down','Incline DB Press','1-Arm DB Row','Reverse Curl → Hammer-Curl','Lateral Raise','Suitcase Carry','Neck Extension','Neck Flexion']
     ], 'day order');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.dose))'), [
@@ -396,7 +396,7 @@ async function suiteAero() {
       [null,null,null,null,null,null,'A','A']
     ], 'superset adjacency');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.id))'), [
-      ['e19','v78crossover','h34','h29','v79cablelat','h24','v78backextension','v79wrist'],
+      ['e19','v78crossover','h34','h29','v81cabley','h24','v78backextension','v79wrist'],
       ['v78stepdown','e14','h36','h32','h3','h5','n1','n2']
     ], 'moved exercises keep their IDs; new movements use new IDs');
     ok(t.win.eval("PLAN.flatMap(d=>d.items).filter(it=>['h34','h36'].includes(it.id)).every(it=>it.note.includes('โดยไม่พัก'))"), 'retained movements keep their technique cues');
@@ -426,7 +426,7 @@ async function suiteAero() {
     for (const id of ['t1','h26','h35','e4','h28','v74cablelat']) {
       ok(!t.doc.querySelector('[data-item="'+id+'"]'), 'retired slot absent: '+id);
     }
-    for (const id of ['v79cablelat','v79wrist']) {
+    for (const id of ['v81cabley','v79wrist']) {
       eq(t.doc.querySelector('[data-wt="'+id+'"]').value, '', 'new weight starts empty: '+id);
       eq(t.doc.querySelector('[data-rp="'+id+'"]').value, '', 'new reps start empty: '+id);
     }
@@ -450,7 +450,7 @@ async function suiteAero() {
     const txt = t.win.eval('planListText()');
     ok(txt.includes('# Monday\n- Flat Barbell Press — 3 × 5–8'), 'Monday starts with standalone flat press');
     ok(txt.includes('- Lats Pulldown — 3 × 8–12'), 'Monday pulldown is a standalone drop set');
-    ok(txt.includes('- Cable Crossover — 2 × 8–12\n- Lats Pulldown — 3 × 8–12\n- Overhead Cable Triceps Extension — 3 × 10–15\n- Cable Lateral Raise — 3 × 12–20\n- Cable Crunch — 2 × 10–15\n- Roman Chair Back Extension — 2 × 10–15\n- Wrist Extension — 3 × 12–20'), 'Monday order and doses');
+    ok(txt.includes('- Cable Crossover — 2 × 8–12\n- Lats Pulldown — 3 × 8–12\n- Overhead Cable Triceps Extension — 3 × 10–15\n- Cable Y-Raise — 3 × 12–20\n- Cable Crunch — 2 × 10–15\n- Roman Chair Back Extension — 2 × 10–15\n- Wrist Extension — 3 × 12–20'), 'Monday order and doses');
     ok(txt.includes('# Thursday\n- Single-Leg Step-Down — 3 × 10–15\n- Incline DB Press — 3 × 8–12\n- 1-Arm DB Row — 3 × 8–12\n- Reverse Curl → Hammer-Curl — 3 × 8–15\n- Lateral Raise — 3 × 12–20\n- Suitcase Carry — 2 × 30–60'), 'Thursday order and doses');
     ok(txt.includes('- Superset A: Neck Extension — 2 × 12–20 + Neck Flexion — 2 × 12–20'), 'Thursday neck superset');
     eq((txt.match(/Superset /g)||[]).length, 1, 'only one superset in the copied list');
