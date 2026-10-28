@@ -1,0 +1,2897 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  Training Week — v79
+  ============================================================================
+
+  WORKING RULES (ask Claude to follow these on every edit)
+  ---------------------------------------------------------------------------
+  1. VERSION EVERY FILE. Never save over the previous one. The working copy is
+     `training vNN.html`; NN goes up by one per round of changes, and the old
+     file stays on disk so a regression can be bisected against it.
+  2. The deployed file is a COPY named `index.html` (Vercel serves it at the
+     root). It is byte-identical to `training vNN.html` — index.html is never
+     edited directly, or the two silently drift.
+  3. The zip shipped to the user is `training vNN.zip` and contains
+     `training vNN.html` plus the test file. `index.html` is delivered
+     separately, outside the zip.
+  4. Write these rules into this comment in every version.
+  5. Tests are Claude's, not the user's: `test.js` runs under Node + jsdom and
+     Claude runs it. The user is never asked to install anything or run a
+     command. Every bug fixed gets a test that fails on the old file and passes
+     on the new one.
+  6. Say what changed and why. A fix with no note becomes a mystery on the next
+     pass — most of the comments in this file exist because of that.
+
+  v79 — two resistance days: Monday and Thursday
+  ---------------------------------------------------------------------------
+  Wednesday and Friday merge into Thursday; PLAN now has two cards. Cable
+  Crossover, Cable Crunch and Back Extension drop to 2 sets; Triceps Extension
+  becomes the cable version (id h29 kept, no superset). Cable Lateral Raise and
+  Wrist Extension come off What to add with fresh IDs (v79cablelat, v79wrist).
+  Reverse Cable Crossover, Incline DB Curl and Incline Prone Y-Raise move to
+  What to add. Thursday keeps one Lateral Raise (h3) and the neck superset.
+
+  v78 — updated resistance sessions and future-exercise queue
+  ---------------------------------------------------------------------------
+  Replace the three resistance days with the requested order, doses, and two
+  supersets. Move the row, curls, and triceps work while preserving their IDs.
+  New crossover, back-extension, and step-down movements get fresh IDs; move
+  the five removed movements to What to add and promote Step-Down out of it.
+  The carry remains timed in seconds, with side-switching cues in its details.
+
+  v77 — shorter exercise names
+  ---------------------------------------------------------------------------
+  Simplify the pulldown, row, reverse/hammer curl, and suitcase carry labels.
+  Exercise IDs, doses, technique cues, and logging behavior remain unchanged.
+
+  v76 — compact weight and reps logging
+  ---------------------------------------------------------------------------
+  Names and prescribed reps occupy the first row; borderless kg, one actual
+  reps value, and details occupy the second. Units share the numbers' baseline.
+  Pale numbers are previous records, not new entries; entered values are brass.
+  Enter in kg moves focus to reps. Timed exercises keep their weight-only or
+  completion-only controls. Reps are additive: the storage key, exercise IDs,
+  existing weights and archived weight records are unchanged. Old exports load
+  with empty reps; new exports and weekly archives retain both measurements.
+
+  v62 — bug fixes only, no behaviour or design changes
+  ---------------------------------------------------------------------------
+  A  loadDaily  · setMonth(m-1) on the 29th–31st landed in the CURRENT month, so
+                  the previous month's shard was never read: the habit grid and
+                  the 30-day density undercounted for three days a month.
+  B  buildDump  · the same arithmetic, 24 times. An export taken on the 31st
+                  covered 14 distinct months out of 24 and silently dropped the
+                  rest — holes in the only backup the app has.
+  C  flushWrites· backgrounding the app called save(), which STARTS a 300ms
+                  timer, so the pending write was rescheduled rather than
+                  issued, and iOS suspends timers on the way out. It also only
+                  looked at aeroTimer; the weight and habit-field timers were
+                  never flushed at all. Now on visibilitychange AND pagehide.
+  D  applyState · shapes are validated, not just defaulted. An imported dump with
+                  weights as a string made every later write a silent no-op, and
+                  a null in the aero list crashed the Aerobic tab outright.
+  E  loadHist   · years are coerced to numbers and deduped. ['2026', 2026] read
+                  one shard twice: history rows appeared twice with a delta of 0,
+                  and phaseEarned() counted each incline week twice, advancing
+                  the ladder at double speed. runImport no longer writes the
+                  duplicate (it sorted the index lexicographically).
+  F  buildAero  · an unrecognised session type painted an empty, undeletable card.
+  G  smaller    · metRange/f1 no longer throw on a null MET · the incline speed
+                  placeholder is formatted like the rung it comes from (5.0, not
+                  5) · a superset with nothing left to tick no longer draws a
+                  dead checkbox · the score row is a role=group, not a <label>
+                  wrapping buttons · the panes carry role=tabpanel.
+
+  Known, deliberate, NOT a bug: a weight typed before the deload switch is
+  flipped is still archived with dl:1 and still prints a delta. The number was
+  real, the row says "deload" beside it, and dropping it would need a second
+  rule about when a logged number stops counting.
+
+  v63 — cosmetic only
+  ---------------------------------------------------------------------------
+  A  buildBW · the running file version now prints on screen: a small
+               "v63" line under the Body weight label, bottom-left of the
+               Week tab, same font as that label. Bump APP_VERSION each
+               time a new training vNN.html is cut and it follows without
+               another code change.
+  B  buildBW/CSS · the version line was first added as a 4th item inside
+               .bwcard's own flex-wrap, which blew up #bwcard's measured
+               width (200px → 230px) and misaligned every footer button
+               after it. Split .bwcard into a plain block wrapper holding
+               a .bwrow flex row (label/input/History, unchanged) plus the
+               .bwver line stacked below by normal block flow — no nested
+               flex-wrap, so the footer buttons sit exactly where v62 put
+               them.
+
+  v64 — cosmetic only
+  ---------------------------------------------------------------------------
+  A  CSS · .bwver's gap under Body weight was margin-top:2px, visibly
+           tighter than the 16px row-gap footer uses when the export /
+           import buttons wrap onto their own line. Both are now 16px, so
+           the two gaps read as the same rhythm.
+
+  v66 — cosmetic only
+  ---------------------------------------------------------------------------
+  A  The on-screen version line is gone: .bwver, #bwver and APP_VERSION are
+     all removed, which retires the v63 §A/§B and v64 §A notes above — keep
+     them as the record of why the element existed, not as live guidance.
+     Nothing now needs bumping in this file when a new version is cut.
+  B  footer · two stacked rows. `justify-content:flex-end` plus a
+     `margin-right:auto` on .bwcard had pushed deload / export / import /
+     copy exercise to the far right, reading as a second column arguing with
+     Body weight across an empty gap. The footer is now a column: Body weight
+     and History on top, the four links on their own row at the very bottom.
+
+  v67 — the week is rewritten
+  ---------------------------------------------------------------------------
+  A  PLAN · one card per training day again. Monday and Friday were each two
+     cards because each held ten items; the week is now seven to eight rows a
+     day, so the split and the `accessory` sub-line are gone. Weight history is
+     keyed by exercise id and every id that stayed kept its own, so the numbers
+     already logged for the exercises still in the plan are untouched.
+  B  Monday · Incline DB Press and Chest-supported Row are straight sets, not a
+     superset; the neck pair is now superset A. Copenhagen plank, DB Overhead
+     Extension, Hammer Curl, Push-up Plus are out and Bird-dog (new) is in.
+     Suitcase Carry moved to Friday.
+  C  Wednesday · Assisted Pull-up → Lats pulldown (new id h23, so its weight
+     column starts clean — the old numbers were assistance, which counts the
+     other way and must not be read as load). Single-Arm Cable Row is out,
+     Cable crunch (new) is in. Smith Squat 3 → 2 sets, Cable Y-raise 3 → 2.
+  D  Friday · Nordic, then superset A (incline press + single-arm row), lateral
+     raise on its own, superset B is the neck/shrug pair, Suitcase Carry last.
+     Incline DB Curl, Prone Y-raise, Standing Calf Raise, External Rotation,
+     Wrist Extension and Wrist Flexion are out.
+  E  footer · a fifth link, "what to add", opening the same io panel export and
+     import use. It lists the exercises waiting to come back — one list to add
+     when volume can be raised, one to add only if the problem it fixes shows
+     up. It is a read-only list on purpose: an exercise becomes real by being
+     written into PLAN, so nothing here is stored or tickable.
+  F  DELOAD_RULES · the h4 (Assisted Pull-up) rule left with the exercise; h23
+     takes a −20% load cut instead. Everything dropped falls through to the
+     default, and no rule points at an id that is no longer in the plan.
+
+  v68 — "copy exercise" now carries the dose
+  ---------------------------------------------------------------------------
+  A  itemSetsText · printed only the set count ("x 3 sets"), dropping the rep
+     range entirely. Now prints the dose as written, e.g. "3 × 8–10", by
+     parsing sets AND reps out of it.dose instead of just the leading digit.
+  B  planListText · the aerobic half is gone. It read live state.aero, which
+     is cardio, not resistance — mixing it into a list meant to be "PLAN as
+     written" was the wrong list for it. aeroLineText is removed with it, and
+     the per-day shape is a plain array again instead of {names,aero}.
+
+  v69 — exercise substitutions and queue cleanup
+  ---------------------------------------------------------------------------
+  A  Monday · Wrist Roller → Wrist Extensions; Bird-dog → Sorensen Hold.
+  B  Wednesday · Romanian Deadlift now uses 3 × 10–15.
+  C  Friday · DB shrug is removed. Incline Prone Y-Raise (2 × 12–20) now sits
+     immediately before Lateral Raise; Neck Lateral Flexion is a straight set.
+  D  what to add · volume and problem queues now contain only the requested
+     exercises. Replacement exercises use new ids so old load history cannot
+     appear under a different movement.
+
+  v70 — warm-ups removed from resistance days
+  ---------------------------------------------------------------------------
+  A  PLAN · Monday, Wednesday and Friday now start with the first working
+     exercise; the three repeated Warm-up rows are removed.
+  B  DELOAD_RULES · the three warm-up-only rules leave with those PLAN ids, so
+     no deload rule points at an exercise that no longer exists.
+  v71 — resistance-day routine updated
+  ---------------------------------------------------------------------------
+  Monday, Wednesday, and Friday follow the new exercise order and doses.
+  Existing movement ids stay with their history; new movements get new ids.
+  v72 — resistance disclosures and exercise methods
+  ---------------------------------------------------------------------------
+  Day cards and What to add now share one open slot. Exercise details add the
+  requested pause, myo-reps and mechanical drop sets; new combinations get
+  new ids so their load history starts clean.
+  v73 — myo-reps visible in exercise names
+  ---------------------------------------------------------------------------
+  The four exercises with final-set myo-reps now show that method in the
+  exercise header as well as in their dose and detail.
+  v74 — resistance days and future exercise list
+  ---------------------------------------------------------------------------
+  Monday, Wednesday, and Friday follow the updated order, sets, and supersets.
+  Moved exercises keep their load history; new movements get new IDs. The
+  What to add queue now holds the deferred leg and cable movements.
+  v75 — resistance routine, future exercises, and name capitalization
+  ---------------------------------------------------------------------------
+  The three resistance days match the requested order and supersets. Cable fly
+  and DB RDL move to What to add; Neck Lateral Flexion moves to Friday with its
+  history ID. Suitcase Carry now specifies straps and continuous sides. Exercise
+  names use title case across the plan and What to add list.
+  ============================================================================
+-->
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Training Week</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Thai+Looped:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+Thai+Looped:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,600&display=swap" rel="stylesheet"></noscript>
+<style>
+  :root{
+    /* v35 "Midnight Dial" · no monospace, quieter chrome, one accent
+       (v33 note follows)
+       v33 "Midnight Dial": a dark instrument panel, one warm metal accent.
+       Numbers are the content of this app, so they get the mono face and the
+       brass; everything else stays quiet enough for the numbers to read. */
+    --paper:#0A0C0F;
+    --card:#14171B;
+    --card2:#191D22;
+    /* v42 — the light model.
+       --fill: a card is no longer a flat swatch. It carries its own top-to-bottom
+       gradient, so its surface agrees with the overhead source instead of just
+       wearing a lit edge and ignoring it.
+       --edge: the top edge IS the border. Until v41 a card drew a 1px border all
+       round AND a 1px hairline just inside it — two lines stacked, which is why
+       the light read as a sticker rather than an edge. The top border is now
+       transparent and the hairline occupies that row alone.
+       --foot: the dark inset line that closes the card at the bottom. A lit top
+       without a shaded bottom is a highlight; with one, it's an object. */
+    /* v45: the shading lives INSIDE the fill now. A dark bottom border was
+       #0000008C over a #0A0C0F page — measured, it rendered (11,13,16) against a
+       page of (10,12,15): invisible. The bevel is the last 8% of the gradient
+       instead, so the card darkens into its own bottom edge and the light
+       hairline has something to sit on. */
+    /* v47: fill darkened 6 steps (darklab D). The card's foot now lands within
+       ~1 step of the page, so the bottom of a card dissolves into the paper and
+       --edge2 is the only thing closing it — keep that hairline if you retune.
+       --ink dropped D5DCE1 -> CCD3D9 to match: on the darker surface the old
+       value read as a notch too hot. --muted/--dim unchanged; they were already
+       sitting on this side of the range. */
+    --fill:linear-gradient(#13171D 0%,#0E1114 92%,#0B0D10 100%);
+    --fill-done:linear-gradient(#0E1114,#0A0C0F);
+    --edge:#FFFFFF3B;
+    /* v44: the bottom edge is two facts, not one. --foot is the shadow the card
+       casts on itself; --edge2 is the sliver of the same overhead light that a
+       rolled bottom edge would still catch. Opposite polarity, so they read as
+       one bevel rather than as two lines. Set --edge2 to transparent to go back
+       to a purely dark foot. */
+    --edge2:#FFFFFF1C;
+    /* v45: a sub-pixel BOX does not survive. `height:.5px` laid out fine and
+       then snapped away at paint — sampled at DPR8 the row was pure fill, and
+       the same was true of the top hairline, which is why v44's edges went soft
+       and the bottom looked broken. A 1px box scaled on the compositor does
+       render: the GPU antialiases it into a real half-pixel. */
+    --hair:.5;
+    --ink:#CCD3D9;
+    --muted:#8A959C;
+    --dim:#616D75;
+    --line:#FFFFFF12;
+    --brass:#D6B27C;
+    --brass2:#8E7549;
+    --r:18px;     /* card */
+    --rc:10px;    /* control */
+    --s1:19px;
+    --s2:15px;
+    --s3:13px;
+    --s4:11px;
+    --sans:-apple-system,BlinkMacSystemFont,system-ui,"IBM Plex Sans Thai Looped",sans-serif;
+    /* v41: two faces earn a place in the head of a card and nowhere else.
+       --serif is the day's NAME — a name, not a datum, so it is set like prose.
+       --tag is the day's SLOT in the week — a fixed-advance face because that is
+       what a three-letter code in a column of seven wants. Neither leaks into
+       the body: --mono still aliases the sans, as of v35. */
+    --serif:"Newsreader",Georgia,"Times New Roman",serif;
+    --tag:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    /* v35: no monospace anywhere. Tabular figures give the column alignment
+       that the mono face was there for, without the typewriter texture. */
+    --mono:var(--sans);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html{background:var(--paper);}
+  /* one light source, top centre — the page reads as a lit object instead of a
+     flat black rectangle, and the cards below it have something to sit on */
+  /* v66: a sticky footer. The page is a column at least one viewport tall, and
+     the week pane stretches to fill whatever is left, so `margin-top:auto` on
+     its footer parks the links on the bottom edge when every card is collapsed.
+     Open enough cards and the auto margin goes to zero — the footer then sits
+     under the last card the way it always did, and scrolls with it. */
+  body{
+    position:relative;
+    margin:0 auto;max-width:560px;min-height:100vh;min-height:100dvh;
+    display:flex;flex-direction:column;
+    padding:18px 16px calc(48px + env(safe-area-inset-bottom));
+    background:transparent;
+    color:var(--ink);
+    font-family:var(--sans);font-size:16px;line-height:1.5;letter-spacing:-.01em;
+    -webkit-font-smoothing:antialiased;
+    font-variant-numeric:tabular-nums;
+  }
+  /* the light source is painted on body (now the positioned ancestor), so it
+     scrolls with the page content instead of staying pinned to the viewport.
+     The vertical size and offset are in vh, not %, so opening a card and
+     growing body's height doesn't stretch the gradient along with it. */
+  body::before{
+    content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+    background:radial-gradient(88% 34vh at 50% -6vh,#2A3540 0%,rgba(42,53,64,0) 68%);
+  }
+  /* v42: grain. The source is a wide, low-contrast wash over near-black — the
+     exact condition that bands into visible rings on an OLED. Noise at 7% in
+     overlay costs one data-URI and makes the gradient continuous. It sits above
+     everything so the cards are grained too; without that the cards look like
+     cut-outs pasted onto a textured page. */
+  body::after{
+    content:"";position:fixed;inset:0;z-index:9;pointer-events:none;
+    opacity:.07;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='.5'/></svg>");
+  }
+  .brand{position:relative;display:flex;align-items:center;justify-content:center;
+    min-height:30px;padding:0 0 14px;}
+  .bname{
+    font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.34em;
+    text-transform:uppercase;color:var(--brass);opacity:.85;padding-left:4px;
+  }
+
+  .eyebrow{font-family:var(--mono);font-size:var(--s4);letter-spacing:.16em;text-transform:uppercase;
+    color:var(--dim);font-weight:500;}
+  .eyebrow.th{font-size:var(--s3);letter-spacing:0;text-transform:none;}
+
+  /* ---------- tabs ----------
+     v35: the segmented pill was a plastic widget sitting on a metal panel. A
+     row of words under a hairline, with one of them lit and underscored in
+     brass, says the same thing and lets the cards be the only objects. */
+  .tabs{display:flex;margin:2px 2px 20px;border-bottom:1px solid var(--line);}
+  .tab{
+    flex:1;padding:0 0 12px;border:0;background:transparent;font:inherit;
+    font-size:var(--s3);font-weight:500;letter-spacing:.02em;
+    color:var(--dim);cursor:pointer;transition:color .18s;
+  }
+  /* the rule hugs the word, not the third it sits in */
+  .tl{position:relative;display:inline-block;}
+  .tl::after{
+    content:"";position:absolute;left:-6px;right:-6px;bottom:-13px;height:1.5px;border-radius:999px;
+    background:linear-gradient(90deg,var(--brass2),var(--brass));
+    transform:scaleX(0);transition:transform .22s cubic-bezier(.4,0,.2,1);
+  }
+  .tab[aria-selected="true"]{color:var(--ink);font-weight:600;}
+  .tab[aria-selected="true"] .tl::after{transform:scaleX(1);}
+  .pane{display:none;}
+  .pane.on{display:block;}
+  /* only the week pane has a footer to push, so only it becomes a column —
+     the other two keep block flow and its margin collapsing exactly as before */
+  #pane-week.on{display:flex;flex-direction:column;flex:1 0 auto;}
+
+  .weekbar{display:flex;align-items:center;gap:8px;padding:0 2px 10px;}
+  #pane-aero .weekbar,#pane-daily .weekbar{display:none;}
+  .weekno{font-family:var(--mono);font-size:var(--s4);color:var(--dim);flex:1;letter-spacing:.04em;}
+  .weekno b{color:var(--muted);font-weight:500;}
+
+  /* ---------- day ---------- */
+  .day{
+    position:relative;overflow:hidden;
+    background:var(--fill);border:1px solid var(--line);
+    /* v43: no top border at all. `transparent` still reserved the row, and the
+       card's own fill painted through it (background-clip defaults to
+       border-box) — a 1px band of surface sitting ABOVE the highlight, which is
+       what made the edge look soft. With the row gone the hairline is the
+       topmost pixel of the card. */
+    /* v45: no bottom border either — see --fill. Both lit edges are now the
+       card's own first and last pixel row, with nothing under or over them. */
+    border-top:0;border-bottom:0;
+    border-radius:var(--r);
+    margin-bottom:8px;transition:background .18s;
+  }
+  .day::after{content:"";position:absolute;left:0;right:0;top:0;height:1px;pointer-events:none;
+    transform:scaleY(var(--hair));transform-origin:top;
+    background:linear-gradient(90deg,transparent 8%,var(--edge) 24%,var(--edge) 76%,transparent 92%);}
+  /* v44: the light the bottom edge catches. A border would be painted over by
+     the card's own background; this pseudo-element sits above it. */
+  .day::before{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+    transform:scaleY(var(--hair));transform-origin:bottom;
+    z-index:2;pointer-events:none;
+    background:linear-gradient(90deg,transparent 12%,var(--edge2) 29%,var(--edge2) 71%,transparent 88%);}
+  .day.done::before{opacity:.4;}
+  .day.done{background:var(--fill-done);border-color:#FFFFFF08;border-top:0;border-bottom:0;}
+  .day.done::after{opacity:.4;}
+  .day.done .title{color:var(--dim);}
+  .day.open{box-shadow:0 18px 40px -22px #000;}
+  .day.today .title::after{
+    content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
+    background:var(--accent);vertical-align:middle;margin-left:7px;
+    box-shadow:0 0 8px var(--accent);
+  }
+  /* ---------- head (v38 "B1") ----------
+     The day name is the object of the card and sits on the card's true vertical
+     centre. A flow-centred stack would put the STACK's middle there, leaving the
+     title half a dow-block low; the transform lifts it by exactly that half
+     without moving the layout box.
+     v39: 84 → 66px. The stack is 42px tall, so at 66 the dow sits ~2.5px off the
+     top edge and the title still lands on the card's exact middle — the transform
+     is unchanged because it depends on the stack, not the card.
+     v40: lift eased 9.5 → 7px. The dow was reading as flush with the top edge, so
+     the whole stack drops 2.5px; the title now sits 2.5px under true centre, which
+     is under the threshold where the eye calls it off.
+     v41: the label dropped to 10px, so half a dow-block is now (13+5)/2 = 9, and
+     the same 2.5px offset makes the lift 6.5px. The stack grew 1.1px overall; the
+     card stays 66. */
+  .head{
+    position:relative;display:flex;align-items:center;justify-content:center;
+    width:100%;min-height:66px;padding:10px 20px;
+    background:none;border:0;font:inherit;color:inherit;cursor:pointer;
+    touch-action:manipulation;
+  }
+  /* v65: one line, centred in the header — the .dow eyebrow above it is gone, and
+     with it the gap and the -6.5px lift that balanced a two-line stack.
+     v66: a card may carry a second, smaller line (`sub`). `.head` already centres
+     whatever `.stk` contains, so the two lines land as one block on the card's
+     middle — no lift, and the one-line cards are untouched. */
+  .stk{display:flex;flex-direction:column;align-items:center;width:100%;}
+    /* v41: the title is the one piece of prose on the card — everything else is a
+     number, a code or a state. A serif says that without a rule or a colour. */
+  .title{font-family:var(--serif);font-size:21px;font-weight:600;letter-spacing:-.005em;
+    line-height:1.2;text-align:center;}
+  /* v66: the same serif and the same ink as the title — size alone says which
+     line is the name and which is the qualifier. */
+  .sub{font-family:var(--serif);font-size:13px;font-weight:500;letter-spacing:-.005em;
+    line-height:1.15;margin-top:-2px;text-align:center;}
+  .day.done .sub{color:var(--dim);}
+
+  /* v66: the 2px brass fill under each card is gone. It was a third voice saying
+     what the ticked boxes and the dimmed header already say, and at the foot of
+     a closed card it read as a border that only some days had. */
+
+  .body{display:none;padding:2px 0 14px;}
+  .day.open .body{display:block;}
+  /* the day's own close-out control: styled to read as one more row in the
+     list, not a separate action, so finishing the day is as light a tap as
+     ticking any other exercise. */
+  .finishgrp{margin-top:6px;padding-top:8px;border-top:1px solid #FFFFFF0A;}
+  .finishgrp .name{color:var(--dim);}
+
+  /* ---------- item (v38 "C") ----------
+     One row per exercise. The dose flows straight on from the name (W3) so a
+     long name spends the tail of its second line instead of claiming a row of
+     its own — a full gym day fits one screen, which is the state it is actually
+     read in: phone on the bench, mid-set. */
+  .grp{padding:0 18px;}
+  .sslab{
+    font-size:var(--s4);letter-spacing:.2em;text-transform:uppercase;font-weight:500;
+    color:var(--dim);margin:0;padding:14px 0 3px;
+  }
+  .sslab:empty{display:none;}
+  /* v52: a superset is one decision, so it gets one checkbox — on the label row,
+     level with the pair rather than inside either half of it. The exercises below
+     it keep their weight fields and their detail roundels; they just no longer
+     each ask to be ticked. The BACKEND is unchanged: this box writes state.checks
+     for every id in the group, so history, deltas and rollover still see the
+     individual exercises exactly as before. */
+  .grphead{display:flex;align-items:center;gap:10px;padding:14px 0 3px;}
+  .grphead .sslab{padding:0;}
+  .grphead+.item{border-top:0;}
+  /* nothing to tick on this row, so the name starts where the others' names do */
+  .item.nobox{padding-left:34px;}
+
+  /* the live pair: whichever group holds the next unticked exercise. The tint
+     bleeds to the card edges so the pair reads as one object at arm's length. */
+  .grp.now{position:relative;background:var(--tint);
+    margin:6px 0;padding-bottom:6px;}
+  .grp.now::before{content:"";position:absolute;left:0;top:0;bottom:0;width:1.5px;
+    background:linear-gradient(180deg,var(--accent),color-mix(in srgb,var(--accent),black 55%));}
+  .grp.now .sslab{color:var(--accent);opacity:.7;}
+  .day.done .grp.now{background:none;box-shadow:none;}
+
+  .item{display:flex;align-items:center;gap:10px;padding:10px 0;min-height:52px;}
+  .item+.item{border-top:1px solid #FFFFFF0A;}
+  .sslab+.item{border-top:0;}
+  .item.on .name{color:var(--muted);}
+  .box{
+    width:24px;height:24px;flex:none;padding:0;touch-action:manipulation;
+    border:1px solid #FFFFFF24;border-radius:var(--rc);background:transparent;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .15s,border-color .15s;
+  }
+  .box svg{width:13px;height:13px;fill:none;stroke:#0A0C0D;stroke-width:3.2;opacity:0;transition:opacity .15s;}
+  .box.on{background:var(--accent);border-color:var(--accent);}
+  .box.on svg{opacity:1;}
+  /* no overflow-wrap:anywhere here — it gave the browser permission to break
+     the NAME mid-phrase rather than move the unbreakable dose down a line. */
+  .txt{flex:1;min-width:0;}
+  .name{font-size:var(--s2);font-weight:500;letter-spacing:-.008em;line-height:1.4;}
+  /* W3: the dose flows on from the name and, now that it is only the sets, it
+     stays whole — if it will not fit the tail of the line it drops to the next
+     one entire, rather than snapping "3 × 8 / side" in half. */
+  .dose{font-size:var(--s4);color:var(--dim);margin-left:7px;white-space:nowrap;}
+  .dosefull{font-size:var(--s4);color:var(--muted);margin:0 0 10px;letter-spacing:.01em;}
+  /* Detail shrank to a roundel to buy the row back; 22px keeps it thumbable. */
+  /* v60: the ⓘ is the last thing on the row and the weight box sits before it.
+     With the old order the button landed in a different place on a row with a
+     kg field than on one without, so the column of circles zig-zagged down the
+     day. Now every row ends with it, at the same x. */
+  .idet{
+    width:22px;height:22px;flex:none;padding:0;border-radius:50%;margin-left:auto;
+    border:1px solid #FFFFFF1A;background:transparent;color:var(--dim);
+    font:inherit;font-size:11px;font-style:italic;line-height:1;cursor:pointer;touch-action:manipulation;
+    display:flex;align-items:center;justify-content:center;transition:color .15s,border-color .15s;
+  }
+  .item.det .idet{color:var(--accent);border-color:var(--accent);opacity:.9;}
+  .drop{display:none;padding:0 8px 12px 34px;}
+  .item.det + .drop{display:block;}
+
+  /* v76: compact logging below the name, with baseline-aligned inline units.
+     A field's width follows its value/placeholder; the unit stays close even
+     for a one-digit entry. The focus underline is the only visible boundary. */
+  .item[data-item]{display:grid;grid-template-columns:24px minmax(0,1fr);
+    align-items:start;column-gap:10px;row-gap:0;padding:10px 0 6px;}
+  .item[data-item]>.box{grid-column:1;grid-row:1;}
+  .item[data-item]>.txt{grid-column:2;grid-row:1;line-height:24px;}
+  .item[data-item].nobox{grid-template-columns:minmax(0,1fr);padding-left:34px;}
+  .item[data-item].nobox>.txt,.item[data-item].nobox>.logrow{grid-column:1;}
+  .logrow{grid-column:2;grid-row:2;display:flex;align-items:center;gap:10px;min-width:0;height:36px;}
+  .logfield{display:inline-flex;align-items:baseline;gap:3px;flex:none;cursor:text;}
+  .logfield .unit{font-size:11px;line-height:22px;color:var(--dim);}
+  .logfield.recorded .unit{color:var(--brass);opacity:.75;}
+  .logrow>.idet{width:36px;height:36px;margin-left:auto;border:0;
+    position:relative;font-size:11px;}
+  .logrow>.idet::before{content:"";position:absolute;inset:7px;
+    border:1px solid #FFFFFF1A;border-radius:50%;}
+  .item.det .logrow>.idet::before{border-color:var(--accent);}
+  /* v31: no spin buttons anywhere. Every one of these fields is typed, and the
+     arrows only ever stole a tap target and nudged a logged number by accident. */
+  input[type=number]{-moz-appearance:textfield;appearance:textfield;}
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+  .wtin{
+    width:3ch;height:32px;padding:5px 0;text-align:left;
+    border:0;border-radius:0;background:transparent;
+    font:inherit;font-family:var(--mono);font-size:16px;line-height:22px;color:var(--brass);
+    outline:none;letter-spacing:-.01em;
+    box-shadow:none;
+  }
+  .wtin::placeholder{color:var(--dim);opacity:1;}
+  .wtin:focus{box-shadow:0 1px 0 var(--brass2);}
+  .unit{font-family:var(--mono);font-size:var(--s4);color:var(--dim);}
+
+  /* metric fields (runs, rowing) — stacked under the row, not squeezed into it */
+  .mtwrap{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 10px;margin:2px 0 12px 34px;}
+  .mt{display:flex;flex-direction:column;gap:4px;}
+  .mtlab{font-family:var(--mono);font-size:var(--s4);color:var(--dim);font-weight:500;
+    letter-spacing:.08em;text-transform:uppercase;}
+  .mtbox{display:flex;align-items:baseline;gap:5px;}
+  .mtin{width:58px;}
+/* v60: .derived and .aday .derived removed with derivedText */
+
+  /* disclosures */
+  /* v36: Detail is a continuation of the dose line — same size, weight and
+     colour, sat right underneath it. It is a way in, not a second heading. */
+  details{margin:2px 0 0 0;}
+  summary{
+    list-style:none;display:inline-block;cursor:pointer;padding:1px 0 3px;
+    font-size:var(--s4);font-weight:400;color:var(--dim);letter-spacing:0;
+    border-bottom:1px dotted #FFFFFF24;line-height:1.4;transition:color .15s;
+  }
+  summary::-webkit-details-marker{display:none;}
+  details[open] summary{color:var(--muted);}
+  .note{
+    font-size:var(--s2);line-height:1.65;color:#AEB8BF;
+    border-left:1px solid var(--line);padding:2px 0 2px 13px;margin:2px 0 4px;
+  }
+  .note b{font-weight:600;color:var(--ink);}
+  .note .tl,.note .tn{margin:0 0 9px;}
+  .note .tl:last-child,.note .tn:last-child{margin-bottom:0;}
+  .note .lab{
+    display:block;font-family:var(--mono);font-size:var(--s4);font-weight:500;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--brass2);margin-bottom:4px;
+  }
+  .histbody{border-left:1px solid var(--line);padding:4px 0 2px 13px;margin:2px 0 4px;}
+  .histsplit{border-top:1px solid var(--line);margin:12px 0 10px;}
+  .histbody .eyebrow{display:block;margin-bottom:7px;}
+  .histcap{font-size:var(--s3);color:var(--dim);margin:0 0 8px;line-height:1.45;}
+  table.h{border-collapse:collapse;width:100%;max-width:240px;}
+  table.h.m{max-width:none;}
+  table.h.m td.kg{font-size:var(--s3);font-weight:400;}
+  table.h td{font-family:var(--mono);font-size:var(--s3);padding:4px 0;}
+  td.w{color:var(--dim);width:58px;}
+  td.kg{color:var(--ink);font-weight:400;}
+  td.d{text-align:right;color:var(--dim);}
+  td.d.up{color:#7FCBA9;}
+  td.d.dn{color:#E0899A;}
+  tr.skip td{color:#4C585C;}
+
+  [hidden]{display:none!important;}
+  /* rest is printed, not timed: the watch on the wrist counts better than a tab
+     that iOS is free to throttle the moment the screen goes dark. */
+  .rst{font-family:var(--mono);font-size:var(--s4);color:var(--dim);letter-spacing:.02em;}
+
+  /* ---------- body-metric cards (weight, waist) ----------
+     v67: body weight stopped being one number a week behind a History
+     disclosure. It is a .hab card like any other daily habit, but the 7 grid
+     boxes hold a typed value per day instead of a tick — any day, not just
+     today, since a missed reading is worth backfilling.
+     v68: waist circumference reuses the same card shape and the same grid, so
+     both are driven by METRICS instead of copy-pasted markup. */
+  .gval{
+    width:100%;height:38px;padding:0;text-align:center;
+    border:1px solid #FFFFFF1A;border-radius:var(--rc);background:#FFFFFF05;
+    font:inherit;font-family:var(--mono);font-size:13px;color:var(--brass);
+    outline:none;letter-spacing:-.01em;transition:background .15s,border-color .15s;
+  }
+  .gval::placeholder{color:#4E5B60;font-size:11px;}
+  .gval:focus{border-color:var(--brass2);background:#FFFFFF08;}
+  .gcell.today .gval{border-color:var(--muted);}
+  .gcell.future .gval{opacity:.35;}
+  .trendmeta{font-family:var(--mono);font-size:var(--s4);color:var(--dim);
+    margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+  /* v68: empty until 14 (or 35) days of readings exist. The div is always
+     rendered, never left out, so a later update can still find it by
+     selector — :empty just collapses its border/margin/padding until then,
+     rather than a fallback sentence taking the space instead. */
+  .trendmeta:empty{display:none;}
+  .trendmeta b{color:var(--ink);font-weight:600;}
+
+  /* ---------- deload tab ---------- */
+  .prbox{
+    background:var(--fill);border:1px solid var(--line);border-top:0;border-bottom:0;
+    border-radius:var(--r);
+    padding:14px 16px;margin-bottom:14px;
+  }
+  .pr{margin-bottom:13px;}
+  .pr:last-child{margin-bottom:0;}
+  .prh{
+    display:block;font-family:var(--mono);font-size:var(--s4);font-weight:500;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--brass2);margin-bottom:4px;
+  }
+  .prt{margin:0;font-size:var(--s2);line-height:1.6;color:#AEB8BF;}
+  .prt b{font-weight:600;color:var(--ink);}
+  .dltag{
+    display:inline-block;margin-left:6px;padding:1px 6px;border-radius:5px;
+    background:var(--soft);color:var(--accent);
+    font-size:var(--s4);font-weight:700;vertical-align:1px;
+  }
+  /* a cut exercise keeps its slot in the day so the shape of the week is still
+     legible — it just carries no checkbox, because there is nothing to tick */
+  .item.cut .txt{margin-left:36px;}
+  .item.cut .name{text-decoration:line-through;color:#5A676C;font-weight:400;}
+  .item.cut .dose{color:#5A676C;}
+  .dose b{color:var(--accent);font-weight:600;}
+  .dltoggle{
+    flex:none;padding:5px 11px;border:1px solid var(--line);border-radius:999px;
+    background:transparent;font:inherit;font-size:var(--s3);font-weight:600;
+    color:var(--muted);cursor:pointer;transition:background .15s,color .15s,border-color .15s;
+  }
+  .dltoggle[aria-pressed="true"]{background:var(--brass);border-color:var(--brass);color:#0A0C0D;}
+  .prbox{margin-bottom:8px;}
+  .prbox summary{padding:0;}
+  .prbox .pr{margin-top:12px;}
+
+  /* ---------- daily tab ---------- */
+  .hab{
+    background:var(--fill);border:1px solid var(--line);border-top:0;border-bottom:0;
+    border-radius:var(--r);
+    padding:16px;margin-bottom:8px;position:relative;overflow:hidden;
+  }
+  .habtop{display:flex;align-items:baseline;gap:10px;}
+  .habname{font-size:var(--s1);font-weight:600;letter-spacing:-.015em;flex:1;line-height:1.25;}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:14px;}
+  .gcell{display:flex;flex-direction:column;align-items:center;gap:5px;}
+  .gbox{
+    width:100%;height:38px;padding:0;
+    border:1px solid #FFFFFF1A;border-radius:var(--rc);background:#FFFFFF05;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .15s,border-color .15s;
+  }
+  .gbox svg{width:13px;height:13px;fill:none;stroke:#0A0C0D;stroke-width:3.2;opacity:0;transition:opacity .15s;}
+  .gbox.on{background:var(--brass);border-color:var(--brass);}
+  .gbox.on svg{opacity:1;}
+  .gcell.today .gbox{border-color:var(--muted);}
+  .gcell.future .gbox{opacity:.35;}
+  .todayrow{
+    display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 12px;
+    margin-top:14px;padding-top:12px;border-top:1px solid var(--line);
+  }
+  .todaylab{font-family:var(--mono);font-size:var(--s4);letter-spacing:.14em;text-transform:uppercase;
+    color:var(--dim);font-weight:500;align-self:center;}
+  .scoreset{display:flex;gap:4px;}
+  .sc{
+    width:32px;height:34px;padding:0;border:1.5px solid var(--line);border-radius:var(--rc);
+    background:transparent;font:inherit;font-size:var(--s3);color:var(--muted);
+    cursor:pointer;font-variant-numeric:tabular-nums;transition:background .15s,color .15s,border-color .15s;
+  }
+  .sc.on{background:var(--brass);border-color:var(--brass);color:#0A0C0D;font-weight:600;}
+  /* v54: the 30-day count belongs on the title line — it is the card's summary,
+     not a footnote under it */
+  .density{font-family:var(--mono);font-size:var(--s4);color:var(--dim);letter-spacing:.02em;
+    white-space:nowrap;flex:none;}
+  .hab details{margin:12px 0 0;}
+
+  /* ---------- footer ---------- */
+  textarea{
+    width:100%;min-height:96px;padding:14px;resize:none;
+    background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+    font:inherit;font-size:var(--s2);color:var(--ink);outline:none;line-height:1.5;letter-spacing:-.01em;
+  }
+  textarea:focus{border-color:var(--brass2);}
+  /* v66: the four links are what you do to the whole file, so they sit on
+     their own row at the very bottom — always, not only when the row runs out
+     of width. A column footer with a flex .flinks row does that without the
+     auto-margin and flex-end that used to shove them into a second column on
+     the right.
+     v67: Body weight moved to its own footer on the Routines tab — it is a
+     weekly log entry, not a control over the resistance plan above it. */
+  footer{display:flex;flex-direction:column;align-items:stretch;gap:16px;
+    margin-top:auto;padding-top:16px;padding-left:2px;padding-right:2px;}
+  .flinks{display:flex;flex-wrap:wrap;align-items:center;gap:16px;}
+  .link{background:none;border:0;padding:8px 2px;font:inherit;font-size:var(--s4);color:#586369;
+    cursor:pointer;text-decoration:underline;text-decoration-color:#FFFFFF1F;text-underline-offset:3px;
+    transition:color .15s;}
+  .link[aria-expanded="true"],.link[aria-pressed="true"]{color:var(--brass);text-decoration-color:var(--brass2);}
+
+  /* ---------- transfer panel ----------
+     No download, no file picker, no alert: the artifact runs in a sandboxed
+     iframe where all three are silently ignored — the button appears dead. Text
+     in a textarea is the one channel that cannot be blocked. */
+  .io{
+    background:var(--fill);border:1px solid var(--line);border-top:0;border-bottom:0;
+    border-radius:var(--r);
+    padding:14px 16px;margin-top:12px;
+  }
+  .iohead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;}
+  .iota{
+    width:100%;height:120px;resize:vertical;box-sizing:border-box;
+    border:1px solid var(--line);border-radius:var(--rc);background:var(--paper);
+    padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:11px;line-height:1.4;color:var(--muted);
+  }
+  .iota:focus{outline:2px solid var(--brass2);outline-offset:1px;}
+  .iorow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .btn{
+    padding:9px 14px;border:1px solid var(--brass);border-radius:999px;background:var(--brass);
+    color:#0A0C0D;font:inherit;font-size:var(--s3);font-weight:600;cursor:pointer;
+  }
+  .btn.ghost{background:transparent;color:var(--ink);border-color:#FFFFFF24;}
+  .btn.warn{background:#C4677C;border-color:#C4677C;color:#0A0C0D;}
+  .iomsg{font-size:var(--s3);color:var(--muted);margin-top:10px;line-height:1.5;}
+  .iomsg b{color:var(--ink);font-weight:600;}
+
+  /* v67: the "what to add" panel. Two plain lists in the io shell — a queue to
+     read, not a control, so nothing here is tappable and nothing is stored. */
+  .adds+.adds{margin-top:16px;}
+  .addh{font-family:var(--mono);font-size:var(--s4);font-weight:500;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--brass);}
+  .addwhy{font-size:var(--s3);color:var(--dim);margin-top:4px;line-height:1.5;}
+  .addul{list-style:none;margin:8px 0 0;padding:0;}
+  .addul li{font-size:var(--s2);color:var(--ink);line-height:1.9;}
+  .addul li::before{content:'·';color:var(--dim);margin-right:8px;}
+
+
+  /* ---------- v28: aerobic tab ---------- */
+  .atot{background:var(--fill);border:1px solid var(--line);border-top:0;border-bottom:0;
+    border-radius:var(--r);
+    padding:14px 16px;margin-bottom:8px;}
+  #aprog{background:none;border:0;border-radius:0;padding:0 2px;margin-bottom:14px;}
+  #aprog::after,#aprog::before{display:none;}
+  .atotsub{font-family:var(--mono);font-size:var(--s4);color:var(--dim);margin-top:7px;line-height:1.55;}
+  .atotsub b{color:var(--ink);font-weight:600;}
+  .atot details{margin:10px 0 0;}
+  .aday{position:relative;overflow:hidden;background:var(--fill);
+    border:1px solid var(--line);border-top:0;border-bottom:0;
+    border-radius:var(--r);padding:12px 16px 14px;margin-bottom:8px;}
+  /* v34: one card treatment everywhere — a hairline of light on the top edge.
+     Coloured spines were the last piece of the old flat look. */
+  .aday::after,.atot::after,.hab::after{
+    content:"";position:absolute;left:0;right:0;top:0;height:1px;pointer-events:none;
+    transform:scaleY(var(--hair));transform-origin:top;
+    background:linear-gradient(90deg,transparent 8%,var(--edge) 24%,var(--edge) 76%,transparent 92%);}
+  .aday::before,.atot::before,.hab::before{
+    content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+    transform:scaleY(var(--hair));transform-origin:bottom;
+    z-index:2;pointer-events:none;
+    background:linear-gradient(90deg,transparent 12%,var(--edge2) 29%,var(--edge2) 71%,transparent 88%);}
+  .atot{position:relative;overflow:hidden;}
+  .ahead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .adow{font-size:var(--s2);font-weight:600;flex:1;min-width:64px;}
+  .aday.today .adow::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
+    background:var(--brass);vertical-align:middle;margin-left:7px;box-shadow:0 0 8px var(--brass);}
+  .aadd{display:flex;gap:6px;}
+  .arow{position:relative;border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
+  .arow.first{border-top:0;margin-top:0;padding-top:0;}
+  .arbody{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding-right:22px;}
+  .arinfo{display:flex;flex-direction:column;gap:3px;min-width:0;}
+  .arname{display:flex;align-items:center;gap:8px;min-width:0;}
+  .aname{font-size:var(--s2);font-weight:500;min-width:0;}
+  /* v60: one colour. The dot used to be green for Z2 and orange for the 4×4,
+     which read as a verdict on the session before it had been logged — the same
+     reason the bars and the delta column are uncoloured. Brass says "this is a
+     session", and the card already says which kind in words. */
+  .adot{width:8px;height:8px;border-radius:50%;background:var(--brass);flex:none;}
+  /* flush into the card's own corner — .aday's padding already insets it, so a
+     negative offset here is what actually lands the button in the corner
+     instead of visibly adrift below and left of it. */
+  .ax{position:absolute;top:-8px;right:-10px;width:28px;height:28px;padding:0;border:0;background:none;
+    font:inherit;font-size:16px;line-height:1;color:#5A676C;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;}
+  .ax:hover{color:#E0899A;}
+  .anone{font-size:var(--s3);color:var(--dim);margin:8px 0 0;}
+  /* v35: six identical cards saying "nothing here" was most of this tab. An
+     empty day gets one quiet line; a card is what having logged something
+     looks like. */
+  .aday.empty{background:none;border-color:transparent;box-shadow:none;
+    padding:7px 4px;margin-bottom:0;}
+  .aday.empty::after,.aday.empty::before{display:none;}
+  .aday.empty .ahead{gap:6px;}
+  .aday.empty .adow{font-size:var(--s3);font-weight:500;color:var(--muted);}
+  .aemptywrap{border:1px solid var(--line);border-radius:var(--r);background:#FFFFFF04;
+    padding:5px 12px;margin-bottom:8px;}
+  .aemptywrap .aday.empty+.aday.empty{border-top:1px solid #FFFFFF08;}
+  .aday .mtwrap{margin:0;}
+  /* v54: one field per line, label and value on the same line — the fields are
+     read one at a time while typing, not scanned as a row. */
+  /* v67: padding on .mt used to add leading space above TIME and trailing
+     space below the last row, so the column never lined up with the day
+     label beside it and sat well clear of the card's own bottom edge. A gap
+     on the wrapper spaces the rows from EACH OTHER only. */
+  #pane-aero .mtwrap{flex-direction:column;align-items:stretch;gap:2px;}
+  #pane-aero .mt{flex-direction:row;align-items:center;gap:10px;padding:0;}
+  /* the label is a fixed column, so the value sits right beside it instead of
+     being pushed out to the card edge */
+  #pane-aero .mtlab{letter-spacing:.1em;flex:none;width:74px;}
+  #pane-aero .mtbox{flex:none;}
+  /* a logged number here is a record, not a headline — brass was shouting.
+     v66: the boxed/pill look is gone too. v68: so is the underline that
+     replaced it — plain text sitting on the same baseline as its label is
+     what "not a form" actually looks like. The only tell that it's a field
+     at all is the placeholder colour and the focus state, which turns the
+     value itself brass rather than drawing a rule under it. */
+  #pane-aero .mtin{
+    color:var(--ink);background:none;border:0;border-radius:0;box-shadow:none;
+    height:auto;width:32px;padding:0;text-align:left;
+  }
+  #pane-aero .mtin:focus{color:var(--brass);outline:none;}
+  #pane-aero .mtbox .unit{min-width:34px;}
+
+  /* ---------- v30: aerobic progression ---------- */
+  .aprow{display:flex;align-items:baseline;gap:10px;}
+  .aplab{font:inherit;font-size:var(--s3);color:var(--muted);font-weight:600;flex:1;min-width:0;
+    background:none;border:0;padding:0;text-align:left;cursor:pointer;}
+  .aplab:hover{color:var(--brass);}
+  .apval{font-family:var(--mono);font-size:20px;font-weight:500;letter-spacing:-.02em;color:var(--brass);}
+  .apbar{position:relative;height:12px;border-radius:999px;background:#FFFFFF0F;
+    margin:10px 0 8px;overflow:hidden;}
+  .apfill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;
+    background:linear-gradient(90deg,var(--brass2),var(--brass));transition:width .18s;}
+  .aptick{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--ink);opacity:.45;}
+  .aptick.soft{opacity:.3;background:repeating-linear-gradient(to bottom,var(--ink) 0 3px,transparent 3px 6px);}
+  .apsubrow{display:flex;align-items:baseline;gap:10px;}
+  .apsubrow details{margin:0;}
+  .apsub{font-family:var(--mono);font-size:var(--s4);color:var(--dim);line-height:1.55;}
+  .apsub b{color:var(--ink);font-weight:600;}
+
+  /* ---------- v53: two-bar strip + bottom add bar ---------- */
+  .apblk+.apblk{margin-top:15px;padding-top:14px;border-top:1px solid var(--line);}
+  .apblk .apbar{margin:9px 0 7px;}
+  .apsubrow{margin-top:12px;justify-content:space-between;}
+  /* the four session types, where a thumb already is after training */
+  .aaddbar{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:12px 0 16px;}
+  .aaddbtn{
+    padding:14px 4px;border:1px dashed #FFFFFF2B;border-radius:var(--rc);background:#FFFFFF05;
+    font:inherit;font-size:var(--s3);font-weight:600;letter-spacing:-.005em;line-height:1.3;color:var(--brass);
+    text-wrap:balance;
+    cursor:pointer;touch-action:manipulation;transition:border-color .15s,background .15s,color .15s;
+  }
+  .aaddbtn:hover{border-color:var(--brass2);background:#FFFFFF0A;}
+  /* a plain small-caps label, not a control that reads as a text field — the
+     capsule it used to sit in implied a value worth double-checking, when a
+     day is a one-tap correction at most. */
+  .adaysel{
+    appearance:none;-webkit-appearance:none;-moz-appearance:none;
+    flex:none;align-self:flex-start;margin:0;padding:0;border:0;background:none;
+    font:inherit;font-family:var(--mono);font-size:var(--s4);font-weight:500;
+    letter-spacing:.09em;text-transform:uppercase;color:var(--dim);cursor:pointer;
+  }
+  .adaysel:focus{outline:none;color:var(--brass);}
+  .adaysel:hover{color:var(--muted);}
+
+  :focus-visible{outline:2px solid var(--brass);outline-offset:2px;}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+
+<header class="brand">
+  <span class="bname">Training Week</span>
+</header>
+<div class="tabs" role="tablist" id="tabs"></div>
+
+<section class="pane" id="pane-week" role="tabpanel" tabindex="0" aria-labelledby="tab-week">
+  <div class="weekbar" id="weekbar" hidden><span class="weekno" id="weekno"></span></div>
+  <div id="dlintro"></div>
+  <main id="days"></main>
+  <footer>
+    <nav class="flinks">
+      <button class="link" id="dltoggle" type="button" aria-pressed="false">deload</button>
+      <button class="link" id="export" aria-expanded="false">export</button>
+      <button class="link" id="import" aria-expanded="false">import</button>
+      <button class="link" id="copylist" type="button">copy exercise</button>
+      <button class="link" id="addlist" type="button" aria-expanded="false">what to add</button>
+    </nav>
+  </footer>
+  <section class="io" id="io" hidden></section>
+</section>
+
+<section class="pane" id="pane-aero" role="tabpanel" tabindex="0" aria-labelledby="tab-aero">
+  <div class="weekbar"><span class="weekno" id="aerono"></span></div>
+  <main id="aero"></main>
+</section>
+
+<section class="pane" id="pane-daily" role="tabpanel" tabindex="0" aria-labelledby="tab-daily">
+  <div class="weekbar"><span class="weekno" id="dailyno"></span></div>
+  <main id="habits"></main>
+  <footer>
+    <nav class="flinks">
+      <a class="link" href="line-oa-guide.html">LINE OA field guide</a>
+    </nav>
+  </footer>
+</section>
+
+<script>
+/* ================= config ================= */
+const KEY    = 'trainweek:v11';         /* v21: ids remapped Mon–Sun → clean reset */
+const HIDX   = 'trainweek:hist:index';
+const HSHARD = y  => `trainweek:hist:${y}`;
+const DSHARD = m  => `daily:log:${m}`;  /* m = 'YYYY-MM' */
+const UITAB  = 'ui:tab';
+const UIAVIEW = 'ui:aeroview';          /* which of mins/height/MET·mins the bar shows — per device, never synced or exported */
+const ROLL_HOUR = 4;                    /* day + week boundary, local time */
+
+/* v33: on a near-black field a mid-tone hue reads as mud, so every accent is
+   lifted toward its metal — brass, jade, copper, amethyst, gold, steel. The
+   check glyph is dark on all six, which is why .box svg strokes the paper. */
+const KIND={
+  strength:{accent:'#D6B27C',soft:'#D6B27C1A',tint:'#D6B27C0A'},
+  z2      :{accent:'#6FBFA0',soft:'#6FBFA01A',tint:'#6FBFA00A'},
+  interval:{accent:'#E08A66',soft:'#E08A661A',tint:'#E08A660A'},
+  mobility:{accent:'#9B8AE6',soft:'#9B8AE61A',tint:'#9B8AE60A'},
+  play    :{accent:'#E0BC6B',soft:'#E0BC6B1A',tint:'#E0BC6B0A'},
+  rest    :{accent:'#7F8D92',soft:'#7F8D9224',tint:'#7F8D920E'}
+};
+
+const Z2NOTE =
+ '<b>อยู่ที่ขอบของ VT1</b> · หา VT1 (เพดานของ "เบา") ได้เองโดยไม่ต้องใช้อุปกรณ์ · '+
+ '<b>Talk test:</b> ระหว่างค่อยๆ เพิ่มความหนัก ให้อ่านประโยคออกเสียงทุก 5 นาที · '+
+ 'VT1 คือจุดที่<b>เริ่มต้องหยุดกลางประโยคเพื่อหายใจ</b> · '+
+ 'งานเบาทั้งหมดให้อยู่ต่ำกว่าจุดนั้นลงมาหนึ่งขั้น';
+
+/* 0=Mon … 6=Sun, and the two names for it that the UI needs */
+const DOWI={MON:0,TUE:1,WED:2,THU:3,FRI:4,SAT:5,SUN:6};
+const DOW_TH=['M','T','W','T','F','S','S'];
+const DOW_FULL=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+/* ================= plan · sessions, not days =================
+   v28: a session carries its own `dow` instead of being found at PLAN[dow].
+   Wednesday holds two — 4×4 in the morning, the full-gym session in the
+   evening — and they are different KINDS, so one card with a divider inside
+   would have had to pick one accent, one icon and one count for both. Two
+   cards, two counts.
+   v53: this tab is RESISTANCE ONLY. The 4×4, the long run and pickleball are
+   aerobic work, and aerobic work is now logged in one place — the Aerobic tab —
+   where a session carries its own day and its own numbers.
+   v65: skater bounds and the cable chop left with them — the plan they were a
+   warm-up for no longer opens with power work. */
+const PLAN=[
+ {dow:'MON',title:'Monday',kind:'strength',items:[
+   {id:'e19',rest:'rest 2 min',name:'Flat Barbell Press',dose:'3 × 5–8',
+    target:'• Main horizontal press ของสัปดาห์; barbell ทำให้โหลดหนักกว่า incline DB วันศุกร์',
+    note:'• สะบักหุบและกดติดเบาะตลอด; เท้ายันพื้น<br>• ศอก ~45° กับลำตัว ไม่กาง 90°<br>• บาร์ลงระดับอกล่าง แตะเบา ไม่ bounce<br>• มี safety pin หรือคนช่วยเสมอเมื่อเข้าใกล้ failure'},
+   {id:'v78crossover',rest:'rest 90s',name:'Cable Crossover',dose:'2 × 8–12',
+    target:'• Chest isolation with cable tension through the range',
+    note:'• Set pulleys near chest height; stagger the stance and keep a soft elbow<br>• Bring the handles together in front of the chest without rolling the shoulders forward<br>• Return slowly into a comfortable chest stretch',
+    mistake:'• Turning the movement into a press · Swinging the torso · Forcing the shoulder stretch'},
+   {id:'h34',rest:'rest 2 min',name:'Lats Pulldown',dose:'3 × 8–12',
+    target:'• Vertical pull สำหรับ lats; เติม pattern ที่ horizontal row ไม่ครอบคลุม<br>• โหลดปรับได้ทีละขั้น จึง progress ตรงกว่า pull-up ที่ต้องเล่นกับ assistance',
+    note:'• จับกว้างกว่าไหล่เล็กน้อย; นั่งให้ต้นขาล็อกใต้แป้น<br>• เริ่มด้วย depress scapula ก่อน แล้วค่อยดึงศอกลงหาซี่โครง<br>• เอนหลังได้ไม่เกิน ~15° และค้างมุมนั้นไว้ ไม่โยกตามจังหวะ<br>• ปล่อยขึ้นช้า ~3 s จนแขนเหยียดและสะบักยืดสุด<br>• Mechanical drop set: ต่อด้วย straight-arm pulldown โดยไม่พัก',
+    mistake:'• โยกลำตัวเพื่อช่วยดึง · ดึงบาร์ลงหลังคอ · ROM สั้นเพราะโหลดหนักเกิน'},
+   {id:'h29',rest:'rest 90s',name:'Overhead Cable Triceps Extension',dose:'3 × 10–15',
+    target:'• Triceps, especially the long head, through an overhead stretch',
+    note:'• Face away from the cable with elbows pointing forward<br>• Keep upper arms still; extend elbows fully without swinging<br>• Return slowly into a comfortable stretch'},
+   {id:'v79cablelat',rest:'rest 90s',name:'Cable Lateral Raise',dose:'3 × 12–20',
+    target:'• Lateral delts with constant cable tension; complements Thursday dumbbell lateral raises',
+    note:'• Set the pulley low and stand side-on, holding the handle with the far hand<br>• Raise the arm out to the side to shoulder height with a soft elbow<br>• Lower slowly (~3 s); keep the torso still',
+    mistake:'• Swinging the torso · Shrugging toward the ears · Raising above shoulder height'},
+   {id:'h24',rest:'rest 90s',name:'Cable Crunch',dose:'2 × 10–15',
+    target:'• Direct trunk flexion with adjustable cable resistance; complements back extension and suitcase carry work',
+    note:'• คุกเข่าหน้า cable สูง จับเชือกไว้ข้างหู<br>• งอตัวจากซี่โครงลงหาเชิงกราน ปล่อยหลังส่วนบนโค้ง; สะโพกอยู่กับที่<br>• ค้าง 1 s ตอนหดสุด แล้วคลายขึ้นช้า ~3 s จนรู้สึกยืด<br>• หายใจออกตอนม้วนลง',
+    mistake:'• ย่อสะโพกลงแทนการม้วนลำตัว = กลายเป็น hip hinge · ดึงด้วยแขน · load หนักจนเหลือแค่การโยก'},
+   {id:'v78backextension',rest:'rest 90s',name:'Roman Chair Back Extension',dose:'2 × 10–15',
+    target:'• Dynamic hip extension for glutes, hamstrings, and spinal erectors',
+    note:'• Set the pad below the hip crease and secure the feet<br>• Hinge at the hips with a neutral spine; lower only as far as you can control<br>• Squeeze the glutes to return until the body forms a straight line<br>• Start with body weight; add a load held at the chest when all reps stay controlled',
+    mistake:'• Hyperextending the lower back at the top · Bouncing from the bottom · Rounding the spine to gain range'},
+   {id:'v79wrist',rest:'rest 60s',name:'Wrist Extension',dose:'3 × 12–20',
+    target:'• Wrist extensors and forearm balance; complements carry and pulling grip work',
+    note:'• Rest the forearm on a bench, palm down, wrist past the edge<br>• Lift the weight with the wrist only; pause briefly at the top<br>• Lower slowly into a comfortable stretch',
+    mistake:'• Lifting the forearm off the bench · Using a load that shortens the range · Bouncing at the bottom'}
+ ]},
+
+ {dow:'THU',title:'Thursday',kind:'strength',items:[
+   {id:'v78stepdown',rest:'rest 90s',name:'Single-Leg Step-Down',dose:'3 × 10–15',
+    target:'• Unilateral quad work and controlled knee tracking',
+    note:'• Stand on a low step with one foot near the edge<br>• Bend the supporting knee and hip; lower slowly until the free heel lightly touches the floor<br>• Keep the pelvis level and the knee tracking over the toes<br>• Push through the supporting foot to return; complete the prescribed reps on each side',
+    mistake:'• Pushing off the free foot · Letting the knee collapse inward · Using a step too high to control'},
+   {id:'e14',rest:'rest 2 min',name:'Incline DB Press',dose:'3 × 8–12',
+    target:'• Upper chest + anterior delts; main incline press ของสัปดาห์',
+    note:'• Bench ~30°<br>• สะบักกดติดเบาะ; ศอก ~45° กับลำตัว<br>• ลงจนอกตึงโดยไม่ดึงไหล่หน้า แล้ว press ขึ้นให้ DB เข้าหากันเล็กน้อย<br>• Keep feet planted and avoid lifting the hips to finish a rep'},
+   {id:'h36',rest:'rest 2 min',name:'1-Arm DB Row',dose:'3 × 8–12',
+    target:'• Horizontal pull on Wednesday; unilateral work helps address left-right differences',
+    note:'• เข่าและมือข้างเดียวกันยันม้านั่ง; หลังขนานพื้นและ neutral<br>• ดึงศอกไปหลังชิดลำตัว จบด้วย scapular retraction<br>• ปล่อยลงจนแขนเหยียดและสะบักยืดสุด<br>• ต่อด้วย 1-arm Kelso shrug โดยไม่พัก: แขนเกือบตรง ดึงสะบักถอยหลัง<br>• ลำตัวนิ่ง ไม่บิดสะโพกช่วยดึง',
+    mistake:'• บิดลำตัวขึ้นทุก rep = load หนักเกิน'},
+   {id:'h32',rest:'rest 90s',name:'Reverse Curl → Hammer-Curl',dose:'3 × 8–15',
+    target:'• Brachioradialis and brachialis work with a grip change',
+    note:'• Start each set with reverse curls using a light load<br>• When clean reverse-curl reps end, switch immediately to a neutral hammer grip<br>• Finish when form breaks; keep elbows near the torso'},
+   {id:'h3',rest:'rest 90s',name:'Lateral Raise',dose:'3 × 12–20',
+    target:'• Lateral delts; dumbbell version complements Monday cable lateral raises',
+    note:'• เอนตัวไปหน้าเล็กน้อย<br>• ยกถึง shoulder height; eccentric ~3 s',
+    mistake:'• ถ้าต้องเหวี่ยงสะโพกเพื่อยก = load หนักเกิน'},
+   {id:'h5',rest:'rest 90s',noWeight:0,name:'Suitcase Carry',dose:'2 × 30–60 sec',
+    target:'• Anti-lateral flexion + hip stability ระหว่างเดิน<br>• เป้าหมายคือรักษาลำตัวตรงภายใต้ unilateral load',
+    note:'• ใช้ straps ถือ DB/KB ข้างเดียว; ไหล่สองข้างระดับเดียวกัน ห้าม counter-lean<br>• Scapula down, chest open, เดินก้าวปกติและหายใจต่อเนื่อง<br>• เปลี่ยนข้างทันทีโดยไม่พัก; ครบสองข้าง = 1 set<br>• Progress ด้วย load ไม่ใช่เวลา; เลือกน้ำหนักจากความสามารถในการเดินตรง'},
+   {id:'n1',ss:'A',name:'Neck Extension',dose:'2 × 12–20',
+    target:'• Direct neck extensor work; complement daily isometric holds',
+    note:'• นั่งใส่ head harness; โน้มลำตัวไปหน้า ~45°<br>• 3 s eccentric + 1 s pause at stretch<br>• ขึ้นถึง neutral เท่านั้น; movement ต้อง controlled'},
+   {id:'n2',ss:'A',rest:'rest 90s',name:'Neck Flexion',dose:'2 × 12–20',
+    target:'• Direct neck flexor work; complement daily isometric holds',
+    note:'• นอนหงายบนม้านั่ง ศีรษะพ้นขอบ วางแผ่นน้ำหนักบนหน้าผาก (รองผ้า)<br>• Chin tuck ก่อน แล้วคง tuck ไว้ตลอด curl<br>• ถ้า chin tuck หลุด = จบ set<br>• คุมจังหวะ; ไม่ใช้ head momentum'},
+   {id:'n3',rest:'rest 90s',name:'Neck Lateral Flexion',dose:'2 × 12–20',
+    target:'• Neck lateral flexors; adds frontal-plane work alongside extension and flexion',
+    note:'• นอนตะแคงบนม้านั่ง ศีรษะพ้นขอบ วางแผ่นน้ำหนักบนศีรษะด้านบน (รองผ้า)<br>• ทำ pure lateral flexion; no rotation<br>• คุม tempo ไม่ใช้ momentum'}
+ ]}
+];
+
+/* ================= daily habits ================= */
+const DAILY=[
+ {id:'x3',name:'Light Therapy',dose:'10–30 min · within 1h of waking',
+  target:'ตรึงนาฬิกาชีวภาพ — ตัวกำหนดคุณภาพการนอนคืนถัดไป และเป็นฐานของทุกอย่างที่เหลือในลิสต์นี้',
+  note:'<b>เวลาสำคัญกว่าความนาน</b> — เช้าตรู่สม่ำเสมอทุกวันได้ผลกว่านานๆ ครั้ง · แสงแดดจริงตอนเช้าแรงกว่ากล่องไฟหลายเท่า ออกไปข้างนอกได้ให้ออก · <b>ห้ามมองดวงอาทิตย์ตรงๆ</b> · วันเมฆครึ้มให้เพิ่มเวลาเป็น ~30 นาที · ไม่ใส่แว่นกันแดดช่วงนี้',
+  mistake:'ทำผ่านกระจกหน้าต่าง (กรองแสงไปเกือบหมด) · เลื่อนไปทำตอนบ่าย · ควบไปกับการเล่นมือถือจนก้มหน้าไม่โดนแสง'},
+ {id:'x4',name:'Meditation',dose:'10 min · same time daily',
+  fields:[{k:'min',label:'Time',unit:'min',step:1},{k:'score',label:'Quality',type:'score',max:5}],
+  target:'ลดการตอบสนองอัตโนมัติต่อความเครียด — <b>สั้นแต่ทุกวัน</b> ชนะยาวแต่นานๆ ครั้ง',
+  note:'นั่งหลังตรง ตามลมหายใจ · <b>ใจลอยคือส่วนหนึ่งของการฝึก ไม่ใช่ความล้มเหลว</b> — รู้ตัวแล้วพากลับมา นับเป็นหนึ่งครั้งที่ได้ฝึก · จับเวลาไว้ จะได้ไม่ต้องคอยเช็ค · คะแนน 1–5 คือ<b>ความรู้สึกหลังจบ ไม่ใช่คะแนนความสามารถ</b> ให้ต่ำได้โดยไม่ต้องรู้สึกผิด',
+  mistake:'ตั้งเป้า 30 นาทีตั้งแต่สัปดาห์แรกแล้วเลิกใน 5 วัน · ให้คะแนนตัวเองสูงไว้ก่อนจนตัวเลขไม่มีความหมาย · ข้ามวันที่ยุ่งซึ่งคือวันที่ต้องการมากที่สุด'}
+];
+
+/* flat id → item lookups, so an event handler never has to walk PLAN */
+const ITEM={}; for(const d of PLAN) for(const it of d.items) ITEM[it.id]=it;
+const HABIT={}; for(const h of DAILY) HABIT[h.id]=h;
+
+/* ================= aerobic =================
+   v28. Everything light — easy runs and the row erg — used to be pinned to a
+   weekday it did not belong to: one easy run slot on Saturday, one rowing slot
+   on Wednesday, one tick each per week. Three easy runs in a week could only be
+   recorded as one.
+
+   The unit here is a SESSION, not a checkbox. A week holds a list of them, each
+   with a day and its own numbers, and the thing the tab reports is the weekly
+   TOTAL — which is the number the 10%-per-week rule is actually about, and which
+   the app never had before.
+
+   The two structured sessions (4×4 and the long run) stay in PLAN and keep their
+   own ids and their own week-over-week history: they are the same session every
+   week, so comparing them is meaningful. They are only MIRRORED here, reading and
+   writing the same state.metrics. Easy runs and rows are not comparable one to
+   the next, so they get no per-session history at all — only the total. */
+const AERO=[
+ {t:'incline',label:'Incline walk',staple:1,
+  fields:[{k:'min',label:'Time',unit:'min',step:1},
+          {k:'kmh',label:'Speed',unit:'km/h',step:0.1,ph:'5.5'},
+          {k:'grade',label:'Incline',unit:'%',step:0.5,ph:'12'}],
+  note:Z2NOTE+' · <b>ตั้งลู่ชัน 8–15% เดินเร็ว 5–6 กม./ชม.</b> — ได้ MET ใกล้วิ่งเบาโดยไม่มีแรงกระแทกที่เข่าและเอ็นร้อยหวาย จึงเป็นงานเบาหลักของสัปดาห์ · <b>ห้ามจับราว</b> จับแล้วโหลดหายไปเกือบครึ่ง ชันที่ตั้งไว้จึงไม่ใช่ชันที่ขารับจริง · <b>ชันขึ้นดีกว่าเร็วขึ้น</b> · ทำได้ทุกวัน สั้นได้ ไม่ต้องยาว',
+  mistake:'จับราวหรือเอนพิงหน้าจอ · เร่งจนต้องวิ่งเหยาะ (กลายเป็นโซน 3) · ชัน 0% แล้วเดินเรื่อยๆ (MET ต่ำเกินกว่าจะนับเป็นงาน)'},
+ {t:'run',label:'Run',speed:1,
+  fields:[{k:'min',label:'Time',unit:'min',step:1},{k:'km',label:'Distance',unit:'km',step:0.1}],
+  note:Z2NOTE+' · พูดเป็นประโยคเต็มได้ตลอดทั้งเส้น · สั้นได้ ไม่ต้องยาว · <b>ไม่ทำเลยก็ถูกต้อง</b> — ช่องเปล่าคือช่องว่างของแผน ไม่ใช่หนี้ที่ต้องใช้คืน · ถ้าขายังล้าจากวันเวท ให้เปลี่ยนไปเดินชันแทน',
+  mistake:'วิ่งเร็วเพราะระยะสั้น (กลายเป็นวันหนักวันที่สามของสัปดาห์) · ใส่ให้ครบทุกวันจนไม่มีวันไหนเบาจริง'},
+ {t:'row',label:'Row',split:1,
+  fields:[{k:'min',label:'Time',unit:'min',step:1},{k:'m',label:'Distance',unit:'m',step:50}],
+  note:Z2NOTE+' · <b>ลำดับแรง: ขา → ลำตัว → แขน</b> แล้วย้อนกลับตอนกลับ · จังหวะดึง 1 ส่วน ปล่อยกลับ 2 ส่วน · SPM 20–24 · ดึงหนักขึ้นดีกว่าซอยถี่ · หลังตรง ไม่งุ้ม · <b>ปริมาณโดยไม่ลงแรงกระแทกที่ขา</b>',
+  mistake:'ซอยถี่จน SPM เกิน 26 เพื่อไล่ระยะ (กลายเป็นโซน 3) · ดึงด้วยแขนก่อนขา · แอ่นหลังจนปวดหลังล่าง'},
+ {t:'x4',label:'4×4',hard:1,
+  fields:[{k:'sets',label:'Intervals',unit:'× 4 min',step:1,ph:'4'},
+          {k:'kmh',label:'Speed',unit:'km/h',step:0.1},
+          {k:'grade',label:'Incline',unit:'%',step:0.5}],
+  note:'วอร์มอัพ 10 นาที · <b>4 นาทีหนักระดับพูดได้ทีละ 2–3 คำ × 4 รอบ</b> สลับพักเคลื่อนไหวเบา 3 นาที · คูลดาวน์ 5 นาที · กด lap ทุกช่วง work แล้วกรอกความเร็วเฉลี่ยของช่วง work เท่านั้น · <b>ช่องรอบคือจำนวนช่วง 4 นาทีที่ทำจริง</b> ทำได้ 3 รอบก็กรอก 3 แล้วนาทีรวมจะลดตามเอง · <b>ช่องความชันเป็นทางเลือก</b> — ใส่เมื่อทำบนลู่ชัน เพื่อให้ height กับ MET·mins ของสัปดาห์นับรวมช่วงนี้ด้วย ไม่ใส่ก็ยังบันทึกได้ตามปกติ',
+  mistake:'อัดเต็มที่ตั้งแต่รอบแรกจนรอบ 3–4 ตก · พักด้วยการนั่งนิ่ง · วางชิดวันวิ่งยาวหรือวันเวทหนัก'}
+];
+const AEROT={}; for(const a of AERO) AEROT[a.t]=a;
+
+/* ---- the 4×4's duration ----
+   It is the one session with no Time field: 10 warm-up + n × 4 work +
+   (n−1) × 3 rest + 5 cool is fixed by the protocol, so the rounds are the only
+   thing worth asking for and the minutes follow from them. */
+const X4={warm:10,work:4,rest:3,cool:5};
+/* v60 deleted a body-weight-scaled MET-min/week score (metOf, rowMet, metMinOf,
+   bwKg, MET_TARGET, MET_FLOOR, BW_DEFAULT) because it was a population target
+   sitting next to a personal one, estimated three layers deep. v63 then deleted
+   speedMet, its last remaining caller (the incline ladder), as dead code.
+   v65 brings both back, reshaped: no body weight anywhere, because MET is
+   already energy cost PER KG by definition — every equation below outputs the
+   right units on its own — and the number is now one of three views on the
+   same weekly total (see aeroTotals/aeroProgHTML), not a target to hit. */
+function x4Sets(e){ const n=num(e.sets); return (n==null||n<=0)?4:Math.max(1,Math.min(8,Math.round(n))); }
+function x4Parts(e){ const n=x4Sets(e); return {work:n*X4.work, easy:X4.warm+X4.cool+Math.max(0,n-1)*X4.rest}; }
+/* total time the session occupies — for the 4×4 this is derived from the rounds,
+   which is why it has no Time field to disagree with */
+function aeroMinOf(e){
+  if(e.t==='x4'){ const p=x4Parts(e); return p.work+p.easy; }
+  const v=num(e.min); return v==null?0:v;
+}
+/* v54's equation picker, back for METs·mins: ACSM walking below 7 km/h, running
+   from 7 up, so the same speed never means two different things depending on
+   which card logged it. Used by Incline walk directly and by Run once its
+   split gives up a speed (see metMinOf). */
+function speedMet(kmh, grade){
+  if(kmh==null||kmh<=0) return null;
+  const S=kmh*16.6667, G=(grade||0)/100;
+  const vo2 = kmh<7 ? (0.1*S + 1.8*S*G + 3.5)     /* ACSM walking */
+                    : (0.2*S + 0.9*S*G + 3.5);    /* ACSM running */
+  return Math.round(vo2/3.5*10)/10;
+}
+/* Row has no speed field — only a split, derived from time and distance — so
+   its MET comes from estimated power instead. The Concept2 pace→watts formula
+   turns that split into watts with no extra input (not the watts shown on the
+   erg screen, which the user need not transcribe), and the Compendium of
+   Physical Activities' rowing-ergometer codes (2011: 02130–02150, watts→MET)
+   are linearly interpolated between their four points, anchored at (0 W, 1
+   MET) for a stalled or barely-moving stroke. */
+const ROW_MET_TABLE=[[0,1],[50,3.5],[100,7.0],[150,8.5],[200,12.0]];
+function rowWatts(min,m){
+  if(!min||!m||min<=0||m<=0) return 0;
+  const secPer500=(min*60)/(m/500);
+  return 2.8/Math.pow(secPer500/500,3);
+}
+function rowMet(min,m){
+  const w=rowWatts(min,m); if(w<=0) return null;
+  const T=ROW_MET_TABLE;
+  for(let i=1;i<T.length;i++){
+    if(w<=T[i][0]||i===T.length-1){
+      const w0=T[i-1][0],m0=T[i-1][1],w1=T[i][0],m1=T[i][1];
+      return Math.round((m0+(w-w0)*(m1-m0)/(w1-w0))*10)/10;
+    }
+  }
+}
+/* vertical climb, incline sessions only — the "% grade" a treadmill reports is
+   already rise/run, so height = distance × grade% is exact, not an angle
+   approximation. The 4×4's own incline is optional (see AERO) and, when given,
+   only its WORK minutes count: the easy/rest minutes' incline is not tracked. */
+function heightOf(e){
+  const min=num(e.min), grade=num(e.grade);
+  if(e.t==='incline'){
+    const kmh=num(e.kmh);
+    return (kmh==null||grade==null||min==null) ? 0 : kmh*min*grade/6;
+  }
+  if(e.t==='x4'){
+    const kmh=num(e.kmh);
+    if(kmh==null||grade==null) return 0;
+    return kmh*x4Parts(e).work*grade/6;
+  }
+  return 0;
+}
+/* MET-minutes for one session. Run has no speed field, only time+distance, so
+   its speed is derived the same way a pace would be. The 4×4 splits into its
+   work and easy minutes (see x4Parts) and prices them separately: work at the
+   logged speed (flat, i.e. MET 7, if no grade was given), easy minutes at a
+   light-walk MET the way the warm-up/cooldown/rest actually feel. */
+function metMinOf(e){
+  const min=num(e.min);
+  if(e.t==='incline'){
+    const met=speedMet(num(e.kmh),num(e.grade));
+    return (met==null||min==null) ? 0 : met*min;
+  }
+  if(e.t==='run'){
+    const km=num(e.km);
+    if(min==null||km==null||min<=0) return 0;
+    const met=speedMet(km*60/min,0);
+    return met==null ? 0 : met*min;
+  }
+  if(e.t==='row'){
+    const met=rowMet(min,num(e.m));
+    return (met==null||min==null) ? 0 : met*min;
+  }
+  if(e.t==='x4'){
+    const p=x4Parts(e);
+    const workMet=speedMet(num(e.kmh),num(e.grade))??7;
+    return workMet*p.work + 3*p.easy;
+  }
+  return 0;
+}
+/* v36: nothing is pre-placed on the aerobic tab. The planned sessions live on
+   the Exercises tab, where they are logged; mirroring them here filled the week
+   with rows that were not choices. This tab is now only what actually happened.
+   v51: the empty AEROFIX list and the whole mirroring machinery it fed —
+   aeroFixHTML, the [data-acheck] handler, the [data-mt] branch of the aerobic
+   input listener — are deleted. The 4×4 and the long run still COUNT toward the
+   weekly total through aeroNow(); they are just logged on the Exercises tab and
+   nowhere else. */
+
+/* ================= PURE ================= */
+/* no DOM, no storage — extracted verbatim and unit-tested in node */
+const p2 = n => String(n).padStart(2,'0');
+
+/* wind the clock back ROLL_HOUR so 00:00–03:59 still belongs to the previous day */
+function shifted(d){ const x=new Date(d.getTime()); x.setHours(x.getHours()-ROLL_HOUR); return x; }
+
+function dayKeyOf(d){ const x=shifted(d); return `${x.getFullYear()}-${p2(x.getMonth()+1)}-${p2(x.getDate())}`; }
+function monthKeyOf(d){ const x=shifted(d); return `${x.getFullYear()}-${p2(x.getMonth()+1)}`; }
+/* v62 FIX: n months back, as a month KEY, without setMonth's clamp.
+   `setMonth(getMonth()-1)` on the 31st does not land in the previous month — it
+   lands in THIS one, because 31 Feb overflows forward to 3 Mar. Two callers
+   depended on it: loadDaily (so on the 29th–31st the previous month's ticks were
+   never read, and the 30-day density undercounted) and buildDump (so an export
+   taken on the 31st walked 14 distinct months out of 24 and silently dropped the
+   rest — a backup with holes in it). Anchor on day 1 and the arithmetic is exact
+   for every month length. */
+function monthKeyBack(d,n){
+  const x=shifted(d);
+  const t=new Date(x.getFullYear(), x.getMonth()-(n||0), 1);
+  return `${t.getFullYear()}-${p2(t.getMonth()+1)}`;
+}
+
+/* ISO-8601 week. The week-YEAR can differ from the calendar year at both ends. */
+function isoOf(d){
+  const x=shifted(d); x.setHours(0,0,0,0);
+  const t=new Date(x.getTime());
+  t.setDate(t.getDate()+3-((t.getDay()+6)%7));          /* → Thursday of this week */
+  const y=t.getFullYear();
+  const jan4=new Date(y,0,4);
+  const wk=1+Math.round(((t-jan4)/864e5-3+((jan4.getDay()+6)%7))/7);
+  return {year:y,week:wk};
+}
+function weekKeyOf(d){ const {year,week}=isoOf(d); return `${year}-W${p2(week)}`; }
+
+/* Monday of the (shifted) week, as YYYY-MM-DD */
+function weekStartOf(d){
+  const x=shifted(d); x.setHours(0,0,0,0);
+  x.setDate(x.getDate()-((x.getDay()+6)%7));
+  return `${x.getFullYear()}-${p2(x.getMonth()+1)}-${p2(x.getDate())}`;
+}
+/* 0=Mon … 6=Sun */
+function dowOf(d){ const x=shifted(d); return (x.getDay()+6)%7; }
+
+/* a value that a user typed and might not have finished typing */
+function num(v){ return (v===''||v==null||isNaN(Number(v))) ? null : Number(v); }
+/* Actual reps are optional whole counts; zero is a recorded failed attempt. */
+function repNum(v){
+  if(typeof v==='string'&&!v.trim()) return null;
+  const n=num(v);
+  return n!=null&&Number.isInteger(n)&&n>=0 ? n : null;
+}
+/* speed/split maths — always DERIVED, never stored. Storing a number that can be
+   computed from two others makes a third source of truth that can disagree. */
+/* v60: speedOf, splitOf, fmtSpeed and fmtPace are gone. They were written for
+   cardio items that lived in the week grid, which moved to the Aerobic tab in
+   v53; aeroDerived — their last caller in that tab — went in v54; and metOf,
+   the only thing still asking for a split, went with MET-min above. Nothing in
+   the app has needed a speed or a pace string since. */
+/* Freeze a week into an archive record.
+   omitted id = skipped · {done:1} = did it, logged nothing
+   {done:1,w,r} = optional strength weight and reps · {done:1,m:{…}} = cardio metrics
+   No item ever carries both: an exercise is measured in kg or in time/distance. */
+function makeRecord(st, weekKey, endedDay){
+  const items={};
+  for(const id of Object.keys(st.checks||{})){
+    if(!st.checks[id]) continue;
+    const rec={done:1};
+    const w=num((st.weights||{})[id]);
+    if(w!=null) rec.w=w;
+    const r=repNum((st.reps||{})[id]);
+    if(r!=null) rec.r=r;
+    const src=(st.metrics||{})[id];
+    if(src){
+      const m={};
+      for(const k of Object.keys(src)){ const v=num(src[k]); if(v!=null) m[k]=v; }
+      if(Object.keys(m).length) rec.m=m;
+    }
+    items[id]=rec;
+  }
+  const rec={week:weekKey, ended:endedDay, items};
+  /* aerobic sessions: a list, not a map. An entry with no numbers at all was a
+     row the user opened and never filled — it is not a session that happened. */
+  const ae=[];
+  for(const e of (st.aero||[])){
+    const o={t:e.t,d:e.d}; let any=false;
+    for(const k of ['min','km','m','kmh','grade','sets']){ const v=num(e[k]); if(v!=null){ o[k]=v; any=true; } }
+    /* v54: the numbers test alone dropped the 4×4 at rollover. A 4×4 with no
+       rounds typed carries no numbers at all, so `any` stayed false and the
+       session was not archived — while the LIVE week counted it, because
+       aeroCounts whitelists it. The identical week therefore read 40 min and
+       368 MET-min on Sunday and 0 on Monday. Same whitelist, both sides. */
+    if(any || AERO_NUMLESS[e.t]) ae.push(o);
+  }
+  if(ae.length) rec.aero=ae;
+  if(st.deload) rec.dl=1;         /* so history can say why the week is bare */
+  return rec;
+}
+/* ---- aerobic ----
+   One flat list of sessions for a week, from either the live state or an
+   archived record. The retired ids (s2, u2, w1) are read HERE and nowhere else:
+   that is the entire migration, and it never rewrites what is already on disk.
+   v54: the comment here used to say the 4×4 carries no minutes. It has since
+   v53: aeroMinOf derives 40 minutes from its rounds, and those minutes count. */
+function aeroList(src){
+  const out=[];
+  for(const e of (src.aero||[])) out.push(e);
+  const I=src.items||{};
+  for(const p of [['m2','run'],['s2','run'],['u2','run'],['w1','row']]){
+    const m=I[p[0]]&&I[p[0]].m;
+    if(m) out.push(Object.assign({t:p[1]},m));
+  }
+  if(I.f1) out.push(Object.assign({t:'x4'}, I.f1.m||{}));
+  return out;
+}
+/* v50: the same test makeRecord applies at rollover, applied here too. Pressing
+   "+ run" creates an empty row; counting it as a session meant the live week said
+   "3 sessions" and the archived version of the identical week said "2", and the
+   %-of-peak strip moved when nothing had been done. The 4×4 is the one deliberate
+   exception — it carries no numbers because its duration is fixed by the
+   protocol, so it is whitelisted rather than counted by accident. */
+const AERO_NUMLESS={x4:1};
+/* v55: > 0, not merely present. A row left at 0 minutes counted as a session,
+   which mattered little for a bar and a lot for the ladder — a week of zeroes
+   would have earned a rung. Zero of something is not some of it. */
+function aeroCounts(e){
+  if(AERO_NUMLESS[e.t]) return true;
+  const pos=k=>{ const v=num(e[k]); return v!=null && v>0; };
+  return pos('min')||pos('km')||pos('m');
+}
+function aeroTotals(list){
+  let n=0,min=0,km=0,m=0,height=0,metMin=0;
+  for(const e of list){
+    if(!aeroCounts(e)) continue;
+    n++;
+    min+=aeroMinOf(e);
+    const b=num(e.km);  if(b!=null) km+=b;
+    const c=num(e.m);   if(c!=null) m+=c;
+    height+=heightOf(e);
+    metMin+=metMinOf(e);
+  }
+  return {n,min:Math.round(min),km:Math.round(km*10)/10,m:Math.round(m),
+          height:Math.round(height),metMin:Math.round(metMin)};
+}
+/* the ceiling the 10%-per-week rule is measured against: the HIGHEST weekly
+   total in the archive, not the most recent week. One easy week — or a
+   deload — must not lower the bar the next week is compared to, otherwise the
+   ratchet resets every time life gets in the way. Same reasoning for all three
+   views the progress bar can show (see aeroProgHTML): each gets its own peak
+   function and its own no-history fallback, since a minute, a metre of climb
+   and a MET-minute are not remotely the same scale.
+   No history at all → 35 minutes, a modest first-week denominator rather than
+   the true target it took months to earn. v51 dropped the `def` flag that came
+   with it: no caller ever read it, so the promise in this comment that the UI
+   would say the denominator is an assumption was never kept. */
+const AERO_BASE=35;
+function aeroPeak(recs){
+  let best=null;
+  for(const r of (recs||[])){
+    const min=aeroTotals(aeroList(r)).min;
+    if(min>0 && (best==null || min>best.min)) best={min,week:r.week};
+  }
+  return best || {min:AERO_BASE,week:null};
+}
+const AERO_HEIGHT_BASE=90;
+function aeroPeakHeight(recs){
+  let best=null;
+  for(const r of (recs||[])){
+    const height=aeroTotals(aeroList(r)).height;
+    if(height>0 && (best==null || height>best.height)) best={height,week:r.week};
+  }
+  return best || {height:AERO_HEIGHT_BASE,week:null};
+}
+const AERO_METMIN_BASE=200;
+function aeroPeakMet(recs){
+  let best=null;
+  for(const r of (recs||[])){
+    const metMin=aeroTotals(aeroList(r)).metMin;
+    if(metMin>0 && (best==null || metMin>best.metMin)) best={metMin,week:r.week};
+  }
+  return best || {metMin:AERO_METMIN_BASE,week:null};
+}
+/* the number a history row is keyed on. 'w' = strength weight · 'm:min' = a metric */
+function valOf(it,key){
+  if(!it) return null;
+  if(!key||key==='w') return it.w==null?null:it.w;
+  if(key==='r') return repNum(it.r);
+  const k=key.slice(2);
+  return (it.m&&it.m[k]!=null)?it.m[k]:null;
+}
+/* merge without ever clobbering a week that is already archived */
+function mergeWeek(shard, rec){
+  const s=(shard&&shard.weeks)?shard:{v:1,weeks:{}};
+  if(!s.weeks[rec.week]) s.weeks[rec.week]=rec;
+  return s;
+}
+/* newest recorded value for an id · recs must be newest-first.
+   key defaults to 'w', so every v20 caller keeps its old meaning. */
+function lastRecorded(recs,id,key){
+  for(const r of recs){
+    const v=valOf((r.items||{})[id],key);
+    if(v!=null) return {w:v,week:r.week};
+  }
+  return null;
+}
+/* history rows, newest first. delta compares to the previous week THAT HAS DATA */
+function histRows(recs,id,limit,key){
+  const out=[];
+  for(const r of recs){
+    const it=(r.items||{})[id];
+    const v=valOf(it,key);
+    if(!it)          out.push({week:r.week,skip:true,dl:!!r.dl});
+    else if(v==null) out.push({week:r.week,done:true,reps:repNum(it.r),m:it.m,dl:!!r.dl});
+    else             out.push({week:r.week,w:v,reps:repNum(it.r),m:it.m,dl:!!r.dl});
+    if(out.length>=limit) break;
+  }
+  let prev=null;
+  for(let i=out.length-1;i>=0;i--){
+    const row=out[i];
+    if(row.w==null) continue;
+    row.delta = prev==null ? null : +(row.w-prev).toFixed(2);
+    prev=row.w;
+  }
+  return out;
+}
+/* consecutive days ending today. today still unticked must not break the streak */
+function streakOf(days,id,nowD){
+  let n=0, d=new Date(nowD.getTime());
+  if(!(days[dayKeyOf(d)]||{})[id]) d.setDate(d.getDate()-1);
+  while((days[dayKeyOf(d)]||{})[id]){ n++; d.setDate(d.getDate()-1); }
+  return n;
+}
+function densityOf(days,id,nowD,span){
+  let n=0;
+  for(let i=0;i<span;i++){ const x=new Date(nowD.getTime()); x.setDate(x.getDate()-i); if((days[dayKeyOf(x)]||{})[id]) n++; }
+  return n;
+}
+/* the stored week is no longer the current week */
+function isStale(weekStart,nowD){ return !!weekStart && weekStart!==weekStartOf(nowD); }
+/* ================= /PURE ================= */
+
+/* ================= perf (v20) =================
+   Boot is latency-bound, not CPU-bound: every store.get is a round trip to the
+   host. Measure it rather than guess. `window.__perf()` prints the ledger. */
+const perf={t0:(typeof performance!=='undefined'?performance.now():0),ops:[],marks:[],
+  mark(label){ perf.marks.push({label,at:Math.round(perf.el())}); },
+  el(){ return (typeof performance!=='undefined'?performance.now():0)-perf.t0; },
+  dump(){
+    const rows=perf.ops.map(o=>({op:o.op,key:o.key,ms:Math.round(o.ms),via:o.via}));
+    /* eslint-disable no-console */
+    console.log('%c[v28 boot]','font-weight:700', Math.round(perf.el())+'ms total');
+    if(console.table) console.table(rows); else console.log(rows);
+    console.log('marks',perf.marks);
+    const bridge=rows.filter(r=>r.via==='fallback').length;
+    if(bridge) console.warn(bridge+' op(s) fell back to localStorage — window.storage threw or is absent');
+    return {total:Math.round(perf.el()),ops:rows,marks:perf.marks};
+  }};
+if(typeof window!=='undefined') window.__perf=()=>perf.dump();
+
+/* ================= storage (async) ================= */
+const store={
+  has:()=>!!(typeof window!=='undefined'&&window.storage&&typeof window.storage.get==='function'),
+  /* `st` is per-call, not shared: v20 runs reads in parallel, so a module-level
+     flag would let one call's fallback mislabel another's. */
+  async try(fn,fallback,st){
+    st=st||{};
+    if(store.has()){ try{ return await fn(window.storage); }catch(e){ st.fell=true; } }
+    else st.fell=true;
+    return fallback();
+  },
+  async get(k){
+    const t=perf.el(), st={};
+    const r=await store.try(s=>s.get(k,false),()=>{
+      try{ const v=localStorage.getItem(k); return v==null?null:{key:k,value:v}; }catch(e){ return null; }
+    },st);
+    perf.ops.push({op:'get',key:k,ms:perf.el()-t,via:st.fell?'fallback':'bridge'});
+    if(!r||r.value==null) return null;
+    try{ return JSON.parse(r.value); }catch(e){ return null; }
+  },
+  async set(k,v){
+    const t=perf.el(), st={};
+    const s=JSON.stringify(v);
+    const r=await store.try(x=>x.set(k,s,false),()=>{
+      try{ localStorage.setItem(k,s); return {key:k,value:s}; }catch(e){ return null; }
+    },st);
+    perf.ops.push({op:'set',key:k,ms:perf.el()-t,via:st.fell?'fallback':'bridge'});
+    return !!r;
+  },
+  /* --- sync localStorage mirror, for tiny UI-only values on the critical path.
+     Never the source of truth: store.set still writes the real backend. When
+     window.storage is absent the fallback writes the same key with the same
+     JSON, so the two can never disagree. --- */
+  mirrorGet(k){
+    try{ const v=localStorage.getItem(k); return v==null?null:JSON.parse(v); }catch(e){ return null; }
+  },
+  mirrorSet(k,v){
+    try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){}
+  }
+};
+
+/* ================= state ================= */
+const now = () => new Date();
+let state    = {weekStart:weekStartOf(now()),checks:{},weights:{},reps:{},metrics:{},aero:[],deload:false,stopped:{}};
+let histRecs = [];     /* newest first */
+let dayLog   = {};     /* dayKey → {x3:1,…} */
+let histOK   = true;   /* false ⇒ the shard rollover would write into failed to read */
+let histGaps = [];     /* years the index promised that did not come back */
+
+/* applyState is separate from the read so init can fetch KEY in parallel with
+   HIDX and still funnel through one place. */
+/* v62 FIX: validate, do not merely default.
+   `s.checks || {}` catches null and nothing else. Import accepts arbitrary JSON
+   off the clipboard, so a hand-edited or truncated dump could set weights to a
+   STRING — after which `state.weights[id]=v` is a silent no-op in sloppy mode and
+   every weight typed for the rest of the session vanished with no error — or put
+   a null in the aero list, which crashed the whole Aerobic tab in the sort. Each
+   field is now checked for the shape the rest of the app assumes it has. */
+const plainObj = v => (v && typeof v==='object' && !Array.isArray(v)) ? v : {};
+function applyState(s){
+  if(s&&typeof s==='object'){
+    state={
+      weekStart : (typeof s.weekStart==='string' && s.weekStart) ? s.weekStart : weekStartOf(now()),
+      checks    : plainObj(s.checks),
+      weights   : plainObj(s.weights),
+      reps      : plainObj(s.reps),
+      metrics   : plainObj(s.metrics),
+      /* an entry needs a session id and a type to be renderable or countable */
+      aero      : (Array.isArray(s.aero)?s.aero:[]).filter(e=>e&&typeof e==='object'&&e.t),
+      deload    : !!s.deload,
+      stopped   : plainObj(s.stopped)
+    };
+  }
+}
+async function loadState(){ applyState(await store.get(KEY)); }
+
+/* idxPre: a pre-fetched HIDX, so init can read it in the same wave as KEY.
+   Pass nothing and it fetches its own (rollIfStale still does). */
+async function loadHist(idxPre){
+  histOK=true;
+  const idx = (idxPre===undefined) ? await store.get(HIDX) : idxPre;
+  /* v62 FIX: normalise to numbers and dedupe.
+     `['2026', 2026]` — which an import could produce, because the index was
+     written with a default lexicographic sort over a Set that treats the string
+     and the number as different members — mapped to the SAME shard key. The
+     shard was fetched twice, every week in it entered histRecs twice, and the
+     damage was not cosmetic: the history table repeated a week with a delta of
+     0, and phaseEarned() counted each incline week twice, walking the ladder up
+     at double speed. */
+  const rawYears=(idx&&Array.isArray(idx.years))?idx.years:[];
+  const years=[...new Set(rawYears.map(Number).filter(y=>Number.isFinite(y)))];
+  /* newest year first, stop once there is enough to fill the 8-row table and the
+     anchor. NOT a fixed 2-year window: after a long break the last recorded weight
+     may be several years old and must still surface.
+     v20: the shards are fetched in one parallel wave instead of a serial chain,
+     but they are CONSUMED in the old order and the old break condition still
+     applies — a shard past the break is never inspected, so it can never flip
+     histOK and block a rollover that v19 would have allowed. */
+  const want=years.sort((a,b)=>b-a).slice(0,5);
+  /* the year the next rollover would archive into */
+  const guardYear=Number(weekKeyOf(new Date((state&&state.weekStart?state.weekStart:weekStartOf(now()))+'T12:00:00')).slice(0,4));
+  histGaps=[];
+  const shards=await Promise.all(want.map(y=>store.get(HSHARD(y))));
+  const recs=[];
+  for(let i=0;i<want.length;i++){
+    if(recs.length>=12) break;
+    const sh=shards[i];
+    /* v49: a missing shard used to set histOK=false whatever year it was, and
+       histOK=false blocks rollIfStale forever — so one unreadable 2024 shard
+       could silently freeze the current week open indefinitely, with the next
+       tick landing in a week that should already have been archived.
+       Only the year the rollover would WRITE into is worth failing closed for;
+       an older gap just means the history table is short, and mergeWeek already
+       refuses to overwrite a week that is on disk. The gap is recorded so the
+       UI can say it out loud instead of the table quietly being wrong. */
+    if(!sh||!sh.weeks){
+      histGaps.push(want[i]);
+      if(want[i]===guardYear) histOK=false;
+      continue;
+    }
+    for(const k of Object.keys(sh.weeks)) recs.push(sh.weeks[k]);
+  }
+  recs.sort((a,b)=> a.week<b.week?1:(a.week>b.week?-1:0));
+  /* v62: one record per week key, whatever the shards contained. The year dedupe
+     above is the fix; this is the invariant, held where every reader can rely on
+     it — histRows and aeroPeak both assume weeks are unique. */
+  const seen=new Set();
+  histRecs=recs.filter(r=>{ if(!r||!r.week||seen.has(r.week)) return false; seen.add(r.week); return true; });
+}
+async function loadDaily(){
+  const d=now();
+  const out={};
+  /* v62 FIX: monthKeyBack, not setMonth — see the note on monthKeyBack. The two
+     keys must also be DISTINCT, or one shard is fetched twice and the other not
+     at all, which is exactly what happened on the 31st. */
+  const mks=[...new Set([monthKeyBack(d,1),monthKeyOf(d)])];
+  const shards=await Promise.all(mks.map(mk=>store.get(DSHARD(mk))));   /* v20: one wave */
+  for(const sh of shards){ if(sh&&sh.days) Object.assign(out,sh.days); }
+  dayLog=out;
+}
+/* v50: read-modify-write, one shard, fire-and-forget callers. Two taps inside
+   one round trip both read the same pre-tap shard and the second write erased the
+   first. The fix is a per-shard promise chain: writes to the same month queue
+   behind each other, so every read sees the previous write. Different months
+   still run in parallel — they cannot collide.
+   The chain is also COALESCED: dayLog is already the source of truth in memory,
+   so five queued writes to one month would each persist the same final object.
+   One pending write per shard is enough, and it is scheduled to run after the
+   in-flight one lands. */
+const dailyChain={};   /* monthKey → {p: promise in flight, queued: bool} */
+function saveDaily(dayKey){
+  const mk=dayKey.slice(0,7);
+  const slot=dailyChain[mk]||(dailyChain[mk]={p:Promise.resolve(),queued:false});
+  if(slot.queued) return slot.p;        /* a write is already scheduled; it will see dayLog */
+  slot.queued=true;
+  slot.p=slot.p.then(async()=>{
+    slot.queued=false;                  /* anything after this point needs its own write */
+    const sh=(await store.get(DSHARD(mk)))||{v:1,days:{}};
+    sh.days=sh.days||{};
+    /* persist every day of this month from memory, not just dayKey: a coalesced
+       write may be standing in for taps on more than one day. */
+    for(const dk of Object.keys(dayLog)){
+      if(dk.slice(0,7)!==mk) continue;
+      const row=dayLog[dk];
+      if(row&&Object.keys(row).length) sh.days[dk]=row; else delete sh.days[dk];
+    }
+    await store.set(DSHARD(mk),sh);
+  }).catch(()=>{ slot.queued=false; });
+  return slot.p;
+}
+
+/* ---- rollover: archive the stale week, then start clean ---- */
+async function rollIfStale(){
+  if(!histOK) return false;                              /* never write after a failed read */
+  if(!isStale(state.weekStart,now())) return false;
+  const prevKey=weekKeyOf(new Date(state.weekStart+'T12:00:00'));
+  const rec=makeRecord(state,prevKey,dayKeyOf(now()));
+  /* v49: rec.aero counts. A week whose only content was easy runs or rows —
+     nothing ticked, nothing weighed — used to fail this test and be discarded,
+     which also meant aeroPeak() could never see it and the 10%-per-week ceiling
+     stayed permanently below what had actually been done. */
+  if(Object.keys(rec.items).length||(rec.aero&&rec.aero.length)||rec.dl){
+    const y=Number(prevKey.slice(0,4));
+    const sh=mergeWeek(await store.get(HSHARD(y)),rec);
+    if(!(await store.set(HSHARD(y),sh))) return false;    /* write failed → keep week open */
+    const idx=(await store.get(HIDX))||{years:[]};
+    if(!Array.isArray(idx.years)) idx.years=[];
+    if(!idx.years.includes(y)){ idx.years.push(y); await store.set(HIDX,idx); }
+  }
+  state={weekStart:weekStartOf(now()),checks:{},weights:{},reps:{},metrics:{},aero:[],deload:false,stopped:{}};
+  await store.set(KEY,state);
+  await loadHist();
+  return true;
+}
+
+/* ================= save (debounced) ================= */
+/* v51: the saving/saved indicator is gone with the #status element it wrote to —
+   the element had not existed since the memo block was removed, so every write
+   was already silent. */
+let timer=null;
+function save(){
+  clearTimeout(timer);
+  timer=setTimeout(()=>{ timer=null; store.set(KEY,state); },300);
+}
+/* v62 FIX: a real flush.
+   v54 claimed to protect the last keystroke when the tab is backgrounded, and
+   did not: the handler called save(), and save() STARTS a fresh 300ms timer. So
+   backgrounding 100ms after typing replaced one pending write with another
+   pending write, and iOS suspends timers the moment the app leaves the screen.
+   It also only looked at aeroTimer — the weight/body-weight timer and every
+   habit-field timer were never touched at all.
+   flushWrites issues the writes immediately instead of rescheduling them.
+   Declared here but it also reaches habTimers/aeroTimer, which are defined
+   further down; it is only ever CALLED from an event, long after parse. */
+function flushWrites(){
+  if(timer){ clearTimeout(timer); timer=null; store.set(KEY,state); }
+  if(typeof aeroTimer!=='undefined' && aeroTimer){ clearTimeout(aeroTimer); aeroTimer=null; store.set(KEY,state); }
+  if(typeof habTimers!=='undefined'){
+    for(const k of Object.keys(habTimers)){
+      const t=habTimers[k]; if(!t) continue;
+      clearTimeout(t); delete habTimers[k];
+      const fn=habFlush[k]; if(fn) fn();     /* run the write the timer was holding */
+    }
+  }
+}
+
+/* ================= render ================= */
+const CHECK='<svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>';
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+/* v38: the kind icon left the header with the count, and v66 took the progress
+   line too — the card is a day name. KIND still supplies the accent colour used
+   by the checkboxes and the up-next tint. */
+function noteHTML(it){
+  let h='';
+  if(it.target)  h+=`<p class="tl"><span class="lab">Why</span>${it.target}</p>`;
+  if(it.note)    h+=`<p class="tn"><span class="lab">How</span>${it.note}</p>`;
+  if(it.mistake) h+=`<p class="tn"><span class="lab">Watch for</span>${it.mistake}</p>`;
+  return h;
+}
+/* Delta colour. `invert` = a lower number is the better number — the assisted
+   pull-up box holds ASSISTANCE, so -5 kg is progress, not a loss. v22 painted it
+   red while the note in the same box said the opposite. */
+function dcls(d,inv){ if(d==null||d===0) return ''; return (d>0)!==!!inv ? 'up' : 'dn'; }
+function histHTML(it){
+  const mode=itemMode(it);
+  if(mode==='none') return '';
+  const rows=histRows(histRecs,it.id,8,'w');
+  if(!rows.length) return `<p class="histcap">No history yet — the first row lands when the week rolls over</p>`;
+  let h=`<p class="histcap">Weight &amp; reps · last 8 weeks</p><table class="h">`;
+  for(const r of rows){
+    const wk=r.week.slice(5);
+    if(r.skip){ h+=`<tr class="skip"><td class="w">${wk}</td><td class="kg">skipped</td><td class="d"></td></tr>`; continue; }
+    const reps=r.reps==null?'':`${r.reps} reps`;
+    if(r.w==null){ h+=`<tr><td class="w">${wk}</td><td class="kg">${reps||(r.dl?'deload':'done')}</td><td class="d"></td></tr>`; continue; }
+    const d=r.delta;
+    const cls=dcls(d,it.invert);
+    const txt=d==null?'—':(d>0?`+${d}`:(d<0?`${d}`:'—'));
+    h+=`<tr><td class="w">${wk}</td><td class="kg">${r.w} kg${reps?` · ${reps}`:''}</td><td class="d ${cls}">${txt}</td></tr>`;
+  }
+  return h+`</table>`;
+}
+/* v21: what an item is measured in is a property OF THE ITEM, not of its day.
+   v20 keyed this off `kind==='strength'`, which breaks the moment a day mixes
+   a lift with a run — and Mon now does exactly that. */
+/* v60: the 'metric' mode is gone. No exercise in PLAN has carried a `metrics`
+   array since v53 moved the cardio out, so metricHTML, derivedText, metricLine
+   and the [data-mt] listener were three code paths and a listener kept alive by
+   a branch that could not be reached. state.metrics itself stays — archived
+   weeks from before v53 still hold one, and aeroList reads it. */
+function itemMode(it){ return it.noWeight ? 'none' : 'weight'; }
+function tracksReps(it){ return itemMode(it)==='weight'&&!/\bsec\b/.test(it.dose||''); }
+function logFieldHTML(it,attr,unit,value,previous){
+  const v=value??'', hint=previous==null?'—':String(previous);
+  const width=Math.min(8,Math.max(1,String(v===''?hint:v).length))+.25;
+  return `<label class="logfield${v!==''?' recorded':''}">
+    <input class="wtin" type="number" min="0" step="${attr==='wt'?'0.5':'1'}"
+      inputmode="${attr==='wt'?'decimal':'numeric'}" enterkeyhint="${attr==='wt'&&tracksReps(it)?'next':'done'}"
+      data-${attr}="${it.id}" value="${esc(v)}" placeholder="${esc(hint)}"
+      style="width:${width}ch" aria-label="${unit==='kg'?'weight in kg':'actual reps'}, ${esc(it.name)}">
+    <span class="unit">${unit}</span></label>`;
+}
+/* A cut exercise still occupies its slot: seeing what was removed is the point
+   of a deload week. No checkbox — there is nothing to tick. */
+function cutHTML(it,why){
+  return `<div class="item cut"><div class="row"><div class="txt">
+    <div class="name">${esc(it.name)}</div>
+    <div class="dose">${esc(why)}</div>
+  </div></div></div>`;
+}
+function itemHTML(it,grouped){
+  /* v25: deload is a view of the same week, not a second week. The item keeps
+     its id and its checkbox — so a light week still archives as {done:1} — but
+     loses every number field. That is the old invariant made physical: a deload
+     week is logged, never measured, and so can never print as a loss in the
+     delta column. The record carries dl:1 to say why the row is bare. */
+  const dl = state.deload ? deloadOf(it) : null;
+  const cut = (dl&&dl.skip) ? cutHTML(it,dl.why) : '';
+  if(dl&&dl.skip&&!dl.alt) return cut;
+  const alt = (dl&&dl.alt) ? dl.alt : null;
+  const on=state.checks[it.id]?' on':'';
+  const mode=itemMode(it);
+  let wt='';
+  if(!dl && mode==='weight'){
+    const anchor=lastRecorded(histRecs,it.id);
+    wt=logFieldHTML(it,'wt','kg',state.weights[it.id],anchor&&anchor.w);
+    if(tracksReps(it)){
+      const prev=lastRecorded(histRecs,it.id,'r');
+      wt+=logFieldHTML(it,'rp','reps',state.reps[it.id],prev&&prev.w);
+    }
+  }
+  const hist = (dl || mode==='none') ? ''
+    : `<div class="histsplit"></div><div class="histbody"><span class="eyebrow">History</span>${histHTML(it)}</div>`;
+  const nm  = alt ? alt.name : it.name;
+  const tag = alt ? 'swapped' : ((dl&&dl.tag) ? dl.tag : '');
+  /* v38: the row carries the sets and nothing else. Tempo, rest and setup cues
+     are reference — needed at the rack, not at a glance — and inline they were
+     long enough to wrap four rows of seven, which is the whole reason this
+     layout exists. They open with the note instead, in full. */
+  const dsFull = alt ? esc(alt.dose)
+            : (dl ? dl.dose
+                  : esc(it.dose)+(it.rest?` · ${esc(it.rest)}`:''));
+  const ds = String(dsFull).split('·')[0].trim();
+  /* the note describes the exercise that was cut, so a substitute gets none */
+  const det = alt ? '' : `<div class="drop"><p class="dosefull">${dsFull}</p><div class="note">${noteHTML(it)}</div>${hist}</div>`;
+  const ibtn = alt ? '' : `<button class="idet" data-det="${it.id}" aria-expanded="false" aria-label="detail, ${esc(nm)}">i</button>`;
+  /* grouped = the group's own checkbox speaks for this exercise */
+  const boxHTML = grouped ? ''
+    : `<button class="box${on}" data-check="${it.id}" aria-pressed="${on?'true':'false'}" aria-label="${esc(nm)}">${CHECK}</button>`;
+  return cut+`<div class="item${on}${grouped?' nobox':''}" data-item="${it.id}">
+      ${boxHTML}
+      <span class="txt"><span class="name">${esc(nm)}${tag?`<span class="dltag">${esc(tag)}</span>`:''}</span><span class="dose">${ds}</span></span>
+      <div class="logrow">${wt}${ibtn}</div>
+    </div>${det}`;
+}
+function dayHTML(day,i){
+  const k=KIND[day.kind];
+  const isToday = DOWI[day.dow]===dowOf(now());   /* v28: two cards can share a dow */
+  /* v38: every item lives in a .grp — a superset is one group, a standalone
+     exercise is a group of one. "Up next" then has a single kind of thing to
+     mark, and a lone exercise highlights exactly like a pair does.
+     v52: a superset group carries ONE checkbox, on its label row, standing for
+     every exercise in it. `ids` collects what that box is responsible for —
+     everything except a bare cut, which has nothing to tick. */
+  let inner='', open=null, buf=[], ids=[];
+  const flush=()=>{ if(!buf.length) return;
+    /* a deload week can cut one half of a pair. What is left is one exercise
+       with one box — still a group structurally, but not a superset, so it must
+       not keep the label. `ss` is therefore about how many are LEFT, not about
+       whether the plan wrote an ss letter on them. */
+    const isSS = open && ids.length>1;
+    /* v62: `open` means the plan wrote an ss letter here; `ids` means something
+       in it is still tickable. A deload week that cut BOTH halves of a pair left
+       ids empty and still drew the box — a control that reports unpressed
+       forever and writes nothing when tapped. No rule in DELOAD_RULES does that
+       today; the guard is here so adding one cannot. */
+    const head = (open && ids.length)
+      ? `<div class="grphead"><button class="box" data-gcheck="${ids.join(',')}" aria-pressed="false"
+            aria-label="${isSS?`superset, ${ids.length} exercises`:'tick group'}">${CHECK}</button>
+          <p class="sslab">${isSS?'superset':''}</p></div>`
+      : `<p class="sslab"></p>`;
+    inner+=`<div class="grp${isSS?' ss':''}">${head}${buf.join('')}</div>`;
+    buf=[]; ids=[]; };
+  for(const it of day.items){
+    if((it.ss||null)!==open){ flush(); open=it.ss||null; }
+    buf.push(itemHTML(it,!!open));
+    if(open){
+      const d=state.deload?deloadOf(it):null;
+      if(!(d&&d.skip&&!d.alt)) ids.push(it.id);   /* a bare cut is not tickable */
+    }
+    if(!open) flush();
+  }
+  flush();
+  const stopped = !!(state.stopped && state.stopped[i]);
+  return `<section class="day${isToday?' today':''}" data-day="${i}"
+    style="--accent:${k.accent};--soft:${k.soft};--tint:${k.tint}">
+    <button class="head" data-toggle="${i}" aria-expanded="false">
+      <span class="stk">
+        <span class="title">${esc(day.title)}</span>
+        ${day.sub?`<span class="sub">${esc(day.sub)}</span>`:''}
+      </span>
+    </button>
+    <div class="body">${inner}<div class="grp finishgrp"><div class="item finish${stopped?' on':''}">
+        <button class="box${stopped?' on':''}" data-stopday="${i}" aria-pressed="${stopped?'true':'false'}" aria-label="finish the day">${CHECK}</button>
+        <span class="txt"><span class="name">Finish the day</span></span>
+      </div></div></div>
+  </section>`;
+}
+
+/* ================= week tab ================= */
+const daysEl=document.getElementById('days');
+function closeDayCards(){
+  for(const day of daysEl.querySelectorAll('[data-day]')){
+    day.classList.remove('open');
+    day.querySelector('[data-toggle]').setAttribute('aria-expanded','false');
+  }
+}
+/* a bare cut is not something to do; a substitution still is */
+function dayItems(day){
+  if(!state.deload) return day.items;
+  return day.items.filter(it=>{ const d=deloadOf(it); return !d.skip||d.alt; });
+}
+/* the live group is simply the first one still holding an unticked box. No
+   stored cursor: the checks already say where you are, and anything else would
+   be a second source of truth to keep honest. */
+/* v52: the group box is DERIVED from state.checks, never a stored value of its
+   own — lit only when every exercise it covers is ticked. That is what lets a
+   weight typed into one half of a pair (autoTick) and the group box itself stay
+   in agreement without either being the master. */
+function paintGroups(el){
+  for(const b of el.querySelectorAll('[data-gcheck]')){
+    const ids=b.dataset.gcheck.split(',').filter(Boolean);
+    const on = ids.length>0 && ids.every(id=>state.checks[id]);
+    b.classList.toggle('on',on);
+    b.setAttribute('aria-pressed',on?'true':'false');
+  }
+}
+function markNext(el){
+  let found=false;
+  for(const g of el.querySelectorAll('.grp')){
+    const open = !found && !!g.querySelector('.box:not(.on)');
+    g.classList.toggle('now', open);
+    const lab=g.querySelector('.sslab');
+    /* v52: the group knows what it is from its own class now, instead of being
+       inferred by counting checkboxes — which stopped working the moment a
+       superset had only one box to count. */
+    if(lab) lab.textContent = open ? 'up next' : (g.classList.contains('ss') ? 'superset' : '');
+    if(open) found=true;
+  }
+}
+function sync(i){
+  const day=PLAN[i], el=daysEl.querySelector(`[data-day="${i}"]`);
+  if(!el) return;
+  const items=dayItems(day);
+  const n=items.filter(it=>state.checks[it.id]).length;
+  /* a weekend day offers alternatives — one of them IS the day, so `2 / 2` would
+     be wrong and `1 / 2` would read as half-finished. */
+  const total = day.anyOf ? 1 : items.length;
+  paintGroups(el);
+  markNext(el);
+  const stopped = !!(state.stopped && state.stopped[i]);
+  el.classList.toggle('done', stopped || (day.anyOf ? n>=1 : n===items.length));
+  paintProg();
+}
+/* v23: typing a number IS doing the exercise. The Routines tab already worked
+   this way (setField); the week tab did not, so a logged weight with an unticked
+   box was silently dropped at rollover — makeRecord only walks `checks`.
+   Never auto-UNticks: clearing a mistyped number must not erase the set. */
+function autoTick(el,id){
+  if(state.checks[id]) return;
+  state.checks[id]=true;
+  const item=el.closest('.item'); if(!item) return;
+  const box=item.querySelector('[data-check]');
+  if(box){ box.classList.add('on'); box.setAttribute('aria-pressed','true'); }
+  item.classList.add('on');
+  const d=el.closest('[data-day]');
+  if(d) sync(Number(d.dataset.day));
+}
+/* v39: the week bar is gone — at 0% it was a stray hairline above the first
+   card, and the seven per-card rules already say the same thing louder.
+   v51: weekProgress() went with it. The comment claimed the export blob and the
+   deload copy still read it; neither did, and it had no callers at all. */
+function paintProg(){}
+function buildWeek(){
+  daysEl.innerHTML=PLAN.map(dayHTML).join('');
+  PLAN.forEach((_,i)=>sync(i));
+  paintProg();
+  /* v33: no week number, no date. The week is the only thing on screen, and
+     history rows already carry their own week key. Deload is the one state the
+     bar still has to announce, and the toggle beside it says it. */
+  const wn=document.getElementById('weekno');
+  wn.innerHTML = state.deload ? 'deload · numbers optional' : '';
+  document.getElementById('weekbar').hidden = !state.deload;
+  const tg=document.getElementById('dltoggle');
+  tg.setAttribute('aria-pressed', state.deload?'true':'false');
+  document.getElementById('dlintro').innerHTML =
+    histWarnHTML() + (state.deload ? deloadIntroHTML() : '');
+}
+
+/* v49: a silent history gap used to look identical to "no history yet" — the
+   tables just came back short. Say which years did not load, and say whether the
+   week is frozen because of it, so a stuck rollover is visible instead of felt. */
+function histWarnHTML(){
+  if(!histGaps.length) return '';
+  const yrs=histGaps.slice().sort().join(', ');
+  const frozen = !histOK
+    ? ' <b>This week will not roll over until it reads.</b> Export your data before doing anything else.'
+    : ' Older weeks are missing from the tables below; nothing new is at risk.';
+  return `<p class="iomsg" style="margin:0 0 12px"><b>History incomplete</b> — could not read ${esc(yrs)}.${frozen}</p>`;
+}
+
+/* the live week in the same shape aeroList reads an archived one in */
+function aeroNow(){
+  /* v53: nothing to mirror any more — every aerobic session is logged on this
+     tab. aeroList still reads the retired ids when it walks an ARCHIVED week, so
+     old history keeps counting exactly as it did. */
+  return aeroList({aero:state.aero});
+}
+
+/* ---- body metrics · daily (weight, waist) ----
+   v67: body weight stopped being one number a week on the week record. Now a
+   .hab card like any other daily habit — one value per day of the week, on
+   dayLog, right beside the habits it is read next to. It rides the same
+   monthly shards and the same saveDaily chain as a habit field — the metric
+   is just another key on the day's row, not something a habit's tick gates.
+   Any day's box (not just today's) takes a typed value directly, since a
+   missed reading is worth backfilling.
+   v68: waist circumference is the same card shape over a longer window, so
+   both are entries in METRICS instead of a second copy of every function.
+   Each summary line is a least-squares trend, not a day-to-day delta — a
+   single day's fluctuation says nothing about whether the number is moving.
+   `trend()` gets the raw slope in units/day plus the most recent reading, and
+   decides its own unit and target band; it returns '' while there is not
+   enough data, which .trendmeta:empty then collapses to nothing. */
+const METRICS=[
+  {id:'bw', label:'Body weight', step:0.1, days:14,
+   trend:(perDay,last)=>{
+     if(perDay==null||!last) return '';
+     const pct=perDay*7/last*100;
+     return `${pct>0?'+':''}${pct.toFixed(2)}% BW/week (target 0.1-0.3)`;
+   }},
+  {id:'waist', label:'Waist circumference', step:0.1, days:35,
+   trend:perDay=>{
+     if(perDay==null) return '';
+     const perMonth=perDay*30;
+     return `${perMonth>0?'+':''}${perMonth.toFixed(2)} cm/month (target < 1)`;
+   }}
+];
+function metricBoxesHTML(m){
+  const keys=weekDayKeys(), td=dowOf(now());
+  return keys.map((k,i)=>{
+    const v=dayLog[k]&&dayLog[k][m.id];
+    const cls=i===td?' today':(i>td?' future':'');
+    return `<div class="gcell${cls}">
+      <input class="gval" type="number" step="${m.step}" inputmode="decimal" data-mday="${m.id}:${k}"
+             value="${v!=null?esc(v):''}" placeholder="—"${i>td?' disabled':''}
+             aria-label="${esc(m.label)} ${DOW_TH[i]}"></div>`;
+  }).join('');
+}
+/* least-squares slope over the metric's own window (today and the N-1 days
+   before it), in units per DAY; null until at least two of those days are
+   logged. Callers turn this into their own per-week or per-month text. */
+function metricSlope(m){
+  const pts=[];
+  for(let i=m.days-1;i>=0;i--){
+    const d=new Date(now().getTime()); d.setDate(d.getDate()-i);
+    const v=(dayLog[dayKeyOf(d)]||{})[m.id];
+    if(typeof v==='number') pts.push({x:m.days-1-i,y:v});
+  }
+  if(pts.length<2) return null;
+  const n=pts.length;
+  const sx=pts.reduce((a,p)=>a+p.x,0), sy=pts.reduce((a,p)=>a+p.y,0);
+  const sxy=pts.reduce((a,p)=>a+p.x*p.y,0), sxx=pts.reduce((a,p)=>a+p.x*p.x,0);
+  const denom=n*sxx-sx*sx;
+  return denom? (n*sxy-sx*sy)/denom : null;
+}
+/* most recently logged value for a metric, walking back from today */
+function metricLast(m){
+  for(let i=0;i<m.days*3;i++){
+    const d=new Date(now().getTime()); d.setDate(d.getDate()-i);
+    const v=(dayLog[dayKeyOf(d)]||{})[m.id];
+    if(typeof v==='number') return v;
+  }
+  return null;
+}
+function metricMetaHTML(m){
+  return `<div class="trendmeta">${m.trend(metricSlope(m),metricLast(m))}</div>`;
+}
+function metricCardHTML(m){
+  return `<section class="hab" data-metric="${m.id}">
+    <div class="habtop"><span class="habname">${esc(m.label)}</span></div>
+    <div class="grid">${metricBoxesHTML(m)}</div>
+    ${metricMetaHTML(m)}
+  </section>`;
+}
+daysEl.addEventListener('click',e=>{
+  const tg=e.target.closest('[data-toggle]');
+  if(tg){
+    const el=daysEl.querySelector(`[data-day="${tg.dataset.toggle}"]`);
+    const opening=!el.classList.contains('open');
+    closeDayCards();
+    if(ioMode==='add') ioClose();
+    if(opening){
+      el.classList.add('open');
+      tg.setAttribute('aria-expanded','true');
+    }
+    return;
+  }
+  const dt=e.target.closest('[data-det]');
+  if(dt){
+    const item=dt.closest('.item');
+    const on=item.classList.toggle('det');
+    dt.setAttribute('aria-expanded',on?'true':'false');
+    return;
+  }
+  /* independent of state.checks on purpose — a day cut short for recovery is
+     not "every exercise done", so this never ticks or untangles a real box. */
+  const sd=e.target.closest('[data-stopday]');
+  if(sd){
+    const i=Number(sd.dataset.stopday);
+    state.stopped=state.stopped||{};
+    const v=!state.stopped[i];
+    state.stopped[i]=v;
+    sd.classList.toggle('on',v);
+    sd.setAttribute('aria-pressed',v?'true':'false');
+    sd.closest('.item').classList.toggle('on',v);
+    sync(i);
+    save();
+    return;
+  }
+  /* one press, every exercise in the pair — written individually, exactly as if
+     each box had been tapped in turn. Full → clears the pair; anything else →
+     completes it, so a half-done superset never needs two taps to finish. */
+  const gb=e.target.closest('[data-gcheck]');
+  if(gb){
+    const ids=gb.dataset.gcheck.split(',').filter(Boolean);
+    const v=!ids.every(id=>state.checks[id]);
+    for(const id of ids){
+      state.checks[id]=v;
+      const item=daysEl.querySelector(`[data-item="${id}"]`);
+      if(item) item.classList.toggle('on',v);
+    }
+    sync(Number(gb.closest('[data-day]').dataset.day));
+    save();
+    return;
+  }
+  const cb=e.target.closest('[data-check]');
+  if(cb){
+    const id=cb.dataset.check, v=!state.checks[id];
+    state.checks[id]=v;
+    cb.classList.toggle('on',v);
+    cb.setAttribute('aria-pressed',v?'true':'false');
+    cb.closest('.item').classList.toggle('on',v);
+    sync(Number(cb.closest('[data-day]').dataset.day));
+    save();
+  }
+});
+
+
+/* v61: this listener was collateral damage. v60 deleted the dead [data-mt]
+   branch by cutting from the top of the listener that contained it — but
+   [data-wt] shared that listener and went with it, so every weight typed after
+   v60 was held in the input and never written to state. Restored on its own.
+   The lesson is in the shape of the bug: a listener that handles two unrelated
+   things is one delete away from silently losing the other. */
+daysEl.addEventListener('input',e=>{
+  const w=e.target.closest('[data-wt]');
+  if(!w) return;
+  state.weights[w.dataset.wt]=w.value;
+  sizeLogField(w);
+  if(w.value!=='') autoTick(w,w.dataset.wt);
+  save();
+});
+function sizeLogField(field){
+  field.style.width=(Math.min(8,Math.max(1,(field.value||field.placeholder).length))+.25)+'ch';
+  field.closest('.logfield').classList.toggle('recorded',field.value!=='');
+}
+/* Keep rep entry separate so future weight changes cannot remove its saving. */
+daysEl.addEventListener('input',e=>{
+  const r=e.target.closest('[data-rp]');
+  if(!r) return;
+  if(r.value!==''&&repNum(r.value)==null) return;
+  state.reps[r.dataset.rp]=r.value;
+  sizeLogField(r);
+  if(r.value!=='') autoTick(r,r.dataset.rp);
+  save();
+});
+daysEl.addEventListener('keydown',e=>{
+  if(e.key!=='Enter'||e.isComposing) return;
+  const w=e.target.closest('[data-wt]');
+  if(!w) return;
+  const reps=w.closest('.item').querySelector('[data-rp]');
+  if(!reps) return;
+  e.preventDefault();
+  reps.focus();
+  reps.select();
+});
+
+/* v49: "clear checks" removed. It was labelled as a checkbox reset but also
+   wiped state.aero — a whole week of logged sessions — and left weights and
+   metrics behind, so the week afterwards held numbers that makeRecord would
+   silently drop at rollover. Nothing here needed a bulk eraser: a wrong tick is
+   one tap to undo, and a wrong week rolls off by itself. */
+/* ================= transfer =================
+   Everything here avoids three APIs that a sandboxed artifact iframe blocks
+   without a word: file downloads, the file picker, and window.alert/confirm.
+   v26 used all three, which is why the button looked broken — the handler ran
+   fine and then nothing happened. Text in a textarea always works. */
+const ioEl=document.getElementById('io');
+const expBtn=document.getElementById('export');
+const impBtn=document.getElementById('import');
+const addBtn=document.getElementById('addlist');
+let ioMode=null;
+
+function ioMsg(html){ const el=ioEl.querySelector('[data-iomsg]'); if(el) el.innerHTML=html; }
+function ioClose(){
+  ioMode=null; ioEl.hidden=true; ioEl.innerHTML='';
+  expBtn.setAttribute('aria-expanded','false');
+  impBtn.setAttribute('aria-expanded','false');
+  addBtn.setAttribute('aria-expanded','false');
+}
+function ioOpen(mode,title,body){
+  if(mode==='add') closeDayCards();
+  ioMode=mode; ioEl.hidden=false;
+  ioEl.innerHTML=`<div class="iohead"><span class="eyebrow">${title}</span>
+    <button class="link" data-ioclose type="button">Close</button></div>${body}`;
+  expBtn.setAttribute('aria-expanded', mode==='export'?'true':'false');
+  impBtn.setAttribute('aria-expanded', mode==='import'?'true':'false');
+  addBtn.setAttribute('aria-expanded', mode==='add'?'true':'false');
+  try{ ioEl.scrollIntoView({block:'nearest'}); }catch(e){}
+}
+
+async function buildDump(){
+  const dump={exported:new Date().toISOString(),app:'training-week-v52',current:state,history:{},daily:{}};
+  const idx=await store.get(HIDX);
+  for(const y of ((idx&&idx.years)||[])){ const sh=await store.get(HSHARD(y)); if(sh) dump.history[y]=sh; }
+  const d=now();
+  /* v62 FIX: 24 DISTINCT months. The old walk used setMonth on today's date, so
+     from the 31st it produced 14 unique keys and repeated the rest — an export
+     that quietly left months out of the user's only backup. */
+  for(let i=0;i<24;i++){
+    const mk=monthKeyBack(d,i), sh=await store.get(DSHARD(mk));
+    if(sh) dump.daily[mk]=sh;
+  }
+  return dump;
+}
+function countWeeks(dump){
+  let n=0; for(const y of Object.keys(dump.history||{})) n+=Object.keys(dump.history[y].weeks||{}).length;
+  return n;
+}
+function countDays(dump){
+  let n=0; for(const mk of Object.keys(dump.daily||{})) n+=Object.keys(dump.daily[mk].days||{}).length;
+  return n;
+}
+
+expBtn.addEventListener('click',async()=>{
+  if(ioMode==='export') return ioClose();
+  ioOpen('export','Export','<p class="iomsg" data-iomsg>Collecting…</p>');
+  let dump;
+  try{ dump=await buildDump(); }
+  catch(err){ ioMsg('Could not read the data. Try again.'); return; }
+  const txt=JSON.stringify(dump);
+  ioOpen('export','Export',
+    `<textarea class="iota" id="ioout" readonly>${esc(txt)}</textarea>
+     <div class="iorow">
+       <button class="btn" data-iocopy type="button">Copy all</button>
+       <button class="btn ghost" data-iodl type="button">Try download</button>
+     </div>
+     <p class="iomsg" data-iomsg><b>${countWeeks(dump)}</b> weeks · <b>${countDays(dump)}</b> days · ${(txt.length/1024).toFixed(1)} KB<br>Copy, paste into Notes, then open the new version and paste it back into import</p>`);
+});
+
+impBtn.addEventListener('click',()=>{
+  if(ioMode==='import') return ioClose();
+  ioOpen('import','Import',
+    `<textarea class="iota" id="ioin" placeholder="paste the copied JSON here" autocomplete="off" spellcheck="false"></textarea>
+     <div class="iorow"><button class="btn" data-iocheck type="button">Check</button></div>
+     <p class="iomsg" data-iomsg>History and the daily log are <b>merged</b>; nothing existing is dropped. The current week is overwritten.</p>`);
+  const ta=ioEl.querySelector('#ioin'); if(ta) ta.focus();
+});
+
+/* plain-text exercise names, grouped by day — for pasting into notes/search.
+   Resistance only: names come from PLAN, not tracked state, so they always
+   list the plan as written, deload or not. Cardio/aerobic is excluded — it
+   lives in state.aero, not PLAN, and doesn't belong in a resistance list. */
+function itemSetsText(it){
+  const m=/^(\d+(?:[–-]\d+)?)\s*(?:×|x)\s*([\d–-]+)/.exec(it.dose||'');
+  return m ? ` — ${m[1]} × ${m[2]}` : '';
+}
+/* one line per group: a superset (2+ consecutive items sharing an `ss`
+   letter, the same rule dayHTML uses for its one shared checkbox) becomes
+   "Superset A: Name — 3 × 8–10 + Name — 3 × 8–10"; anything else — a standalone
+   exercise, or a lone survivor of a pair — is just its own line. Deload is
+   ignored here the same way the rest of this list ignores it: PLAN as
+   written, not the live cut-down version. */
+function daySupersetLines(day){
+  const lines=[];
+  let open=null, buf=[];
+  const flush=()=>{
+    if(!buf.length) return;
+    if(open && buf.length>1){
+      lines.push(`Superset ${open}: ${buf.map(it=>`${it.name}${itemSetsText(it)}`).join(' + ')}`);
+    } else {
+      for(const it of buf) lines.push(`${it.name}${itemSetsText(it)}`);
+    }
+    buf=[];
+  };
+  for(const it of day.items){
+    if(it.name==='Warm-up') continue;
+    if((it.ss||null)!==open){ flush(); open=it.ss||null; }
+    buf.push(it);
+  }
+  flush();
+  return lines;
+}
+function planListText(){
+  const byDay=Array.from({length:7},()=>[]);
+  for(const day of PLAN){
+    byDay[DOWI[day.dow]].push(...daySupersetLines(day));
+  }
+  return byDay
+    .map((lines,i)=>({i,lines}))
+    .filter(b=>b.lines.length)
+    .map(b=>`# ${DOW_FULL[b.i]}\n${b.lines.map(l=>`- ${l}`).join('\n')}`)
+    .join('\n\n');
+}
+const copyListBtn=document.getElementById('copylist');
+let copyListTimer=null;
+copyListBtn.addEventListener('click',async()=>{
+  const txt=planListText();
+  let done=false;
+  try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(txt); done=true; } }catch(err){}
+  if(!done){
+    try{
+      const ta=document.createElement('textarea');
+      ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      done=document.execCommand('copy');
+      document.body.removeChild(ta);
+    }catch(err){}
+  }
+  clearTimeout(copyListTimer);
+  copyListBtn.textContent = done ? 'copied' : 'copy failed';
+  copyListTimer=setTimeout(()=>{ copyListBtn.textContent='copy exercise'; },1500);
+});
+
+/* ================= what to add =================
+   v67: the bench beside the plan. PLAN is what is being done this week; this is
+   the queue it draws from, kept in the file rather than in a note app so the
+   two move together. Nothing here is state — no ids, no checkboxes, no storage
+   — because an exercise only becomes real when it is written into PLAN. */
+const ADDLIST=[
+  {h:'Add when ready to add volume',
+   why:'เพิ่มได้เมื่อของเดิมยังทำครบและฟื้นทัน — ทีละท่า ไม่ใช่ทั้งชุด',
+   items:['DB Fly','Single-Arm Seated Cable Fly','DB Overhead Extension','Copenhagen Plank',
+     'Hammer Curl','Lying Leg Raises → Tuck Dragon Flag → Dragon Flag',
+     'Sliding Hamstring Curl','Cable Leg Extension',
+     'Seated Cable Leg Curl','Single-Arm Cable Row','DB RDL',
+     'Smith Machine Squat','Reverse Pec Deck Machine',
+     'Roman Chair Hold','Chest-Supported Row','Reverse Cable Crossover','Incline DB Curl',
+     'Incline Prone Y-Raise']},
+  {h:'Add when its problem arise',
+   why:'ยังไม่ต้องใส่ตอนนี้ — ใส่เมื่ออาการที่ท่านั้นแก้โผล่ขึ้นมาจริง',
+   items:['Push-Up Plus','External Rotation','Standing Calf Raise']}
+];
+addBtn.addEventListener('click',()=>{
+  if(ioMode==='add') return ioClose();
+  ioOpen('add','What to add', ADDLIST.map(g=>
+    `<div class="adds"><p class="addh">${esc(g.h)}</p><p class="addwhy">${esc(g.why)}</p>
+      <ul class="addul">${g.items.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></div>`).join(''));
+});
+
+let pending=null;                      /* a parsed dump waiting for the second press */
+
+async function runImport(dump){
+  const years=new Set();
+  for(const y of Object.keys(dump.history||{})){
+    const inc=dump.history[y];
+    if(!inc||!inc.weeks) continue;
+    const cur=(await store.get(HSHARD(y)))||{v:1,weeks:{}};
+    cur.weeks=cur.weeks||{};
+    for(const wk of Object.keys(inc.weeks)) if(!cur.weeks[wk]) cur.weeks[wk]=inc.weeks[wk];
+    if(!(await store.set(HSHARD(y),cur))) throw new Error('write '+y);
+    years.add(Number(y));
+  }
+  if(years.size){
+    const idx=(await store.get(HIDX))||{years:[]};
+    /* v62 FIX: coerce, then sort NUMERICALLY.
+       The old line merged whatever was on disk with the new years and sorted with
+       the default comparator, which is lexicographic. A Set also treats '2026'
+       and 2026 as two members, so an index that already held a string kept both
+       — and both mapped to the same shard key, which is how loadHist ended up
+       reading one year twice. Normalise on the way in and the duplicate can
+       never be written in the first place. */
+    const old=(Array.isArray(idx.years)?idx.years:[]).map(Number).filter(Number.isFinite);
+    const merged=new Set([...old,...years]);
+    await store.set(HIDX,{years:[...merged].sort((a,b)=>a-b)});
+  }
+  for(const mk of Object.keys(dump.daily||{})){
+    const inc=dump.daily[mk];
+    if(!inc||!inc.days) continue;
+    const cur=(await store.get(DSHARD(mk)))||{v:1,days:{}};
+    cur.days=cur.days||{};
+    for(const dk of Object.keys(inc.days)) if(!cur.days[dk]) cur.days[dk]=inc.days[dk];
+    await store.set(DSHARD(mk),cur);
+  }
+  if(dump.current){ applyState(dump.current); await store.set(KEY,state); }
+  await loadHist();
+  await rollIfStale();
+  dailyReady=null;                     /* next mount re-reads the month shards */
+  buildWeek();
+  buildAero();
+  if(curTab==='daily') await mountDaily();
+}
+
+ioEl.addEventListener('click',async e=>{
+  if(e.target.closest('[data-ioclose]')) return ioClose();
+
+  if(e.target.closest('[data-iocopy]')){
+    const ta=ioEl.querySelector('#ioout'); if(!ta) return;
+    ta.focus(); ta.select(); ta.setSelectionRange(0,ta.value.length);
+    let done=false;
+    try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(ta.value); done=true; } }catch(err){}
+    if(!done){ try{ done=document.execCommand('copy'); }catch(err){} }
+    ioMsg(done ? '<b>Copied</b> — paste it somewhere safe before opening a new version'
+               : 'Auto-copy blocked — <b>the text is already selected</b>, long-press and choose Copy');
+    return;
+  }
+
+  if(e.target.closest('[data-iodl]')){
+    /* still offered: it works when the artifact is opened in its own tab */
+    const ta=ioEl.querySelector('#ioout'); if(!ta) return;
+    try{
+      const blob=new Blob([ta.value],{type:'application/json'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=`training-export-${dayKeyOf(now())}.json`;
+      a.rel='noopener'; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+      ioMsg('If no file appears, downloads are blocked here — use Copy all instead');
+    }catch(err){ ioMsg('Download is blocked here — use Copy all instead'); }
+    return;
+  }
+
+  if(e.target.closest('[data-iocheck]')){
+    const ta=ioEl.querySelector('#ioin'); if(!ta) return;
+    const raw=(ta.value||'').trim();
+    if(!raw){ ioMsg('Nothing added'); return; }
+    let dump=null;
+    try{ dump=JSON.parse(raw); }catch(err){ ioMsg('Not readable — the pasted text is not complete JSON (partial copy?)'); return; }
+    if(!dump||typeof dump!=='object'||!String(dump.app||'').startsWith('training-')){
+      ioMsg('This is not an export from this app'); return;
+    }
+    pending=dump;
+    const btn=ioEl.querySelector('[data-iocheck]');
+    btn.outerHTML='<button class="btn warn" data-iogo type="button">Confirm import</button>';
+    ioMsg(`Found <b>${countWeeks(dump)}</b> weeks · <b>${countDays(dump)}</b> days · exported ${esc(String(dump.exported||'').slice(0,10))}<br>Confirm to merge into your current data.`);
+    return;
+  }
+
+  if(e.target.closest('[data-iogo]')){
+    if(!pending) return;
+    ioMsg('Importing…');
+    try{
+      await runImport(pending);
+      const n=countWeeks(pending);
+      pending=null;
+      ioEl.innerHTML=`<div class="iohead"><span class="eyebrow">Import</span>
+        <button class="link" data-ioclose type="button">Close</button></div>
+        <p class="iomsg" data-iomsg><b>Imported</b> · ${n} weeks</p>`;
+      /* the panel is now a receipt, not a form: release the toggle so pressing
+         import again opens a fresh paste box instead of closing the receipt */
+      ioMode=null;
+      impBtn.setAttribute('aria-expanded','false');
+    }catch(err){
+      /* v49: the old copy claimed nothing had been touched, which is not true
+         once the first shard has been written. Every merge here is additive and
+         never overwrites an existing week or day, so a partial import is safe to
+         re-run — that, not a false all-or-nothing promise, is what to tell the user. */
+      ioMsg('Import stopped partway — <b>nothing existing was overwritten</b>, but some weeks may not have arrived. Tap <b>Confirm import</b> again to finish.');
+    }
+    return;
+  }
+});
+
+/* ================= daily tab ================= */
+const habEl=document.getElementById('habits');
+function weekDayKeys(){
+  const start=new Date(weekStartOf(now())+'T12:00:00');
+  return Array.from({length:7},(_,i)=>{
+    const d=new Date(start.getTime()); d.setDate(d.getDate()+i);
+    return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+  });
+}
+function buildDaily(){
+  const keys=weekDayKeys(), td=dowOf(now());
+  habEl.innerHTML=DAILY.map(h=>{
+    const cells=keys.map((k,i)=>{
+      const on=(dayLog[k]||{})[h.id]?' on':'';
+      const cls=i===td?' today':(i>td?' future':'');
+      return `<div class="gcell${cls}">
+        <button class="gbox${on}" data-hab="${h.id}" data-day="${k}" aria-pressed="${on?'true':'false'}"
+          aria-label="${esc(h.name)} ${DOW_TH[i]}">${CHECK}</button></div>`;
+    }).join('');
+    /* v54: name, grid, today's fields, density. The dose line, the streak and the
+       Detail disclosure are gone — a daily habit is read as ticked-or-not, and
+       three lines of text around every card was the tab's whole scroll. */
+    return `<section class="hab">
+      <div class="habtop">
+        <span class="habname">${esc(h.name)}</span>
+        <span class="density">${densityOf(dayLog,h.id,now(),30)} / 30</span>
+      </div>
+      <div class="grid">${cells}</div>
+      ${fieldRow(h)}
+    </section>`;
+  }).join('')+METRICS.map(metricCardHTML).join('');
+  document.getElementById('dailyno').innerHTML='';
+}
+/* v21: numbers are edited for TODAY only, below the grid.
+   Putting an editor behind every cell would turn a one-tap habit tracker into a
+   two-step one for all seven days × every habit. A habit log that gets more
+   expensive per tap is a habit log that stops being filled in. */
+function fieldRow(h){
+  if(!h.fields) return '';
+  const k=dayKeyOf(now()), row=dayLog[k]||{}, cur=(typeof row[h.id]==='object')?row[h.id]:{};
+  const inputs=h.fields.map(f=>{
+    if(f.type==='score'){
+      const btns=Array.from({length:f.max},(_,i)=>{
+        const v=i+1, on=cur[f.k]===v?' on':'';
+        return `<button class="sc${on}" data-score="${h.id}" data-fk="${f.k}" data-v="${v}"
+                  aria-pressed="${on?'true':'false'}">${v}</button>`;
+      }).join('');
+      /* v62: a <label> with no form control inside it, wrapping buttons. Clicking
+         a button inside a label fires the label's own activation behaviour too,
+         which is a second click waiting to happen; and the row is a group of
+         controls, not a caption for one. A div with the same class styles
+         identically.
+         v68: the visible "Quality" word is gone — the label still reaches
+         screen readers via aria-label, but a sighted reader can already tell
+         a 1–5 score set from a minutes box without a caption over each. */
+      return `<div class="mt" role="group" aria-label="${esc(f.label)} ${esc(h.name)}">
+        <span class="scoreset">${btns}</span></div>`;
+    }
+    return `<label class="mt">
+      <span class="mtbox">
+        <input class="wtin mtin" type="number" step="${f.step}" inputmode="decimal"
+               data-hf="${h.id}" data-fk="${f.k}" value="${esc(cur[f.k]??'')}"
+               aria-label="${esc(f.label)} ${esc(h.name)}">
+        <span class="unit">${esc(f.unit)}</span>
+      </span></label>`;
+  }).join('');
+  return `<div class="todayrow"><span class="todaylab">Today</span>${inputs}</div>`;
+}
+/* write one field onto today's row. Entering a number IS doing the habit, so it
+   ticks the box too — otherwise "15 min, unticked" is a state that means nothing. */
+function applyField(id,k,v){
+  const day=dayKeyOf(now());
+  const row=dayLog[day]||(dayLog[day]={});
+  const had=row[id];
+  const cur=(typeof had==='object')?had:{v:1};
+  if(v==null) delete cur[k]; else cur[k]=v;
+  const rest=Object.keys(cur).filter(x=>x!=='v');
+  if(rest.length)   row[id]=cur;   /* has numbers → object */
+  else if(had)      row[id]=1;     /* was already ticked → stays a plain tick */
+  else              delete row[id];/* typed then cleared, never ticked → nothing happened */
+  return day;
+}
+/* v35: the write is fire-and-forget. Tapping a quality number used to await a
+   storage round trip before the button could light up, which on a slow write
+   read as a dead control. The state is already correct in memory; persisting
+   it is not something the finger should have to wait for. */
+function setField(id,k,v){ saveDaily(applyField(id,k,v)); }
+habEl.addEventListener('click',e=>{
+  const s=e.target.closest('[data-score]');
+  if(s){
+    const id=s.dataset.score, k=s.dataset.fk, v=Number(s.dataset.v);
+    const day=dayKeyOf(now()), cur=(dayLog[day]||{})[id];
+    const had=(typeof cur==='object')&&cur[k]===v;
+    const dk=applyField(id,k,had?null:v);   /* tapping the lit number clears it */
+    buildDaily();
+    saveDaily(dk);
+    return;
+  }
+  const b=e.target.closest('[data-hab]');
+  if(!b) return;
+  const id=b.dataset.hab, day=b.dataset.day;
+  dayLog[day]=dayLog[day]||{};
+  if(dayLog[day][id]) delete dayLog[day][id]; else dayLog[day][id]=1;
+  buildDaily();
+  saveDaily(day);
+});
+/* v50: one timer per field, not one for the whole tab. A single shared timer
+   meant typing in Meditation's minutes and then moving to another number inside
+   300ms cancelled the first field's pending write and lost it — the value sat on
+   screen and was never stored. Keyed by habit+field, so two fields debounce
+   independently and neither can cancel the other. */
+const habTimers={};
+/* v62: the same pending write, reachable by flushWrites when the tab goes away
+   before the 300ms is up. One entry per field, cleared as soon as it has run. */
+const habFlush={};
+habEl.addEventListener('input',e=>{
+  const md=e.target.closest('[data-mday]');
+  if(md){
+    const [mid,day]=md.dataset.mday.split(':'), raw=md.value, tk='m:'+mid+':'+day;
+    clearTimeout(habTimers[tk]);
+    const run=()=>{
+      delete habTimers[tk]; delete habFlush[tk];
+      const row=dayLog[day]||(dayLog[day]={});
+      if(raw==='') delete row[mid]; else row[mid]=Number(raw);
+      saveDaily(day);
+      const m=METRICS.find(x=>x.id===mid);
+      const card=md.closest('[data-metric]'), meta=card&&card.querySelector('.trendmeta');
+      if(m&&meta) meta.outerHTML=metricMetaHTML(m);
+    };
+    habFlush[tk]=run;
+    habTimers[tk]=setTimeout(run,300);
+    return;
+  }
+  const f=e.target.closest('[data-hf]');
+  if(!f) return;
+  const id=f.dataset.hf, k=f.dataset.fk, raw=f.value;
+  const tk=id+':'+k;
+  clearTimeout(habTimers[tk]);
+  const run=()=>{
+    delete habTimers[tk]; delete habFlush[tk];
+    setField(id,k, raw===''?null:Number(raw));
+    const box=habEl.querySelector(`[data-hab="${id}"][data-day="${dayKeyOf(now())}"]`);
+    if(box && raw!==''){ box.classList.add('on'); box.setAttribute('aria-pressed','true'); }
+  };
+  habFlush[tk]=run;
+  habTimers[tk]=setTimeout(run,300);
+});
+
+/* ================= aerobic tab ================= */
+const aeroEl=document.getElementById('aero');
+let aeroUid=0;
+const newSid = () => 'a'+Date.now().toString(36)+(aeroUid++).toString(36);
+
+/* v54: aeroDerived() is gone. It built a per-session line — speed, split, MET,
+   MET-min — and then wrote it into a [data-ad] node that aeroSessHTML has never
+   rendered, so no user has ever seen it. The week TOTAL is the number this tab
+   is about; a per-session score invites optimising the session instead. */
+function aeroFieldsHTML(e){
+  const cfg=AEROT[e.t];
+  const f=cfg.fields.map(x=>`<label class="mt"><span class="mtlab">${esc(x.label)}</span>
+    <span class="mtbox">
+      <input class="wtin mtin" type="number" step="${x.step}" inputmode="decimal"
+             data-af="${e.s}" data-fk="${x.k}" value="${esc(e[x.k]??'')}" placeholder="${esc(x.ph??'')}"
+             aria-label="${esc(x.label)} ${esc(cfg.label)}">
+      <span class="unit">${esc(x.unit)}</span>
+    </span></label>`).join('');
+  return `<div class="mtwrap">${f}</div>`;
+}
+function aeroSessHTML(e){
+  const cfg=AEROT[e.t]; if(!cfg) return '';
+  const opts=DOW_FULL.map((nm,i)=>`<option value="${i}"${i===e.d?' selected':''}>${nm.slice(0,3)}</option>`).join('');
+  return `<div class="arow first">
+    <button class="ax" data-adel="${e.s}" aria-label="remove ${esc(cfg.label)}">×</button>
+    <div class="arbody">
+      <div class="arinfo">
+        <select class="adaysel" data-aday="${e.s}" aria-label="day for ${esc(cfg.label)}">${opts}</select>
+        <span class="arname"><span class="adot"></span><span class="aname">${esc(cfg.label)}</span></span>
+      </div>
+      ${aeroFieldsHTML(e)}
+    </div></div>`;
+}
+/* v53: the week is no longer a seven-row scaffold with an add pill on every day.
+   Six of those rows were always empty, and the pills asked which day before the
+   user had said what. The list now shows only days that HAPPENED, and the four
+   session types sit in one bar at the bottom — the thing you reach for after
+   training, where a thumb already is. A new session lands on today and can be
+   moved with the day select on its own row. */
+function buildAero(){
+  const td=dowOf(now());
+  /* v53: one SESSION, one card. The day heading said what the day select on the
+     session's own row already says, and a day is not the unit here — two rows
+     under one "Thursday" read as one thing that happened twice. */
+  /* v62: filter BEFORE wrapping. aeroSessHTML already returned '' for a type it
+     did not recognise, but the <section> around it was written unconditionally,
+     so an unknown `t` — from an old export, or a type retired later — painted an
+     empty card with no name, no fields and no way to delete it. */
+  const parts=(state.aero||[]).slice()
+    .filter(e=>e&&AEROT[e.t])
+    .sort((a,b)=>(a.d??0)-(b.d??0))
+    .map(e=>`<section class="aday${e.d===td?' today':''}">${aeroSessHTML(e)}</section>`);
+  const empty=parts.length?'':'<p class="anone">ยังไม่มี session สัปดาห์นี้ — กดปุ่มด้านล่างเพื่อเพิ่ม</p>';
+  const add=AERO.map(a=>`<button class="aaddbtn" data-aadd="${a.t}">+ ${esc(a.label)}</button>`).join('');
+  aeroEl.innerHTML=`
+    <section class="atot" id="aprog">${aeroProgHTML()}</section>
+    ${empty}${parts.join('')}
+    <div class="aaddbar">${add}</div>`;
+  document.getElementById('aerono').innerHTML =
+    state.deload ? 'deload · easy work only, ~50–60% of usual · no 4×4' : '';
+}
+/* progression strip. The bar is scaled so the peak sits well inside it — a week
+   that goes past the previous best should look like it went past, not like it
+   merely filled a bar. Uncoloured logic: no red above the line, no green below
+   it. The +10% mark is a hint, not a limit, and a deload week is meant to be
+   short. */
+/* v65: three views of the same strip, cycled by tapping the label. Each view
+   is just a (totals key, peak function, unit, decimals) tuple — the bar/tick/
+   fraction markup underneath does not know or care which one is showing. The
+   choice lives in the localStorage mirror (see UIAVIEW), not `state`: it is a
+   per-device reading preference, not data, so it is never synced or exported
+   and never resets at rollover the way a logged week does. */
+const AERO_VIEWS={
+  min:   {label:'mins',        key:'min',    unit:'min',     dp:0, peak:()=>aeroPeak(histRecs)},
+  height:{label:'height',      key:'height', unit:'m',       dp:0, peak:()=>aeroPeakHeight(histRecs)},
+  met:   {label:'METs · mins', key:'metMin', unit:'MET·min', dp:0, peak:()=>aeroPeakMet(histRecs)}
+};
+const AERO_VIEW_ORDER=['min','height','met'];
+function aeroView(){
+  const v=(store.mirrorGet(UIAVIEW)||{}).id;
+  return AERO_VIEWS[v] ? v : 'min';
+}
+function aeroViewNext(){
+  const cur=AERO_VIEW_ORDER.indexOf(aeroView());
+  const next=AERO_VIEW_ORDER[(cur+1)%AERO_VIEW_ORDER.length];
+  store.mirrorSet(UIAVIEW,{id:next});
+  return next;
+}
+function fmtN(v,dp){ return dp>0 ? (Math.round(v*Math.pow(10,dp))/Math.pow(10,dp)).toFixed(dp) : String(Math.round(v)); }
+function aeroProgHTML(){
+  const view=aeroView(), V=AERO_VIEWS[view];
+  const t=aeroTotals(aeroNow())[V.key];
+  const pk=V.peak()[V.key];
+  const bar=(cur,ref,scale,soft)=>{
+    const w=Math.max(cur?1.5:0, Math.min(100, cur/scale*100));
+    return `<span class="apfill" style="width:${w.toFixed(1)}%"></span>
+      <span class="aptick" style="left:${Math.min(100,ref/scale*100).toFixed(1)}%"></span>
+      <span class="aptick soft" style="left:${Math.min(100,soft/scale*100).toFixed(1)}%"></span>`;
+  };
+  const pct=Math.round(t/pk*100);
+  const s=Math.max(pk*1.35, t||0, 1);
+  return `<div class="apblk">
+      <div class="aprow">
+        <button class="aplab" type="button" data-aview aria-label="switch view, currently ${esc(V.label)}">${esc(V.label)}</button>
+        <span class="apval">${pct}%</span>
+      </div>
+      <div class="apbar" role="img" aria-label="${fmtN(t,V.dp)} of ${fmtN(pk,V.dp)} ${V.unit}, ${pct}%">
+        ${bar(t,pk,s,pk*1.1)}
+      </div>
+      <div class="apsub"><b>${fmtN(t,V.dp)}</b> / ${fmtN(pk,V.dp)} ${V.unit}</div>
+    </div>
+    <div class="apsubrow">
+      <details><summary>History</summary><div class="histbody">${aeroHistHTML()}</div></details>
+    </div>`;
+}
+/* redraw everything derived from the week aerobic total.
+   v51: the .atotline branch and aeroTotText() are gone — there has been no
+   .atotline element since the progression strip replaced the totals card, so
+   half of this function was querying for a node that could not exist. */
+function aeroRefreshTot(){
+  const pg=document.getElementById('aprog');
+  if(pg) pg.innerHTML=aeroProgHTML();
+}
+/* no green, no red. Volume that went down in a deload week is not a loss, and a
+   tracker that grades weekly minutes gets read as a verdict — same reasoning
+   that keeps the body-weight delta uncoloured. */
+function aeroHistHTML(){
+  const rows=[];
+  for(const r of histRecs){ rows.push({week:r.week,t:aeroTotals(aeroList(r)),dl:!!r.dl}); if(rows.length>=8) break; }
+  if(!rows.length) return '<p class="histcap">No history yet — the first row lands when the week rolls over</p>';
+  let h='<p class="histcap">Weekly totals · uncoloured on purpose: a lighter deload week is not a loss</p><table class="h m">';
+  for(const r of rows){
+    const t=r.t;
+    const cell=t.n?`${t.n} sess · ${t.min} min`:'—';
+    h+=`<tr><td class="w">${r.week.slice(5)}</td><td class="kg">${cell}</td><td class="d">${r.dl?'deload':''}</td></tr>`;
+  }
+  return h+'</table>';
+}
+aeroEl.addEventListener('click',e=>{
+  const view=e.target.closest('[data-aview]');
+  if(view){ aeroViewNext(); aeroRefreshTot(); return; }
+  const add=e.target.closest('[data-aadd]');
+  if(add){
+    state.aero=state.aero||[];
+    state.aero.push({s:newSid(),d:dowOf(now()),t:add.dataset.aadd});
+    save(); buildAero(); return;
+  }
+  const del=e.target.closest('[data-adel]');
+  if(del){
+    state.aero=(state.aero||[]).filter(x=>x.s!==del.dataset.adel);
+    save(); buildAero(); return;
+  }
+});
+aeroEl.addEventListener('change',e=>{
+  const sel=e.target.closest('[data-aday]');
+  if(!sel) return;
+  const ent=(state.aero||[]).find(x=>x.s===sel.dataset.aday);
+  if(!ent) return;
+  ent.d=Number(sel.value);
+  save(); buildAero();
+});
+/* v54: the same debounce the habit tab got in v50. This listener called save()
+   on every keystroke, so typing "5000" into a rowing distance wrote the whole
+   blob four times — and wrote "5", "50" and "500" as real weeks in between. */
+let aeroTimer=null;
+function saveAeroSoon(){ clearTimeout(aeroTimer); aeroTimer=setTimeout(()=>{aeroTimer=null;save();},300); }
+aeroEl.addEventListener('input',e=>{
+  const f=e.target.closest('[data-af]');
+  if(!f) return;
+  const ent=(state.aero||[]).find(x=>x.s===f.dataset.af);
+  if(!ent) return;
+  if(f.value==='') delete ent[f.dataset.fk]; else ent[f.dataset.fk]=f.value;
+  aeroRefreshTot();
+  saveAeroSoon();
+});
+
+/* ================= deload week =================
+   Read-only. No checks, no numbers, no storage key of its own.
+   A deload week is still logged on the Exercises tab — tick the item, leave the
+   kg box empty, and it archives as {done:1}, the "did it, logged nothing" state
+   the model already has. That keeps a light week out of the delta maths instead
+   of printing it as a loss, and it avoids a second set of weekly state with its
+   own rollover, which is the double-archive path the invariants warn about. */
+const DELOAD_PRINCIPLES=[
+ {h:'Weights',t:'<b>ลดเซ็ตลง 40–50% · น้ำหนักเท่าเดิม</b> — ความล้าลดตามปริมาณ แต่ความแข็งแรงเสียไปกับน้ำหนักที่ลด ตัดเซ็ตก่อนเสมอ'},
+ {h:'What to cut',t:'ตัด<b>ท่าที่ทำให้ปวดกล้ามเนื้อมากที่สุด</b>ก่อน ไม่ใช่ตัดท่าที่ทำง่าย จุดประสงค์คือให้เนื้อเยื่อได้ซ่อม'},
+ {h:'Cardio',t:'<b>ตัดงานหนักออกทั้งหมด</b> (4×4) เก็บงานเบาไว้ที่ ~50–60% ของ<b>ยอดนาทีรวม</b>ในแท็บ Aerobic — ฐานแอโรบิกหายช้ามาก ไม่ต้องกลัวเสียของ · ยอดที่ลดในสัปดาห์นี้ไม่ถูกทำเครื่องหมายว่าถดถอย'},
+ {h:'When',t:'ทุก 4–6 สัปดาห์ หรือเมื่อ<b>น้ำหนักไม่ขึ้น 2 สัปดาห์ติด · นอนไม่ดี · ชีพจรตอนเช้าสูงกว่าปกติ · ไม่อยากซ้อม</b> — สัญญาณมาก่อนตารางเสมอ'},
+ {h:'Watch for',t:'ใช้สัปดาห์ deload ไป<b>ไล่ตามงานที่ค้าง</b>จนกลายเป็นสัปดาห์ปกติที่กระจัดกระจาย · หรือหยุดสนิททั้งสัปดาห์จนกลับมาแล้วฟอร์มพัง — deload คือลดปริมาณ ไม่ใช่หยุด'}
+];
+/* Derived from PLAN, never a second copy of it: an exercise added to PLAN without
+   a rule here shows up with the strength default, and the test asserts every id
+   is either ruled or explicitly defaulted. Two hand-written lists would drift,
+   and the drift would only surface on a deload week — the worst time to find it. */
+const DELOAD_DEFAULT='2 sets · same load';
+/* v54: f1, m2 and u1 are deleted. They were rules for ids that left PLAN when
+   v53 moved cardio to the Aerobic tab, so they matched nothing and did nothing.
+   The test the comment above describes only walks PLAN → rules; it never walked
+   rules → PLAN, which is why three dead entries survived two versions.
+   NOTE the namespace: these keys are PLAN ids. 'x4' here would mean the
+   Meditation habit, NOT the 4×4 — that lives in AERO under `t`. The
+   4×4's deload rule is the line in DELOAD_PRINCIPLES, not a key here. */
+const DELOAD_RULES={
+  /* v72: the pulldown combination keeps the old pulldown's lighter deload. */
+  h34:{dose:'2 × 10–12 · <b>−20% load</b>',tag:'lighter'},
+  h5:{dose:'1 × 30–60 sec · <b>−30% load</b>',tag:'lighter'}
+};
+/* what this item becomes in a deload week */
+function deloadOf(it){
+  const r=DELOAD_RULES[it.id];
+  if(r&&r.skip) return {skip:1,why:r.skip,alt:r.alt||null};
+  if(r&&r.dose) return {dose:r.dose,tag:r.tag||''};
+  return {dose:DELOAD_DEFAULT};
+}
+/* collapsed by default: the principles are worth re-reading on the day you flip
+   the switch, and worth staying out of the way on the other six */
+function deloadIntroHTML(){
+  const intro=DELOAD_PRINCIPLES.map(p=>
+    `<div class="pr"><span class="prh">${esc(p.h)}</span><p class="prt">${p.t}</p></div>`).join('');
+  return `<details class="prbox"><summary>Deload principles</summary>${intro}</details>`;
+}
+document.getElementById('dltoggle').addEventListener('click',()=>{
+  state.deload=!state.deload;
+  save();
+  buildWeek();
+  buildAero();
+});
+
+/* ================= tabs ================= */
+/* v20: the daily log is two round trips that the week tab never needs, so it is
+   read on first mount instead of at boot. The promise is memoised, so a fast
+   double-tap on the tab cannot start two reads and race them into dayLog. */
+let dailyReady=null;
+async function mountDaily(){
+  if(!dailyReady){ perf.mark('daily:load-start'); dailyReady=loadDaily().then(()=>perf.mark('daily:load-done')); }
+  await dailyReady;
+  buildDaily();
+}
+const TABS=[
+  {id:'week',  label:'Resistance', pane:'pane-week',  mount:buildWeek},
+  {id:'aero',  label:'Aerobic',   pane:'pane-aero',  mount:buildAero},
+  {id:'daily', label:'Routines',  pane:'pane-daily', mount:mountDaily}
+];
+const tabsEl=document.getElementById('tabs');
+tabsEl.innerHTML=TABS.map(t=>
+  /* v62: the panes carry role=tabpanel and point back here with
+     aria-labelledby, so each tab needs a stable id to be pointed at. */
+  `<button class="tab" role="tab" id="tab-${t.id}" data-tab="${t.id}" aria-selected="false" aria-controls="${t.pane}"><span class="tl">${t.label}</span></button>`
+).join('');
+let curTab='week';
+function showTab(id){
+  const t=TABS.find(x=>x.id===id)||TABS[0];
+  curTab=t.id;
+  for(const x of TABS){
+    document.getElementById(x.pane).classList.toggle('on',x.id===t.id);
+    tabsEl.querySelector(`[data-tab="${x.id}"]`).setAttribute('aria-selected',x.id===t.id?'true':'false');
+  }
+  t.mount();
+  store.mirrorSet(UITAB,{id:t.id});   /* sync: read back at parse time next boot */
+  store.set(UITAB,{id:t.id});
+}
+tabsEl.addEventListener('click',e=>{
+  const b=e.target.closest('[data-tab]'); if(b) showTab(b.dataset.tab);
+});
+
+/* ================= init ================= */
+/* v20 boot shape. v19 was six round trips in a chain and nothing painted until
+   the last one landed, because showTab is what makes a .pane visible.
+     wave 1  KEY + HIDX          (parallel)
+     wave 2  history shards      (parallel, usually one)
+     paint
+   UITAB is gone from the path entirely — read synchronously from the mirror.
+   loadDaily is gone too — it happens on first mount of the Routines tab.
+   The rollover still runs BEFORE the paint. It can blank the week, so painting
+   first would mean painting a week the archive is about to take away. */
+(async function init(){
+  const tab=(store.mirrorGet(UITAB)||{}).id||'week';   /* sync, 0 round trips */
+  perf.mark('init-start');
+  const [s,idx]=await Promise.all([store.get(KEY),store.get(HIDX)]);
+  perf.mark('wave1');
+  applyState(s);
+  await loadHist(idx);
+  perf.mark('wave2');
+  await rollIfStale();
+  perf.mark('roll');
+  showTab(tab);
+  perf.mark('painted');
+  document.body.dataset.ready='1';
+  if(location.search.includes('perf')) perf.dump();
+})();
+
+/* ---- the app outlives the day it was opened on ----
+   v22 rolled the week only at boot. Left open overnight it kept yesterday's
+   `today` marker, and left open across Sunday→Monday it kept a week that should
+   already be archived — with the next tick landing in the wrong week. */
+let lastDay=dayKeyOf(now());
+let rollBusy=false;
+document.addEventListener('visibilitychange',async()=>{
+  /* v54: a debounced write must never be outlived by the tab. Backgrounding the
+     app 100ms after the last keystroke would otherwise drop it.
+     v62: flushWrites actually issues them; save() only rescheduled. */
+  if(document.hidden){ flushWrites(); return; }
+  if(document.body.dataset.ready!=='1'||rollBusy) return;
+  const dk=dayKeyOf(now());
+  if(dk===lastDay && !isStale(state.weekStart,now())) return;
+  lastDay=dk;
+  rollBusy=true;
+  try{
+    await rollIfStale();
+    buildWeek();
+    buildAero();
+    if(dailyReady){ await dailyReady; buildDaily(); }
+  } finally { rollBusy=false; }
+});
+/* v62: visibilitychange does not fire on every teardown — a swipe-away or a
+   memory kill on iOS can go straight to pagehide. Same flush, both doors. */
+window.addEventListener('pagehide',flushWrites);
+</script>
+</body>
+</html>

@@ -94,8 +94,8 @@ async function suiteBoot() {
   await test('boots clean, paints all three tabs, no errors', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     eq(t.doc.body.dataset.ready, '1', 'ready flag');
-    eq(t.doc.querySelectorAll('[data-day]').length, 3, 'day cards: one per training day');
-    eq(t.doc.querySelectorAll('[data-item]').length, 19, 'exercise rows');
+    eq(t.doc.querySelectorAll('[data-day]').length, 2, 'day cards: one per training day');
+    eq(t.doc.querySelectorAll('[data-item]').length, 17, 'exercise rows');
     t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
     ok(t.doc.querySelector('#aprog'), 'weekly progress card');
     t.doc.querySelector('[data-tab="daily"]').click(); await tick(200);
@@ -380,31 +380,27 @@ async function suiteAero() {
     t.close();
   });
 
-  await test('v78 routine has the requested names, order, doses, and stable IDs', async () => {
+  await test('v79 routine has the requested names, order, doses, and stable IDs', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const txt = t.win.eval('planListText()');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.name))'), [
-      ['Flat Barbell Press','Lats Pulldown','Cable Crossover','Reverse Cable Crossover','Cable Crunch','Roman Chair Back Extension'],
-      ['Single-Leg Step-Down','1-Arm DB Row','Reverse Curl → Hammer-Curl','Lateral Raise','Neck Extension','Neck Flexion'],
-      ['Incline DB Press','Overhead Triceps Extension','Incline DB Curl','Lateral Raise','Incline Prone Y-Raise','Suitcase Carry','Neck Lateral Flexion']
+      ['Flat Barbell Press','Cable Crossover','Lats Pulldown','Overhead Cable Triceps Extension','Cable Lateral Raise','Cable Crunch','Roman Chair Back Extension','Wrist Extension'],
+      ['Single-Leg Step-Down','Incline DB Press','1-Arm DB Row','Reverse Curl → Hammer-Curl','Lateral Raise','Suitcase Carry','Neck Extension','Neck Flexion','Neck Lateral Flexion']
     ], 'day order');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.dose))'), [
-      ['3 × 5–8','3 × 8–12','3 × 8–12','3 × 10–15','3 × 10–15','3 × 10–15'],
-      ['3 × 10–15','3 × 8–12','3 × 8–15','3 × 12–20','2 × 12–20','2 × 12–20'],
-      ['3 × 8–12','3 × 10–15','3 × 8–15','3 × 12–20','2 × 12–20','2 × 30–60 sec','2 × 12–20']
+      ['3 × 5–8','2 × 8–12','3 × 8–12','3 × 10–15','3 × 12–20','2 × 10–15','2 × 10–15','3 × 12–20'],
+      ['3 × 10–15','3 × 8–12','3 × 8–12','3 × 8–15','3 × 12–20','2 × 30–60 sec','2 × 12–20','2 × 12–20','2 × 12–20']
     ], 'doses');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.ss||null))'), [
-      [null,null,null,null,null,null],
-      [null,null,null,null,'A','A'],
-      [null,'A','A',null,null,null,null]
+      [null,null,null,null,null,null,null,null],
+      [null,null,null,null,null,null,'A','A',null]
     ], 'superset adjacency');
     eq(t.win.eval('PLAN.map(d=>d.items.map(it=>it.id))'), [
-      ['e19','h34','v78crossover','v78reversecrossover','h24','v78backextension'],
-      ['v78stepdown','h36','h32','h3','n1','n2'],
-      ['e14','h29','v74curl','e18','h27','h5','n3']
+      ['e19','v78crossover','h34','h29','v79cablelat','h24','v78backextension','v79wrist'],
+      ['v78stepdown','e14','h36','h32','h3','h5','n1','n2','n3']
     ], 'moved exercises keep their IDs; new movements use new IDs');
     ok(t.win.eval("PLAN.flatMap(d=>d.items).filter(it=>['h34','h36'].includes(it.id)).every(it=>it.note.includes('โดยไม่พัก'))"), 'retained movements keep their technique cues');
-    eq([...t.doc.querySelectorAll('[data-gcheck]')].map(b => b.dataset.gcheck), ['n1,n2','h29,v74curl'], 'only the requested supersets render');
+    eq([...t.doc.querySelectorAll('[data-gcheck]')].map(b => b.dataset.gcheck), ['n1,n2'], 'only the requested supersets render');
     ok(!txt.includes('DB RDL') && !txt.includes('Single-Arm Seated Cable Fly'), 'deferred exercises are absent from the plan');
     t.close();
   });
@@ -420,7 +416,7 @@ async function suiteAero() {
       'trainweek:hist:index': JSON.stringify({ years: [2026] }),
       'trainweek:hist:2026': history
     } });
-    for (const [id, day] of [['h36','1'],['h29','2'],['v74curl','2']]) {
+    for (const [id, day] of [['h36','1'],['h29','0']]) {
       const field = t.doc.querySelector('[data-wt="'+id+'"]');
       eq(field.closest('[data-day]').dataset.day, day, 'moved to requested day: '+id);
       eq(field.value, weights[id], 'weight retained: '+id);
@@ -430,7 +426,7 @@ async function suiteAero() {
     for (const id of ['t1','h26','h35','e4','h28','v74cablelat']) {
       ok(!t.doc.querySelector('[data-item="'+id+'"]'), 'retired slot absent: '+id);
     }
-    for (const id of ['v78crossover','v78reversecrossover','v78backextension','v78stepdown']) {
+    for (const id of ['v79cablelat','v79wrist']) {
       eq(t.doc.querySelector('[data-wt="'+id+'"]').value, '', 'new weight starts empty: '+id);
       eq(t.doc.querySelector('[data-rp="'+id+'"]').value, '', 'new reps start empty: '+id);
     }
@@ -444,7 +440,7 @@ async function suiteAero() {
     const txt = t.win.eval('planListText()');
     ok(txt.includes('- Flat Barbell Press — 3 × 5–8'), 'name first, sets × reps suffixed, bulleted');
     ok(!txt.includes('Warm-up —'), 'Warm-up is absent from the plan');
-    eq(t.win.eval(`PLAN.map(d=>d.items.some(it=>it.name==='Warm-up'))`), [false,false,false],
+    eq(t.win.eval(`PLAN.map(d=>d.items.some(it=>it.name==='Warm-up'))`), [false,false],
       'no resistance day contains a Warm-up item');
     t.close();
   });
@@ -454,14 +450,10 @@ async function suiteAero() {
     const txt = t.win.eval('planListText()');
     ok(txt.includes('# Monday\n- Flat Barbell Press — 3 × 5–8'), 'Monday starts with standalone flat press');
     ok(txt.includes('- Lats Pulldown — 3 × 8–12'), 'Monday pulldown is a standalone drop set');
-    ok(txt.includes('- Cable Crossover — 3 × 8–12\n- Reverse Cable Crossover — 3 × 10–15\n- Cable Crunch — 3 × 10–15\n- Roman Chair Back Extension — 3 × 10–15'), 'Monday accessory order and doses');
-    ok(txt.includes('# Wednesday\n- Single-Leg Step-Down — 3 × 10–15\n- 1-Arm DB Row — 3 × 8–12\n- Reverse Curl → Hammer-Curl — 3 × 8–15'), 'Wednesday starts with step-down, row, and curl');
-    ok(txt.includes('- Superset A: Neck Extension — 2 × 12–20 + Neck Flexion — 2 × 12–20'), 'Wednesday neck superset');
-    ok(txt.includes('# Friday\n- Incline DB Press — 3 × 8–12\n- Superset A: Overhead Triceps Extension — 3 × 10–15 + Incline DB Curl — 3 × 8–15'), 'Friday starts with standalone press and arm superset');
-    eq((txt.match(/Superset /g)||[]).length, 2, 'only two supersets in the copied list');
-    const lat = txt.indexOf('- Lateral Raise — 3 × 12–20', txt.indexOf('# Friday'));
-    const y = txt.indexOf('- Incline Prone Y-Raise — 2 × 12–20');
-    ok(lat >= 0 && y > lat, 'Friday Lateral Raise sits before Y-Raise');
+    ok(txt.includes('- Cable Crossover — 2 × 8–12\n- Lats Pulldown — 3 × 8–12\n- Overhead Cable Triceps Extension — 3 × 10–15\n- Cable Lateral Raise — 3 × 12–20\n- Cable Crunch — 2 × 10–15\n- Roman Chair Back Extension — 2 × 10–15\n- Wrist Extension — 3 × 12–20'), 'Monday order and doses');
+    ok(txt.includes('# Thursday\n- Single-Leg Step-Down — 3 × 10–15\n- Incline DB Press — 3 × 8–12\n- 1-Arm DB Row — 3 × 8–12\n- Reverse Curl → Hammer-Curl — 3 × 8–15\n- Lateral Raise — 3 × 12–20\n- Suitcase Carry — 2 × 30–60'), 'Thursday order and doses');
+    ok(txt.includes('- Superset A: Neck Extension — 2 × 12–20 + Neck Flexion — 2 × 12–20\n- Neck Lateral Flexion — 2 × 12–20'), 'Thursday neck superset then lateral flexion');
+    eq((txt.match(/Superset /g)||[]).length, 1, 'only one superset in the copied list');
     t.close();
   });
 
@@ -478,10 +470,11 @@ async function suiteAero() {
     eq(heads, ['Add when ready to add volume', 'Add when its problem arise'], 'both queues, in order');
     const names = [...io.querySelectorAll('.addul li')].map(x => x.textContent);
     eq(names, ['DB Fly','Single-Arm Seated Cable Fly','DB Overhead Extension','Copenhagen Plank',
-      'Hammer Curl','Wrist Extension','Lying Leg Raises → Tuck Dragon Flag → Dragon Flag',
+      'Hammer Curl','Lying Leg Raises → Tuck Dragon Flag → Dragon Flag',
       'Sliding Hamstring Curl','Cable Leg Extension',
       'Seated Cable Leg Curl','Single-Arm Cable Row','DB RDL',
-      'Smith Machine Squat','Reverse Pec Deck Machine','Cable Lateral Raise','Roman Chair Hold','Chest-Supported Row',
+      'Smith Machine Squat','Reverse Pec Deck Machine','Roman Chair Hold','Chest-Supported Row',
+      'Reverse Cable Crossover','Incline DB Curl','Incline Prone Y-Raise',
       'Push-Up Plus','External Rotation','Standing Calf Raise'], 'both queues contain the updated exercises');
     ok(!io.querySelector('.addul input, .addul button'), 'nothing in the list is tickable');
     btn.click(); await tick(10);
@@ -506,15 +499,14 @@ async function suiteAero() {
     const heads = [...t.doc.querySelectorAll('[data-toggle]')];
     const add = t.doc.getElementById('addlist');
     const open = () => heads.map(h => h.getAttribute('aria-expanded'));
-    heads[0].click(); eq(open(), ['true','false','false'], 'Monday opens');
-    heads[1].click(); eq(open(), ['false','true','false'], 'Wednesday closes Monday');
-    heads[2].click(); eq(open(), ['false','false','true'], 'Friday closes Wednesday');
-    add.click(); eq(open(), ['false','false','false'], 'What to add closes Friday');
+    heads[0].click(); eq(open(), ['true','false'], 'Monday opens');
+    heads[1].click(); eq(open(), ['false','true'], 'Thursday closes Monday');
+    add.click(); eq(open(), ['false','false'], 'What to add closes Thursday');
     eq(add.getAttribute('aria-expanded'), 'true', 'What to add opens');
-    heads[0].click(); eq(open(), ['true','false','false'], 'Monday reopens');
+    heads[0].click(); eq(open(), ['true','false'], 'Monday reopens');
     eq(add.getAttribute('aria-expanded'), 'false', 'Monday closes What to add');
     ok(t.doc.getElementById('io').hidden, 'the add panel is hidden');
-    heads[0].click(); eq(open(), ['false','false','false'], 'pressing an open day closes it');
+    heads[0].click(); eq(open(), ['false','false'], 'pressing an open day closes it');
     t.close();
   });
 
