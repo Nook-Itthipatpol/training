@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   ============================================================================
-  Training Week — v81
+  Training Week — v82
   ============================================================================
 
   WORKING RULES (ask Claude to follow these on every edit)
@@ -22,6 +22,11 @@
      on the new one.
   6. Say what changed and why. A fix with no note becomes a mystery on the next
      pass — most of the comments in this file exist because of that.
+
+  v82 — the Aerobic tab is removed: its pane, CSS, session list, weekly-total
+  bar, MET/height maths and its tests. Logged data is NOT deleted: state.aero
+  is still sanitised, saved, archived at rollover and exported, so nothing
+  already on disk is lost and the tab could be restored from v81.
 
   v81 — Monday Cable Lateral Raise (v79cablelat) becomes Cable Y-Raise with a
   fresh ID (v81cabley), a different movement; same slot and 3 × 12–20.
@@ -362,7 +367,7 @@
   #pane-week.on{display:flex;flex-direction:column;flex:1 0 auto;}
 
   .weekbar{display:flex;align-items:center;gap:8px;padding:0 2px 10px;}
-  #pane-aero .weekbar,#pane-daily .weekbar{display:none;}
+  #pane-daily .weekbar{display:none;}
   .weekno{font-family:var(--mono);font-size:var(--s4);color:var(--dim);flex:1;letter-spacing:.04em;}
   .weekno b{color:var(--muted);font-weight:500;}
 
@@ -763,132 +768,17 @@
   .addul li::before{content:'·';color:var(--dim);margin-right:8px;}
 
 
-  /* ---------- v28: aerobic tab ---------- */
-  .atot{background:var(--fill);border:1px solid var(--line);border-top:0;border-bottom:0;
-    border-radius:var(--r);
-    padding:14px 16px;margin-bottom:8px;}
-  #aprog{background:none;border:0;border-radius:0;padding:0 2px;margin-bottom:14px;}
-  #aprog::after,#aprog::before{display:none;}
-  .atotsub{font-family:var(--mono);font-size:var(--s4);color:var(--dim);margin-top:7px;line-height:1.55;}
-  .atotsub b{color:var(--ink);font-weight:600;}
-  .atot details{margin:10px 0 0;}
-  .aday{position:relative;overflow:hidden;background:var(--fill);
-    border:1px solid var(--line);border-top:0;border-bottom:0;
-    border-radius:var(--r);padding:12px 16px 14px;margin-bottom:8px;}
   /* v34: one card treatment everywhere — a hairline of light on the top edge.
      Coloured spines were the last piece of the old flat look. */
-  .aday::after,.atot::after,.hab::after{
+  .hab::after{
     content:"";position:absolute;left:0;right:0;top:0;height:1px;pointer-events:none;
     transform:scaleY(var(--hair));transform-origin:top;
     background:linear-gradient(90deg,transparent 8%,var(--edge) 24%,var(--edge) 76%,transparent 92%);}
-  .aday::before,.atot::before,.hab::before{
+  .hab::before{
     content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
     transform:scaleY(var(--hair));transform-origin:bottom;
     z-index:2;pointer-events:none;
     background:linear-gradient(90deg,transparent 12%,var(--edge2) 29%,var(--edge2) 71%,transparent 88%);}
-  .atot{position:relative;overflow:hidden;}
-  .ahead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-  .adow{font-size:var(--s2);font-weight:600;flex:1;min-width:64px;}
-  .aday.today .adow::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;
-    background:var(--brass);vertical-align:middle;margin-left:7px;box-shadow:0 0 8px var(--brass);}
-  .aadd{display:flex;gap:6px;}
-  .arow{position:relative;border-top:1px solid var(--line);margin-top:12px;padding-top:12px;}
-  .arow.first{border-top:0;margin-top:0;padding-top:0;}
-  .arbody{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding-right:22px;}
-  .arinfo{display:flex;flex-direction:column;gap:3px;min-width:0;}
-  .arname{display:flex;align-items:center;gap:8px;min-width:0;}
-  .aname{font-size:var(--s2);font-weight:500;min-width:0;}
-  /* v60: one colour. The dot used to be green for Z2 and orange for the 4×4,
-     which read as a verdict on the session before it had been logged — the same
-     reason the bars and the delta column are uncoloured. Brass says "this is a
-     session", and the card already says which kind in words. */
-  .adot{width:8px;height:8px;border-radius:50%;background:var(--brass);flex:none;}
-  /* flush into the card's own corner — .aday's padding already insets it, so a
-     negative offset here is what actually lands the button in the corner
-     instead of visibly adrift below and left of it. */
-  .ax{position:absolute;top:-8px;right:-10px;width:28px;height:28px;padding:0;border:0;background:none;
-    font:inherit;font-size:16px;line-height:1;color:#5A676C;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;}
-  .ax:hover{color:#E0899A;}
-  .anone{font-size:var(--s3);color:var(--dim);margin:8px 0 0;}
-  /* v35: six identical cards saying "nothing here" was most of this tab. An
-     empty day gets one quiet line; a card is what having logged something
-     looks like. */
-  .aday.empty{background:none;border-color:transparent;box-shadow:none;
-    padding:7px 4px;margin-bottom:0;}
-  .aday.empty::after,.aday.empty::before{display:none;}
-  .aday.empty .ahead{gap:6px;}
-  .aday.empty .adow{font-size:var(--s3);font-weight:500;color:var(--muted);}
-  .aemptywrap{border:1px solid var(--line);border-radius:var(--r);background:#FFFFFF04;
-    padding:5px 12px;margin-bottom:8px;}
-  .aemptywrap .aday.empty+.aday.empty{border-top:1px solid #FFFFFF08;}
-  .aday .mtwrap{margin:0;}
-  /* v54: one field per line, label and value on the same line — the fields are
-     read one at a time while typing, not scanned as a row. */
-  /* v67: padding on .mt used to add leading space above TIME and trailing
-     space below the last row, so the column never lined up with the day
-     label beside it and sat well clear of the card's own bottom edge. A gap
-     on the wrapper spaces the rows from EACH OTHER only. */
-  #pane-aero .mtwrap{flex-direction:column;align-items:stretch;gap:2px;}
-  #pane-aero .mt{flex-direction:row;align-items:center;gap:10px;padding:0;}
-  /* the label is a fixed column, so the value sits right beside it instead of
-     being pushed out to the card edge */
-  #pane-aero .mtlab{letter-spacing:.1em;flex:none;width:74px;}
-  #pane-aero .mtbox{flex:none;}
-  /* a logged number here is a record, not a headline — brass was shouting.
-     v66: the boxed/pill look is gone too. v68: so is the underline that
-     replaced it — plain text sitting on the same baseline as its label is
-     what "not a form" actually looks like. The only tell that it's a field
-     at all is the placeholder colour and the focus state, which turns the
-     value itself brass rather than drawing a rule under it. */
-  #pane-aero .mtin{
-    color:var(--ink);background:none;border:0;border-radius:0;box-shadow:none;
-    height:auto;width:32px;padding:0;text-align:left;
-  }
-  #pane-aero .mtin:focus{color:var(--brass);outline:none;}
-  #pane-aero .mtbox .unit{min-width:34px;}
-
-  /* ---------- v30: aerobic progression ---------- */
-  .aprow{display:flex;align-items:baseline;gap:10px;}
-  .aplab{font:inherit;font-size:var(--s3);color:var(--muted);font-weight:600;flex:1;min-width:0;
-    background:none;border:0;padding:0;text-align:left;cursor:pointer;}
-  .aplab:hover{color:var(--brass);}
-  .apval{font-family:var(--mono);font-size:20px;font-weight:500;letter-spacing:-.02em;color:var(--brass);}
-  .apbar{position:relative;height:12px;border-radius:999px;background:#FFFFFF0F;
-    margin:10px 0 8px;overflow:hidden;}
-  .apfill{position:absolute;left:0;top:0;bottom:0;border-radius:999px;
-    background:linear-gradient(90deg,var(--brass2),var(--brass));transition:width .18s;}
-  .aptick{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--ink);opacity:.45;}
-  .aptick.soft{opacity:.3;background:repeating-linear-gradient(to bottom,var(--ink) 0 3px,transparent 3px 6px);}
-  .apsubrow{display:flex;align-items:baseline;gap:10px;}
-  .apsubrow details{margin:0;}
-  .apsub{font-family:var(--mono);font-size:var(--s4);color:var(--dim);line-height:1.55;}
-  .apsub b{color:var(--ink);font-weight:600;}
-
-  /* ---------- v53: two-bar strip + bottom add bar ---------- */
-  .apblk+.apblk{margin-top:15px;padding-top:14px;border-top:1px solid var(--line);}
-  .apblk .apbar{margin:9px 0 7px;}
-  .apsubrow{margin-top:12px;justify-content:space-between;}
-  /* the four session types, where a thumb already is after training */
-  .aaddbar{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:12px 0 16px;}
-  .aaddbtn{
-    padding:14px 4px;border:1px dashed #FFFFFF2B;border-radius:var(--rc);background:#FFFFFF05;
-    font:inherit;font-size:var(--s3);font-weight:600;letter-spacing:-.005em;line-height:1.3;color:var(--brass);
-    text-wrap:balance;
-    cursor:pointer;touch-action:manipulation;transition:border-color .15s,background .15s,color .15s;
-  }
-  .aaddbtn:hover{border-color:var(--brass2);background:#FFFFFF0A;}
-  /* a plain small-caps label, not a control that reads as a text field — the
-     capsule it used to sit in implied a value worth double-checking, when a
-     day is a one-tap correction at most. */
-  .adaysel{
-    appearance:none;-webkit-appearance:none;-moz-appearance:none;
-    flex:none;align-self:flex-start;margin:0;padding:0;border:0;background:none;
-    font:inherit;font-family:var(--mono);font-size:var(--s4);font-weight:500;
-    letter-spacing:.09em;text-transform:uppercase;color:var(--dim);cursor:pointer;
-  }
-  .adaysel:focus{outline:none;color:var(--brass);}
-  .adaysel:hover{color:var(--muted);}
 
   :focus-visible{outline:2px solid var(--brass);outline-offset:2px;}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;}}
@@ -917,11 +807,6 @@
   <section class="io" id="io" hidden></section>
 </section>
 
-<section class="pane" id="pane-aero" role="tabpanel" tabindex="0" aria-labelledby="tab-aero">
-  <div class="weekbar"><span class="weekno" id="aerono"></span></div>
-  <main id="aero"></main>
-</section>
-
 <section class="pane" id="pane-daily" role="tabpanel" tabindex="0" aria-labelledby="tab-daily">
   <div class="weekbar"><span class="weekno" id="dailyno"></span></div>
   <main id="habits"></main>
@@ -939,7 +824,6 @@ const HIDX   = 'trainweek:hist:index';
 const HSHARD = y  => `trainweek:hist:${y}`;
 const DSHARD = m  => `daily:log:${m}`;  /* m = 'YYYY-MM' */
 const UITAB  = 'ui:tab';
-const UIAVIEW = 'ui:aeroview';          /* which of mins/height/MET·mins the bar shows — per device, never synced or exported */
 const ROLL_HOUR = 4;                    /* day + week boundary, local time */
 
 /* v33: on a near-black field a mid-tone hue reads as mud, so every accent is
@@ -954,12 +838,6 @@ const KIND={
   rest    :{accent:'#7F8D92',soft:'#7F8D9224',tint:'#7F8D920E'}
 };
 
-const Z2NOTE =
- '<b>อยู่ที่ขอบของ VT1</b> · หา VT1 (เพดานของ "เบา") ได้เองโดยไม่ต้องใช้อุปกรณ์ · '+
- '<b>Talk test:</b> ระหว่างค่อยๆ เพิ่มความหนัก ให้อ่านประโยคออกเสียงทุก 5 นาที · '+
- 'VT1 คือจุดที่<b>เริ่มต้องหยุดกลางประโยคเพื่อหายใจ</b> · '+
- 'งานเบาทั้งหมดให้อยู่ต่ำกว่าจุดนั้นลงมาหนึ่งขั้น';
-
 /* 0=Mon … 6=Sun, and the two names for it that the UI needs */
 const DOWI={MON:0,TUE:1,WED:2,THU:3,FRI:4,SAT:5,SUN:6};
 const DOW_TH=['M','T','W','T','F','S','S'];
@@ -972,8 +850,8 @@ const DOW_FULL=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','S
    would have had to pick one accent, one icon and one count for both. Two
    cards, two counts.
    v53: this tab is RESISTANCE ONLY. The 4×4, the long run and pickleball are
-   aerobic work, and aerobic work is now logged in one place — the Aerobic tab —
-   where a session carries its own day and its own numbers.
+   aerobic work, and aerobic work was logged in one place — the Aerobic tab —
+   where a session carries its own day and its own numbers. v82 removed that tab.
    v65: skater bounds and the cable chop left with them — the plan they were a
    warm-up for no longer opens with power work. */
 const PLAN=[
@@ -1058,155 +936,6 @@ const DAILY=[
 const ITEM={}; for(const d of PLAN) for(const it of d.items) ITEM[it.id]=it;
 const HABIT={}; for(const h of DAILY) HABIT[h.id]=h;
 
-/* ================= aerobic =================
-   v28. Everything light — easy runs and the row erg — used to be pinned to a
-   weekday it did not belong to: one easy run slot on Saturday, one rowing slot
-   on Wednesday, one tick each per week. Three easy runs in a week could only be
-   recorded as one.
-
-   The unit here is a SESSION, not a checkbox. A week holds a list of them, each
-   with a day and its own numbers, and the thing the tab reports is the weekly
-   TOTAL — which is the number the 10%-per-week rule is actually about, and which
-   the app never had before.
-
-   The two structured sessions (4×4 and the long run) stay in PLAN and keep their
-   own ids and their own week-over-week history: they are the same session every
-   week, so comparing them is meaningful. They are only MIRRORED here, reading and
-   writing the same state.metrics. Easy runs and rows are not comparable one to
-   the next, so they get no per-session history at all — only the total. */
-const AERO=[
- {t:'incline',label:'Incline walk',staple:1,
-  fields:[{k:'min',label:'Time',unit:'min',step:1},
-          {k:'kmh',label:'Speed',unit:'km/h',step:0.1,ph:'5.5'},
-          {k:'grade',label:'Incline',unit:'%',step:0.5,ph:'12'}],
-  note:Z2NOTE+' · <b>ตั้งลู่ชัน 8–15% เดินเร็ว 5–6 กม./ชม.</b> — ได้ MET ใกล้วิ่งเบาโดยไม่มีแรงกระแทกที่เข่าและเอ็นร้อยหวาย จึงเป็นงานเบาหลักของสัปดาห์ · <b>ห้ามจับราว</b> จับแล้วโหลดหายไปเกือบครึ่ง ชันที่ตั้งไว้จึงไม่ใช่ชันที่ขารับจริง · <b>ชันขึ้นดีกว่าเร็วขึ้น</b> · ทำได้ทุกวัน สั้นได้ ไม่ต้องยาว',
-  mistake:'จับราวหรือเอนพิงหน้าจอ · เร่งจนต้องวิ่งเหยาะ (กลายเป็นโซน 3) · ชัน 0% แล้วเดินเรื่อยๆ (MET ต่ำเกินกว่าจะนับเป็นงาน)'},
- {t:'run',label:'Run',speed:1,
-  fields:[{k:'min',label:'Time',unit:'min',step:1},{k:'km',label:'Distance',unit:'km',step:0.1}],
-  note:Z2NOTE+' · พูดเป็นประโยคเต็มได้ตลอดทั้งเส้น · สั้นได้ ไม่ต้องยาว · <b>ไม่ทำเลยก็ถูกต้อง</b> — ช่องเปล่าคือช่องว่างของแผน ไม่ใช่หนี้ที่ต้องใช้คืน · ถ้าขายังล้าจากวันเวท ให้เปลี่ยนไปเดินชันแทน',
-  mistake:'วิ่งเร็วเพราะระยะสั้น (กลายเป็นวันหนักวันที่สามของสัปดาห์) · ใส่ให้ครบทุกวันจนไม่มีวันไหนเบาจริง'},
- {t:'row',label:'Row',split:1,
-  fields:[{k:'min',label:'Time',unit:'min',step:1},{k:'m',label:'Distance',unit:'m',step:50}],
-  note:Z2NOTE+' · <b>ลำดับแรง: ขา → ลำตัว → แขน</b> แล้วย้อนกลับตอนกลับ · จังหวะดึง 1 ส่วน ปล่อยกลับ 2 ส่วน · SPM 20–24 · ดึงหนักขึ้นดีกว่าซอยถี่ · หลังตรง ไม่งุ้ม · <b>ปริมาณโดยไม่ลงแรงกระแทกที่ขา</b>',
-  mistake:'ซอยถี่จน SPM เกิน 26 เพื่อไล่ระยะ (กลายเป็นโซน 3) · ดึงด้วยแขนก่อนขา · แอ่นหลังจนปวดหลังล่าง'},
- {t:'x4',label:'4×4',hard:1,
-  fields:[{k:'sets',label:'Intervals',unit:'× 4 min',step:1,ph:'4'},
-          {k:'kmh',label:'Speed',unit:'km/h',step:0.1},
-          {k:'grade',label:'Incline',unit:'%',step:0.5}],
-  note:'วอร์มอัพ 10 นาที · <b>4 นาทีหนักระดับพูดได้ทีละ 2–3 คำ × 4 รอบ</b> สลับพักเคลื่อนไหวเบา 3 นาที · คูลดาวน์ 5 นาที · กด lap ทุกช่วง work แล้วกรอกความเร็วเฉลี่ยของช่วง work เท่านั้น · <b>ช่องรอบคือจำนวนช่วง 4 นาทีที่ทำจริง</b> ทำได้ 3 รอบก็กรอก 3 แล้วนาทีรวมจะลดตามเอง · <b>ช่องความชันเป็นทางเลือก</b> — ใส่เมื่อทำบนลู่ชัน เพื่อให้ height กับ MET·mins ของสัปดาห์นับรวมช่วงนี้ด้วย ไม่ใส่ก็ยังบันทึกได้ตามปกติ',
-  mistake:'อัดเต็มที่ตั้งแต่รอบแรกจนรอบ 3–4 ตก · พักด้วยการนั่งนิ่ง · วางชิดวันวิ่งยาวหรือวันเวทหนัก'}
-];
-const AEROT={}; for(const a of AERO) AEROT[a.t]=a;
-
-/* ---- the 4×4's duration ----
-   It is the one session with no Time field: 10 warm-up + n × 4 work +
-   (n−1) × 3 rest + 5 cool is fixed by the protocol, so the rounds are the only
-   thing worth asking for and the minutes follow from them. */
-const X4={warm:10,work:4,rest:3,cool:5};
-/* v60 deleted a body-weight-scaled MET-min/week score (metOf, rowMet, metMinOf,
-   bwKg, MET_TARGET, MET_FLOOR, BW_DEFAULT) because it was a population target
-   sitting next to a personal one, estimated three layers deep. v63 then deleted
-   speedMet, its last remaining caller (the incline ladder), as dead code.
-   v65 brings both back, reshaped: no body weight anywhere, because MET is
-   already energy cost PER KG by definition — every equation below outputs the
-   right units on its own — and the number is now one of three views on the
-   same weekly total (see aeroTotals/aeroProgHTML), not a target to hit. */
-function x4Sets(e){ const n=num(e.sets); return (n==null||n<=0)?4:Math.max(1,Math.min(8,Math.round(n))); }
-function x4Parts(e){ const n=x4Sets(e); return {work:n*X4.work, easy:X4.warm+X4.cool+Math.max(0,n-1)*X4.rest}; }
-/* total time the session occupies — for the 4×4 this is derived from the rounds,
-   which is why it has no Time field to disagree with */
-function aeroMinOf(e){
-  if(e.t==='x4'){ const p=x4Parts(e); return p.work+p.easy; }
-  const v=num(e.min); return v==null?0:v;
-}
-/* v54's equation picker, back for METs·mins: ACSM walking below 7 km/h, running
-   from 7 up, so the same speed never means two different things depending on
-   which card logged it. Used by Incline walk directly and by Run once its
-   split gives up a speed (see metMinOf). */
-function speedMet(kmh, grade){
-  if(kmh==null||kmh<=0) return null;
-  const S=kmh*16.6667, G=(grade||0)/100;
-  const vo2 = kmh<7 ? (0.1*S + 1.8*S*G + 3.5)     /* ACSM walking */
-                    : (0.2*S + 0.9*S*G + 3.5);    /* ACSM running */
-  return Math.round(vo2/3.5*10)/10;
-}
-/* Row has no speed field — only a split, derived from time and distance — so
-   its MET comes from estimated power instead. The Concept2 pace→watts formula
-   turns that split into watts with no extra input (not the watts shown on the
-   erg screen, which the user need not transcribe), and the Compendium of
-   Physical Activities' rowing-ergometer codes (2011: 02130–02150, watts→MET)
-   are linearly interpolated between their four points, anchored at (0 W, 1
-   MET) for a stalled or barely-moving stroke. */
-const ROW_MET_TABLE=[[0,1],[50,3.5],[100,7.0],[150,8.5],[200,12.0]];
-function rowWatts(min,m){
-  if(!min||!m||min<=0||m<=0) return 0;
-  const secPer500=(min*60)/(m/500);
-  return 2.8/Math.pow(secPer500/500,3);
-}
-function rowMet(min,m){
-  const w=rowWatts(min,m); if(w<=0) return null;
-  const T=ROW_MET_TABLE;
-  for(let i=1;i<T.length;i++){
-    if(w<=T[i][0]||i===T.length-1){
-      const w0=T[i-1][0],m0=T[i-1][1],w1=T[i][0],m1=T[i][1];
-      return Math.round((m0+(w-w0)*(m1-m0)/(w1-w0))*10)/10;
-    }
-  }
-}
-/* vertical climb, incline sessions only — the "% grade" a treadmill reports is
-   already rise/run, so height = distance × grade% is exact, not an angle
-   approximation. The 4×4's own incline is optional (see AERO) and, when given,
-   only its WORK minutes count: the easy/rest minutes' incline is not tracked. */
-function heightOf(e){
-  const min=num(e.min), grade=num(e.grade);
-  if(e.t==='incline'){
-    const kmh=num(e.kmh);
-    return (kmh==null||grade==null||min==null) ? 0 : kmh*min*grade/6;
-  }
-  if(e.t==='x4'){
-    const kmh=num(e.kmh);
-    if(kmh==null||grade==null) return 0;
-    return kmh*x4Parts(e).work*grade/6;
-  }
-  return 0;
-}
-/* MET-minutes for one session. Run has no speed field, only time+distance, so
-   its speed is derived the same way a pace would be. The 4×4 splits into its
-   work and easy minutes (see x4Parts) and prices them separately: work at the
-   logged speed (flat, i.e. MET 7, if no grade was given), easy minutes at a
-   light-walk MET the way the warm-up/cooldown/rest actually feel. */
-function metMinOf(e){
-  const min=num(e.min);
-  if(e.t==='incline'){
-    const met=speedMet(num(e.kmh),num(e.grade));
-    return (met==null||min==null) ? 0 : met*min;
-  }
-  if(e.t==='run'){
-    const km=num(e.km);
-    if(min==null||km==null||min<=0) return 0;
-    const met=speedMet(km*60/min,0);
-    return met==null ? 0 : met*min;
-  }
-  if(e.t==='row'){
-    const met=rowMet(min,num(e.m));
-    return (met==null||min==null) ? 0 : met*min;
-  }
-  if(e.t==='x4'){
-    const p=x4Parts(e);
-    const workMet=speedMet(num(e.kmh),num(e.grade))??7;
-    return workMet*p.work + 3*p.easy;
-  }
-  return 0;
-}
-/* v36: nothing is pre-placed on the aerobic tab. The planned sessions live on
-   the Exercises tab, where they are logged; mirroring them here filled the week
-   with rows that were not choices. This tab is now only what actually happened.
-   v51: the empty AEROFIX list and the whole mirroring machinery it fed —
-   aeroFixHTML, the [data-acheck] handler, the [data-mt] branch of the aerobic
-   input listener — are deleted. The 4×4 and the long run still COUNT toward the
-   weekly total through aeroNow(); they are just logged on the Exercises tab and
-   nowhere else. */
-
 /* ================= PURE ================= */
 /* no DOM, no storage — extracted verbatim and unit-tested in node */
 const p2 = n => String(n).padStart(2,'0');
@@ -1289,7 +1018,9 @@ function makeRecord(st, weekKey, endedDay){
   }
   const rec={week:weekKey, ended:endedDay, items};
   /* aerobic sessions: a list, not a map. An entry with no numbers at all was a
-     row the user opened and never filled — it is not a session that happened. */
+     row the user opened and never filled — it is not a session that happened.
+     v82: the Aerobic tab is gone, but sessions already in state.aero are still
+     archived so removing the tab never deletes logged data. */
   const ae=[];
   for(const e of (st.aero||[])){
     const o={t:e.t,d:e.d}; let any=false;
@@ -1299,95 +1030,11 @@ function makeRecord(st, weekKey, endedDay){
        session was not archived — while the LIVE week counted it, because
        aeroCounts whitelists it. The identical week therefore read 40 min and
        368 MET-min on Sunday and 0 on Monday. Same whitelist, both sides. */
-    if(any || AERO_NUMLESS[e.t]) ae.push(o);
+    if(any || e.t==='x4') ae.push(o);
   }
   if(ae.length) rec.aero=ae;
   if(st.deload) rec.dl=1;         /* so history can say why the week is bare */
   return rec;
-}
-/* ---- aerobic ----
-   One flat list of sessions for a week, from either the live state or an
-   archived record. The retired ids (s2, u2, w1) are read HERE and nowhere else:
-   that is the entire migration, and it never rewrites what is already on disk.
-   v54: the comment here used to say the 4×4 carries no minutes. It has since
-   v53: aeroMinOf derives 40 minutes from its rounds, and those minutes count. */
-function aeroList(src){
-  const out=[];
-  for(const e of (src.aero||[])) out.push(e);
-  const I=src.items||{};
-  for(const p of [['m2','run'],['s2','run'],['u2','run'],['w1','row']]){
-    const m=I[p[0]]&&I[p[0]].m;
-    if(m) out.push(Object.assign({t:p[1]},m));
-  }
-  if(I.f1) out.push(Object.assign({t:'x4'}, I.f1.m||{}));
-  return out;
-}
-/* v50: the same test makeRecord applies at rollover, applied here too. Pressing
-   "+ run" creates an empty row; counting it as a session meant the live week said
-   "3 sessions" and the archived version of the identical week said "2", and the
-   %-of-peak strip moved when nothing had been done. The 4×4 is the one deliberate
-   exception — it carries no numbers because its duration is fixed by the
-   protocol, so it is whitelisted rather than counted by accident. */
-const AERO_NUMLESS={x4:1};
-/* v55: > 0, not merely present. A row left at 0 minutes counted as a session,
-   which mattered little for a bar and a lot for the ladder — a week of zeroes
-   would have earned a rung. Zero of something is not some of it. */
-function aeroCounts(e){
-  if(AERO_NUMLESS[e.t]) return true;
-  const pos=k=>{ const v=num(e[k]); return v!=null && v>0; };
-  return pos('min')||pos('km')||pos('m');
-}
-function aeroTotals(list){
-  let n=0,min=0,km=0,m=0,height=0,metMin=0;
-  for(const e of list){
-    if(!aeroCounts(e)) continue;
-    n++;
-    min+=aeroMinOf(e);
-    const b=num(e.km);  if(b!=null) km+=b;
-    const c=num(e.m);   if(c!=null) m+=c;
-    height+=heightOf(e);
-    metMin+=metMinOf(e);
-  }
-  return {n,min:Math.round(min),km:Math.round(km*10)/10,m:Math.round(m),
-          height:Math.round(height),metMin:Math.round(metMin)};
-}
-/* the ceiling the 10%-per-week rule is measured against: the HIGHEST weekly
-   total in the archive, not the most recent week. One easy week — or a
-   deload — must not lower the bar the next week is compared to, otherwise the
-   ratchet resets every time life gets in the way. Same reasoning for all three
-   views the progress bar can show (see aeroProgHTML): each gets its own peak
-   function and its own no-history fallback, since a minute, a metre of climb
-   and a MET-minute are not remotely the same scale.
-   No history at all → 35 minutes, a modest first-week denominator rather than
-   the true target it took months to earn. v51 dropped the `def` flag that came
-   with it: no caller ever read it, so the promise in this comment that the UI
-   would say the denominator is an assumption was never kept. */
-const AERO_BASE=35;
-function aeroPeak(recs){
-  let best=null;
-  for(const r of (recs||[])){
-    const min=aeroTotals(aeroList(r)).min;
-    if(min>0 && (best==null || min>best.min)) best={min,week:r.week};
-  }
-  return best || {min:AERO_BASE,week:null};
-}
-const AERO_HEIGHT_BASE=90;
-function aeroPeakHeight(recs){
-  let best=null;
-  for(const r of (recs||[])){
-    const height=aeroTotals(aeroList(r)).height;
-    if(height>0 && (best==null || height>best.height)) best={height,week:r.week};
-  }
-  return best || {height:AERO_HEIGHT_BASE,week:null};
-}
-const AERO_METMIN_BASE=200;
-function aeroPeakMet(recs){
-  let best=null;
-  for(const r of (recs||[])){
-    const metMin=aeroTotals(aeroList(r)).metMin;
-    if(metMin>0 && (best==null || metMin>best.metMin)) best={metMin,week:r.week};
-  }
-  return best || {metMin:AERO_METMIN_BASE,week:null};
 }
 /* the number a history row is keyed on. 'w' = strength weight · 'm:min' = a metric */
 function valOf(it,key){
@@ -1591,7 +1238,7 @@ async function loadHist(idxPre){
   recs.sort((a,b)=> a.week<b.week?1:(a.week>b.week?-1:0));
   /* v62: one record per week key, whatever the shards contained. The year dedupe
      above is the fix; this is the invariant, held where every reader can rely on
-     it — histRows and aeroPeak both assume weeks are unique. */
+     it — histRows assumes weeks are unique. */
   const seen=new Set();
   histRecs=recs.filter(r=>{ if(!r||!r.week||seen.has(r.week)) return false; seen.add(r.week); return true; });
 }
@@ -1645,8 +1292,8 @@ async function rollIfStale(){
   const rec=makeRecord(state,prevKey,dayKeyOf(now()));
   /* v49: rec.aero counts. A week whose only content was easy runs or rows —
      nothing ticked, nothing weighed — used to fail this test and be discarded,
-     which also meant aeroPeak() could never see it and the 10%-per-week ceiling
-     stayed permanently below what had actually been done. */
+     which also meant aeroPeak() could never see it. v82: aeroPeak is gone with
+     the Aerobic tab; the test stays so pre-existing sessions still archive. */
   if(Object.keys(rec.items).length||(rec.aero&&rec.aero.length)||rec.dl){
     const y=Number(prevKey.slice(0,4));
     const sh=mergeWeek(await store.get(HSHARD(y)),rec);
@@ -1675,14 +1322,13 @@ function save(){
    did not: the handler called save(), and save() STARTS a fresh 300ms timer. So
    backgrounding 100ms after typing replaced one pending write with another
    pending write, and iOS suspends timers the moment the app leaves the screen.
-   It also only looked at aeroTimer — the weight/body-weight timer and every
-   habit-field timer were never touched at all.
+   It also only looked at the aerobic timer — the weight/body-weight timer and
+   every habit-field timer were never touched at all.
    flushWrites issues the writes immediately instead of rescheduling them.
-   Declared here but it also reaches habTimers/aeroTimer, which are defined
+   Declared here but it also reaches habTimers, which are defined
    further down; it is only ever CALLED from an event, long after parse. */
 function flushWrites(){
   if(timer){ clearTimeout(timer); timer=null; store.set(KEY,state); }
-  if(typeof aeroTimer!=='undefined' && aeroTimer){ clearTimeout(aeroTimer); aeroTimer=null; store.set(KEY,state); }
   if(typeof habTimers!=='undefined'){
     for(const k of Object.keys(habTimers)){
       const t=habTimers[k]; if(!t) continue;
@@ -1734,7 +1380,7 @@ function histHTML(it){
    array since v53 moved the cardio out, so metricHTML, derivedText, metricLine
    and the [data-mt] listener were three code paths and a listener kept alive by
    a branch that could not be reached. state.metrics itself stays — archived
-   weeks from before v53 still hold one, and aeroList reads it. */
+   weeks from before v53 still hold one. */
 function itemMode(it){ return it.noWeight ? 'none' : 'weight'; }
 function tracksReps(it){ return itemMode(it)==='weight'&&!/\bsec\b/.test(it.dose||''); }
 function logFieldHTML(it,attr,unit,value,previous){
@@ -1954,14 +1600,6 @@ function histWarnHTML(){
     ? ' <b>This week will not roll over until it reads.</b> Export your data before doing anything else.'
     : ' Older weeks are missing from the tables below; nothing new is at risk.';
   return `<p class="iomsg" style="margin:0 0 12px"><b>History incomplete</b> — could not read ${esc(yrs)}.${frozen}</p>`;
-}
-
-/* the live week in the same shape aeroList reads an archived one in */
-function aeroNow(){
-  /* v53: nothing to mirror any more — every aerobic session is logged on this
-     tab. aeroList still reads the retired ids when it walks an ARCHIVED week, so
-     old history keeps counting exactly as it did. */
-  return aeroList({aero:state.aero});
 }
 
 /* ---- body metrics · daily (weight, waist) ----
@@ -2355,7 +1993,6 @@ async function runImport(dump){
   await rollIfStale();
   dailyReady=null;                     /* next mount re-reads the month shards */
   buildWeek();
-  buildAero();
   if(curTab==='daily') await mountDaily();
 }
 
@@ -2577,182 +2214,6 @@ habEl.addEventListener('input',e=>{
   habTimers[tk]=setTimeout(run,300);
 });
 
-/* ================= aerobic tab ================= */
-const aeroEl=document.getElementById('aero');
-let aeroUid=0;
-const newSid = () => 'a'+Date.now().toString(36)+(aeroUid++).toString(36);
-
-/* v54: aeroDerived() is gone. It built a per-session line — speed, split, MET,
-   MET-min — and then wrote it into a [data-ad] node that aeroSessHTML has never
-   rendered, so no user has ever seen it. The week TOTAL is the number this tab
-   is about; a per-session score invites optimising the session instead. */
-function aeroFieldsHTML(e){
-  const cfg=AEROT[e.t];
-  const f=cfg.fields.map(x=>`<label class="mt"><span class="mtlab">${esc(x.label)}</span>
-    <span class="mtbox">
-      <input class="wtin mtin" type="number" step="${x.step}" inputmode="decimal"
-             data-af="${e.s}" data-fk="${x.k}" value="${esc(e[x.k]??'')}" placeholder="${esc(x.ph??'')}"
-             aria-label="${esc(x.label)} ${esc(cfg.label)}">
-      <span class="unit">${esc(x.unit)}</span>
-    </span></label>`).join('');
-  return `<div class="mtwrap">${f}</div>`;
-}
-function aeroSessHTML(e){
-  const cfg=AEROT[e.t]; if(!cfg) return '';
-  const opts=DOW_FULL.map((nm,i)=>`<option value="${i}"${i===e.d?' selected':''}>${nm.slice(0,3)}</option>`).join('');
-  return `<div class="arow first">
-    <button class="ax" data-adel="${e.s}" aria-label="remove ${esc(cfg.label)}">×</button>
-    <div class="arbody">
-      <div class="arinfo">
-        <select class="adaysel" data-aday="${e.s}" aria-label="day for ${esc(cfg.label)}">${opts}</select>
-        <span class="arname"><span class="adot"></span><span class="aname">${esc(cfg.label)}</span></span>
-      </div>
-      ${aeroFieldsHTML(e)}
-    </div></div>`;
-}
-/* v53: the week is no longer a seven-row scaffold with an add pill on every day.
-   Six of those rows were always empty, and the pills asked which day before the
-   user had said what. The list now shows only days that HAPPENED, and the four
-   session types sit in one bar at the bottom — the thing you reach for after
-   training, where a thumb already is. A new session lands on today and can be
-   moved with the day select on its own row. */
-function buildAero(){
-  const td=dowOf(now());
-  /* v53: one SESSION, one card. The day heading said what the day select on the
-     session's own row already says, and a day is not the unit here — two rows
-     under one "Thursday" read as one thing that happened twice. */
-  /* v62: filter BEFORE wrapping. aeroSessHTML already returned '' for a type it
-     did not recognise, but the <section> around it was written unconditionally,
-     so an unknown `t` — from an old export, or a type retired later — painted an
-     empty card with no name, no fields and no way to delete it. */
-  const parts=(state.aero||[]).slice()
-    .filter(e=>e&&AEROT[e.t])
-    .sort((a,b)=>(a.d??0)-(b.d??0))
-    .map(e=>`<section class="aday${e.d===td?' today':''}">${aeroSessHTML(e)}</section>`);
-  const empty=parts.length?'':'<p class="anone">ยังไม่มี session สัปดาห์นี้ — กดปุ่มด้านล่างเพื่อเพิ่ม</p>';
-  const add=AERO.map(a=>`<button class="aaddbtn" data-aadd="${a.t}">+ ${esc(a.label)}</button>`).join('');
-  aeroEl.innerHTML=`
-    <section class="atot" id="aprog">${aeroProgHTML()}</section>
-    ${empty}${parts.join('')}
-    <div class="aaddbar">${add}</div>`;
-  document.getElementById('aerono').innerHTML =
-    state.deload ? 'deload · easy work only, ~50–60% of usual · no 4×4' : '';
-}
-/* progression strip. The bar is scaled so the peak sits well inside it — a week
-   that goes past the previous best should look like it went past, not like it
-   merely filled a bar. Uncoloured logic: no red above the line, no green below
-   it. The +10% mark is a hint, not a limit, and a deload week is meant to be
-   short. */
-/* v65: three views of the same strip, cycled by tapping the label. Each view
-   is just a (totals key, peak function, unit, decimals) tuple — the bar/tick/
-   fraction markup underneath does not know or care which one is showing. The
-   choice lives in the localStorage mirror (see UIAVIEW), not `state`: it is a
-   per-device reading preference, not data, so it is never synced or exported
-   and never resets at rollover the way a logged week does. */
-const AERO_VIEWS={
-  min:   {label:'mins',        key:'min',    unit:'min',     dp:0, peak:()=>aeroPeak(histRecs)},
-  height:{label:'height',      key:'height', unit:'m',       dp:0, peak:()=>aeroPeakHeight(histRecs)},
-  met:   {label:'METs · mins', key:'metMin', unit:'MET·min', dp:0, peak:()=>aeroPeakMet(histRecs)}
-};
-const AERO_VIEW_ORDER=['min','height','met'];
-function aeroView(){
-  const v=(store.mirrorGet(UIAVIEW)||{}).id;
-  return AERO_VIEWS[v] ? v : 'min';
-}
-function aeroViewNext(){
-  const cur=AERO_VIEW_ORDER.indexOf(aeroView());
-  const next=AERO_VIEW_ORDER[(cur+1)%AERO_VIEW_ORDER.length];
-  store.mirrorSet(UIAVIEW,{id:next});
-  return next;
-}
-function fmtN(v,dp){ return dp>0 ? (Math.round(v*Math.pow(10,dp))/Math.pow(10,dp)).toFixed(dp) : String(Math.round(v)); }
-function aeroProgHTML(){
-  const view=aeroView(), V=AERO_VIEWS[view];
-  const t=aeroTotals(aeroNow())[V.key];
-  const pk=V.peak()[V.key];
-  const bar=(cur,ref,scale,soft)=>{
-    const w=Math.max(cur?1.5:0, Math.min(100, cur/scale*100));
-    return `<span class="apfill" style="width:${w.toFixed(1)}%"></span>
-      <span class="aptick" style="left:${Math.min(100,ref/scale*100).toFixed(1)}%"></span>
-      <span class="aptick soft" style="left:${Math.min(100,soft/scale*100).toFixed(1)}%"></span>`;
-  };
-  const pct=Math.round(t/pk*100);
-  const s=Math.max(pk*1.35, t||0, 1);
-  return `<div class="apblk">
-      <div class="aprow">
-        <button class="aplab" type="button" data-aview aria-label="switch view, currently ${esc(V.label)}">${esc(V.label)}</button>
-        <span class="apval">${pct}%</span>
-      </div>
-      <div class="apbar" role="img" aria-label="${fmtN(t,V.dp)} of ${fmtN(pk,V.dp)} ${V.unit}, ${pct}%">
-        ${bar(t,pk,s,pk*1.1)}
-      </div>
-      <div class="apsub"><b>${fmtN(t,V.dp)}</b> / ${fmtN(pk,V.dp)} ${V.unit}</div>
-    </div>
-    <div class="apsubrow">
-      <details><summary>History</summary><div class="histbody">${aeroHistHTML()}</div></details>
-    </div>`;
-}
-/* redraw everything derived from the week aerobic total.
-   v51: the .atotline branch and aeroTotText() are gone — there has been no
-   .atotline element since the progression strip replaced the totals card, so
-   half of this function was querying for a node that could not exist. */
-function aeroRefreshTot(){
-  const pg=document.getElementById('aprog');
-  if(pg) pg.innerHTML=aeroProgHTML();
-}
-/* no green, no red. Volume that went down in a deload week is not a loss, and a
-   tracker that grades weekly minutes gets read as a verdict — same reasoning
-   that keeps the body-weight delta uncoloured. */
-function aeroHistHTML(){
-  const rows=[];
-  for(const r of histRecs){ rows.push({week:r.week,t:aeroTotals(aeroList(r)),dl:!!r.dl}); if(rows.length>=8) break; }
-  if(!rows.length) return '<p class="histcap">No history yet — the first row lands when the week rolls over</p>';
-  let h='<p class="histcap">Weekly totals · uncoloured on purpose: a lighter deload week is not a loss</p><table class="h m">';
-  for(const r of rows){
-    const t=r.t;
-    const cell=t.n?`${t.n} sess · ${t.min} min`:'—';
-    h+=`<tr><td class="w">${r.week.slice(5)}</td><td class="kg">${cell}</td><td class="d">${r.dl?'deload':''}</td></tr>`;
-  }
-  return h+'</table>';
-}
-aeroEl.addEventListener('click',e=>{
-  const view=e.target.closest('[data-aview]');
-  if(view){ aeroViewNext(); aeroRefreshTot(); return; }
-  const add=e.target.closest('[data-aadd]');
-  if(add){
-    state.aero=state.aero||[];
-    state.aero.push({s:newSid(),d:dowOf(now()),t:add.dataset.aadd});
-    save(); buildAero(); return;
-  }
-  const del=e.target.closest('[data-adel]');
-  if(del){
-    state.aero=(state.aero||[]).filter(x=>x.s!==del.dataset.adel);
-    save(); buildAero(); return;
-  }
-});
-aeroEl.addEventListener('change',e=>{
-  const sel=e.target.closest('[data-aday]');
-  if(!sel) return;
-  const ent=(state.aero||[]).find(x=>x.s===sel.dataset.aday);
-  if(!ent) return;
-  ent.d=Number(sel.value);
-  save(); buildAero();
-});
-/* v54: the same debounce the habit tab got in v50. This listener called save()
-   on every keystroke, so typing "5000" into a rowing distance wrote the whole
-   blob four times — and wrote "5", "50" and "500" as real weeks in between. */
-let aeroTimer=null;
-function saveAeroSoon(){ clearTimeout(aeroTimer); aeroTimer=setTimeout(()=>{aeroTimer=null;save();},300); }
-aeroEl.addEventListener('input',e=>{
-  const f=e.target.closest('[data-af]');
-  if(!f) return;
-  const ent=(state.aero||[]).find(x=>x.s===f.dataset.af);
-  if(!ent) return;
-  if(f.value==='') delete ent[f.dataset.fk]; else ent[f.dataset.fk]=f.value;
-  aeroRefreshTot();
-  saveAeroSoon();
-});
-
 /* ================= deload week =================
    Read-only. No checks, no numbers, no storage key of its own.
    A deload week is still logged on the Exercises tab — tick the item, leave the
@@ -2763,7 +2224,7 @@ aeroEl.addEventListener('input',e=>{
 const DELOAD_PRINCIPLES=[
  {h:'Weights',t:'<b>ลดเซ็ตลง 40–50% · น้ำหนักเท่าเดิม</b> — ความล้าลดตามปริมาณ แต่ความแข็งแรงเสียไปกับน้ำหนักที่ลด ตัดเซ็ตก่อนเสมอ'},
  {h:'What to cut',t:'ตัด<b>ท่าที่ทำให้ปวดกล้ามเนื้อมากที่สุด</b>ก่อน ไม่ใช่ตัดท่าที่ทำง่าย จุดประสงค์คือให้เนื้อเยื่อได้ซ่อม'},
- {h:'Cardio',t:'<b>ตัดงานหนักออกทั้งหมด</b> (4×4) เก็บงานเบาไว้ที่ ~50–60% ของ<b>ยอดนาทีรวม</b>ในแท็บ Aerobic — ฐานแอโรบิกหายช้ามาก ไม่ต้องกลัวเสียของ · ยอดที่ลดในสัปดาห์นี้ไม่ถูกทำเครื่องหมายว่าถดถอย'},
+ {h:'Cardio',t:'<b>ตัดงานหนักออกทั้งหมด</b> (4×4) เก็บงานเบาไว้ที่ ~50–60% ของ<b>ยอดนาทีรวม</b> — ฐานแอโรบิกหายช้ามาก ไม่ต้องกลัวเสียของ · ยอดที่ลดในสัปดาห์นี้ไม่ถูกทำเครื่องหมายว่าถดถอย'},
  {h:'When',t:'ทุก 4–6 สัปดาห์ หรือเมื่อ<b>น้ำหนักไม่ขึ้น 2 สัปดาห์ติด · นอนไม่ดี · ชีพจรตอนเช้าสูงกว่าปกติ · ไม่อยากซ้อม</b> — สัญญาณมาก่อนตารางเสมอ'},
  {h:'Watch for',t:'ใช้สัปดาห์ deload ไป<b>ไล่ตามงานที่ค้าง</b>จนกลายเป็นสัปดาห์ปกติที่กระจัดกระจาย · หรือหยุดสนิททั้งสัปดาห์จนกลับมาแล้วฟอร์มพัง — deload คือลดปริมาณ ไม่ใช่หยุด'}
 ];
@@ -2777,7 +2238,7 @@ const DELOAD_DEFAULT='2 sets · same load';
    The test the comment above describes only walks PLAN → rules; it never walked
    rules → PLAN, which is why three dead entries survived two versions.
    NOTE the namespace: these keys are PLAN ids. 'x4' here would mean the
-   Meditation habit, NOT the 4×4 — that lives in AERO under `t`. The
+   Meditation habit, NOT the 4×4 (which lived in the removed AERO list). The
    4×4's deload rule is the line in DELOAD_PRINCIPLES, not a key here. */
 const DELOAD_RULES={
   /* v72: the pulldown combination keeps the old pulldown's lighter deload. */
@@ -2802,7 +2263,6 @@ document.getElementById('dltoggle').addEventListener('click',()=>{
   state.deload=!state.deload;
   save();
   buildWeek();
-  buildAero();
 });
 
 /* ================= tabs ================= */
@@ -2817,7 +2277,6 @@ async function mountDaily(){
 }
 const TABS=[
   {id:'week',  label:'Resistance', pane:'pane-week',  mount:buildWeek},
-  {id:'aero',  label:'Aerobic',   pane:'pane-aero',  mount:buildAero},
   {id:'daily', label:'Routines',  pane:'pane-daily', mount:mountDaily}
 ];
 const tabsEl=document.getElementById('tabs');
@@ -2887,7 +2346,6 @@ document.addEventListener('visibilitychange',async()=>{
   try{
     await rollIfStale();
     buildWeek();
-    buildAero();
     if(dailyReady){ await dailyReady; buildDaily(); }
   } finally { rollBusy=false; }
 });

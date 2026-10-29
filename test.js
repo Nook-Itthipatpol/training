@@ -58,6 +58,7 @@ async function boot(opts = {}) {
       const s = makeStore(opts.seed);
       win.storage = s.api;
       win.__mem = s.mem;
+      for (const [k, v] of Object.entries(opts.local || {})) win.localStorage.setItem(k, v);
       /* freeze the clock. `new Date()` with no args is the app's only reading of
          "now"; every other construction (weekStart+'T12:00:00') must keep
          working, so only the zero-arg form is pinned. */
@@ -91,13 +92,11 @@ const input = (win, el, v) => { el.value = v; el.dispatchEvent(new win.Event('in
 async function suiteBoot() {
   console.log('\n[boot]');
 
-  await test('boots clean, paints all three tabs, no errors', async () => {
+  await test('boots clean, paints both tabs, no errors', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     eq(t.doc.body.dataset.ready, '1', 'ready flag');
     eq(t.doc.querySelectorAll('[data-day]').length, 2, 'day cards: one per training day');
     eq(t.doc.querySelectorAll('[data-item]').length, 16, 'exercise rows');
-    t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
-    ok(t.doc.querySelector('#aprog'), 'weekly progress card');
     t.doc.querySelector('[data-tab="daily"]').click(); await tick(200);
     eq(t.doc.querySelectorAll('.hab').length, 2, 'habit cards');
     eq(t.errors, [], 'errors');
@@ -107,10 +106,10 @@ async function suiteBoot() {
   await test('every getElementById target exists on some tab', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
     const ids = [...new Set([...html.matchAll(/getElementById\('([^']+)'\)/g)].map(m => m[1]))];
-    /* #aprog is rendered by buildAero, so the check has to visit every tab
+    /* some ids are rendered on mount, so the check has to visit every tab
        before deciding an id is dangling. */
     const found = new Set();
-    for (const tab of ['week', 'aero', 'daily']) {
+    for (const tab of ['week', 'daily']) {
       t.doc.querySelector('[data-tab="' + tab + '"]').click();
       await tick(tab === 'daily' ? 200 : 40);
       ids.forEach(i => { if (t.doc.getElementById(i)) found.add(i); });
@@ -323,59 +322,33 @@ async function suiteWeek() {
 }
 
 /* =========================================================================
-   5 · aerobic tab
+   5 · aerobic tab removed (v82) + resistance extras
    ========================================================================= */
 async function suiteAero() {
-  console.log('\n[aerobic]');
+  console.log('\n[aerobic removed · resistance extras]');
 
-  await test('add, log and delete a session', async () => {
+  await test('v82 · only Resistance and Routines tabs remain', async () => {
     const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
-    t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
-    t.doc.querySelector('[data-aadd="incline"]').click(); await tick(40);
-    eq(t.win.eval('state.aero.length'), 1, 'added');
-    input(t.win, t.doc.querySelector('[data-af][data-fk="min"]'), '50'); await tick(400);
-    eq(t.win.eval('state.aero[0].min'), '50', 'logged');
-    ok(/50 \/ \d+ min/.test(t.doc.getElementById('aprog').textContent), 'total updated');
-    t.doc.querySelector('[data-adel]').click(); await tick(40);
-    eq(t.win.eval('state.aero.length'), 0, 'deleted');
+    eq([...t.doc.querySelectorAll('[role="tab"]')].map(b => b.textContent), ['Resistance', 'Routines'], 'tabs');
+    ok(!t.doc.getElementById('pane-aero'), 'no aerobic pane');
+    eq(t.win.eval('typeof buildAero'), 'undefined', 'no aerobic builder');
     eq(t.errors, [], 'errors');
     t.close();
   });
 
-  await test('height and MET-minutes derive from the same logged fields, no body weight', async () => {
-    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
-    // incline: 45 min @ 5.5 km/h @ 10% — height = distance(m) x grade%
-    eq(t.win.heightOf({ t: 'incline', min: 45, kmh: 5.5, grade: 10 }), 412.5, 'incline height');
-    ok(t.win.metMinOf({ t: 'incline', min: 45, kmh: 5.5, grade: 10 }) > 0, 'incline MET-min positive');
-    // run: no kmh field, speed derives from km/min like a pace would
-    ok(t.win.metMinOf({ t: 'run', min: 30, km: 5 }) > 0, 'run MET-min derives a speed from km/min');
-    // row: no speed/watts field at all — split alone must be enough
-    ok(t.win.rowMet(25, 5000) > 0, 'row MET from split alone');
-    eq(t.win.heightOf({ t: 'row', min: 25, m: 5000 }), 0, 'row has no height');
-    // x4 with no grade given: height is 0, but MET-min still prices work vs easy minutes
-    eq(t.win.heightOf({ t: 'x4', sets: 4, kmh: 6.8 }), 0, 'x4 height needs an explicit grade');
-    ok(t.win.metMinOf({ t: 'x4', sets: 4, kmh: 6.8 }) > 0, 'x4 MET-min still counts the interval');
+  await test('v82 · a device last left on the Aerobic tab opens Resistance', async () => {
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00', local: { 'ui:tab': JSON.stringify({ id: 'aero' }) } });
+    eq(t.doc.querySelector('[aria-selected="true"]').dataset.tab, 'week', 'falls back to the first tab');
+    ok(t.doc.getElementById('pane-week').classList.contains('on'), 'resistance pane shown');
+    eq(t.errors, [], 'errors');
     t.close();
   });
 
-  await test('the weekly-total bar cycles mins → height → METs · mins and remembers the choice', async () => {
-    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
-    t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
-    t.doc.querySelector('[data-aadd="incline"]').click(); await tick(40);
-    input(t.win, t.doc.querySelector('[data-af][data-fk="min"]'), '45');
-    input(t.win, t.doc.querySelector('[data-af][data-fk="kmh"]'), '5.5');
-    input(t.win, t.doc.querySelector('[data-af][data-fk="grade"]'), '10');
-    await tick(400);
-    eq(t.doc.querySelector('[data-aview]').textContent, 'mins', 'starts on mins');
-    t.doc.querySelector('[data-aview]').click(); await tick(30);
-    eq(t.doc.querySelector('[data-aview]').textContent, 'height', 'cycles to height');
-    ok(/413 \/ \d+ m/.test(t.doc.getElementById('aprog').textContent), 'height total shown');
-    t.win.eval('buildAero()'); // a full rebuild, not just the redraw a keystroke triggers
-    eq(t.doc.querySelector('[data-aview]').textContent, 'height', 'choice survives a rebuild');
-    t.doc.querySelector('[data-aview]').click(); await tick(30);
-    eq(t.doc.querySelector('[data-aview]').textContent, 'METs · mins', 'cycles to METs · mins');
-    t.doc.querySelector('[data-aview]').click(); await tick(30);
-    eq(t.doc.querySelector('[data-aview]').textContent, 'mins', 'cycles back to mins');
+  await test('v82 · logged aerobic sessions are kept, not deleted', async () => {
+    const aero = [{ s: 'a1', d: 1, t: 'run', min: '30', km: '5' }];
+    const t = await boot({ now: '2026-08-31T09:00:00+07:00', seed: { 'trainweek:v11': STATE({ aero }) } });
+    input(t.win, t.doc.querySelector('[data-wt]'), '40'); await tick(400);
+    eq(JSON.parse(t.mem.get('trainweek:v11')).aero, aero, 'state.aero survives a save');
     eq(t.errors, [], 'errors');
     t.close();
   });
@@ -520,52 +493,6 @@ async function suiteAero() {
     ok(!txt.includes('Tuesday'), 'a logged aerobic session with no resistance plan prints no day at all');
     ok(!txt.includes('Incline walk'), 'aerobic/cardio sessions are excluded from the list');
     ok(!txt.includes('Saturday'), 'a day with nothing logged is not printed');
-    t.close();
-  });
-
-  await test('the 4x4 derives its minutes from the rounds', async () => {
-    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
-    eq(t.win.aeroMinOf({ t: 'x4' }), 40, 'default 4 rounds');
-    eq(t.win.aeroMinOf({ t: 'x4', sets: 3 }), 33, '3 rounds');
-  });
-
-  await test('a session logged as zero is not a session', async () => {
-    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
-    eq(t.win.aeroCounts({ t: 'run', min: 0 }), false, 'zero minutes');
-    eq(t.win.aeroCounts({ t: 'run' }), false, 'empty row');
-    eq(t.win.aeroCounts({ t: 'run', min: 30 }), true, 'real run');
-    eq(t.win.aeroCounts({ t: 'x4' }), true, '4x4 is whitelisted');
-    t.close();
-  });
-
-  await test('the peak is the highest archived week, not the latest', async () => {
-    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
-    const recs = [
-      { week: '2026-W34', aero: [{ t: 'run', min: 60 }] },
-      { week: '2026-W33', aero: [{ t: 'run', min: 200 }] }
-    ];
-    eq(t.win.aeroPeak(recs).min, 200, 'peak');
-    eq(t.win.aeroPeak([]).min, 35, 'no history falls back to 35');
-    t.close();
-  });
-
-  await test('the incline card keeps its static speed/grade placeholders', async () => {
-    const t = await boot({ now: '2026-08-31T09:00:00+07:00' });
-    t.doc.querySelector('[data-tab="aero"]').click(); await tick(40);
-    t.doc.querySelector('[data-aadd="incline"]').click(); await tick(40);
-    eq(t.doc.querySelector('[data-af][data-fk="grade"]').placeholder, '12', 'grade');
-    eq(t.doc.querySelector('[data-af][data-fk="kmh"]').placeholder, '5.5', 'speed');
-    t.close();
-  });
-
-  await test('FIX-F · an unknown session type does not paint an empty card', async () => {
-    const t = await boot({
-      now: '2026-08-31T09:00:00+07:00',
-      seed: { 'trainweek:v11': STATE({ aero: [{ s: 'a1', d: 1, t: 'swim', min: '30' }, { s: 'a2', d: 2, t: 'run', min: '20' }] }) }
-    });
-    t.doc.querySelector('[data-tab="aero"]').click(); await tick(60);
-    eq(t.doc.querySelectorAll('.aday').length, 1, 'only the known session gets a card');
-    eq(t.errors, [], 'errors');
     t.close();
   });
 
@@ -774,8 +701,7 @@ async function suiteDurability() {
     eq(t.win.eval('typeof state.weights'), 'object', 'weights coerced to an object');
     eq(t.win.eval('state.aero.length'), 1, 'junk aero entries dropped');
     eq(t.win.eval('state.bw'), '', 'body weight coerced');
-    t.doc.querySelector('[data-tab="aero"]').click(); await tick(60);
-    eq(t.errors, [], 'aerobic tab does not throw');
+    eq(t.errors, [], 'no errors');
     /* and a weight typed after loading a corrupt blob must actually stick */
     t.doc.querySelector('[data-tab="week"]').click(); await tick(40);
     const w = t.doc.querySelector('[data-wt]');
@@ -841,7 +767,6 @@ async function suiteMarkup() {
       eq(dup, [], 'duplicates on ' + where);
     };
     check('week');
-    t.doc.querySelector('[data-tab="aero"]').click(); await tick(40); check('aero');
     t.doc.querySelector('[data-tab="daily"]').click(); await tick(200); check('daily');
     t.close();
   });
