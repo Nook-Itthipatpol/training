@@ -35,16 +35,17 @@ export const featureWall = {
 export const anchors = {
   examBed:  { x: 0.30, z: 0.38, w: 1.85, d: 0.62, h: 0.72 }, // against back wall
   vanity:   { x: -1.075, z: 0.26, w: 0.58, d: 0.44, h: 0.82 }, // against left wall + back wall
-  desk:     { x: 0.30, z: 1.35, w: 1.65, d: 0.62, h: 0.76 },
-  chairBehind: { x: 0.30, z: 0.85, rotY: 0 },                  // faces camera (+z)
+  desk:     { x: 0.30, z: 1.30, w: 1.65, d: 0.62, h: 0.76 },
+  chairBehind: { x: 0.30, z: 0.80, rotY: 0 },                  // faces camera (+z)
   chairsFront: [                                              // face back wall (-z)
-    { x: -0.38, z: 2.10, rotY: Math.PI },
-    { x: 0.30, z: 2.12, rotY: Math.PI },
-    { x: 0.98, z: 2.10, rotY: Math.PI },
+    { x: -0.40, z: 1.92, rotY: Math.PI },
+    { x: 0.30, z: 1.94, rotY: Math.PI },
+    { x: 1.00, z: 1.92, rotY: Math.PI },
   ],
   plant:    { x: 1.12, z: 0.62, y: 0.0 },                     // pot on floor, right corner
   painting: { wallX: -half, zCenter: 1.0, yCenter: 1.65, w: 1.05, h: 1.25 }, // on left wall
   sconce:   { wallX: -half, z: 1.0, y: 2.55 },                // above painting
   acUnit:   { x: -0.05, y: 2.58, w: 0.82, h: 0.28, d: 0.21 }, // on feature wall
-  downlights: [ { x: -0.70, z: 0.45 }, { x: 0.80, z: 0.45 } ], // ceiling
+  downlights: [ { x: -0.70, z: 0.75 }, { x: 0.80, z: 0.75 },   // ceiling, in frame
+                { x: -0.55, z: 2.75 }, { x: 0.55, z: 2.75 } ], // behind camera view (front fill)
 };

@@ -110,10 +110,10 @@ export async function build(ctx) {
   }
 
   // ================= CHAIR =================
-  const leatherTex = mats.sets.leatherSet({ color: [176, 145, 106], seed: 5, repeat: [1, 1] });
+  const leatherTex = mats.sets.leatherSet({ color: [126, 106, 86], seed: 5, repeat: [1, 1] });
   const leather = mats.leather.clone();
   leather.map = leatherTex.map; leather.roughnessMap = leatherTex.roughnessMap; leather.normalMap = leatherTex.normalMap;
-  leather.roughness = 0.9; leather.normalScale = new THREE.Vector2(0.22, 0.22); leather.sheen = 0.45; leather.sheenColor = new THREE.Color(0xe0c9a8);
+  leather.roughness = 0.9; leather.normalScale = new THREE.Vector2(0.22, 0.22); leather.sheen = 0.12; leather.sheenColor = new THREE.Color(0x8a7560);
   leather.sheenRoughness = 0.5; leather.clearcoat = 0.12; leather.clearcoatRoughness = 0.5;
   const legMat = mats.blackMetal, glideMat = mats.darkPlastic;
   const TILE = 0.3;

@@ -43,7 +43,7 @@ export async function build({ THREE, dims, mats }) {
 
   // ------------------------------------------------------------------ FLOOR
   const woodSet = mats.sets.woodSet;
-  const floorTex = woodSet({ size: 1024, light: [206, 164, 118], dark: [166, 124, 86], seed: 31, rings: 12, roughBase: 0.5, normal: 1.8 });
+  const floorTex = woodSet({ size: 1024, light: [198, 168, 134], dark: [158, 126, 96], seed: 31, rings: 12, roughBase: 0.5, normal: 1.8 });
   const floorBase = new THREE.MeshPhysicalMaterial({ ...floorTex, color: 0xffffff, roughness: 1,
     clearcoat: 0.18, clearcoatRoughness: 0.4 });
   const tones = [[1, 1, 1], [0.92, 0.9, 0.88], [1.05, 1.02, 0.97], [0.86, 0.83, 0.8], [0.97, 0.94, 0.92], [1.0, 0.96, 0.9]]
@@ -129,7 +129,7 @@ export async function build({ THREE, dims, mats }) {
   }
 
   // ------------------------------------------------------------------ FEATURE WALL
-  const veneerTex = woodSet({ size: 1024, light: [192, 148, 106], dark: [160, 118, 82], seed: 8, rings: 18, roughBase: 0.5, normal: 1.4 });
+  const veneerTex = woodSet({ size: 1024, light: [180, 144, 110], dark: [140, 106, 76], seed: 8, rings: 18, roughBase: 0.5, normal: 1.4 });
   const veneerBase = new THREE.MeshPhysicalMaterial({ ...veneerTex, color: 0xffffff, roughness: 1,
     clearcoat: 0.1, clearcoatRoughness: 0.45 });
   const vTones = [[1, 1, 1], [0.94, 0.92, 0.9], [1.05, 1.03, 0.99], [0.9, 0.87, 0.84]].map((t) => tint(veneerBase, t));

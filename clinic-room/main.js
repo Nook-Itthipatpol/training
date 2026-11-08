@@ -31,7 +31,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffe
 renderer.setPixelRatio(1);
 renderer.setSize(W, H);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = +(params.get('exposure') || 1.0);
+renderer.toneMappingExposure = +(params.get('exposure') || 0.62);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -64,13 +64,25 @@ const mats = createMaterials({ textureLoader });
 async function loadEnvironment() {
   const hdr = await new HDRLoader().loadAsync('assets/hdr/venice_sunset_1k.hdr');
   hdr.mapping = THREE.EquirectangularReflectionMapping;
-  scene.environment = hdr;
+  scene.environment = params.get('env') === '0' ? null : hdr;
   scene.environmentIntensity = 0.12;
   scene.environmentRotation.y = 1.2;
 }
 
-// ---------- lights (2700–3000 K) ----------
-const warm = kelvin(2700), warmer = kelvin(2400), neutral = kelvin(3000);
+// ---------- lights (2600–3300 K) ----------
+// Intensities: spots in candela, rect lights in nits. Override via URL (e.g. &down=30).
+const LIGHT = {
+  down: +(params.get('down') || 22),
+  cove: +(params.get('cove') || 10),
+  strip: +(params.get('strip') || 4),
+  sconce: +(params.get('sconce') || 9),
+  emissive: +(params.get('emissive') || 0.18), // global scale on part emissive materials
+};
+const WHITE = params.get('white') === '1';
+// Camera white balance: express light colors relative to a reference white (like a photographer setting WB).
+const WB = kelvin(+(params.get('wb') || 4000));
+const wbKelvin = (k) => { const c = kelvin(k); c.r /= WB.r; c.g /= WB.g; c.b /= WB.b; const m = Math.max(c.r, c.g, c.b); return c.multiplyScalar(1 / m); };
+const warm = WHITE ? new THREE.Color(1, 1, 1) : wbKelvin(2900), warmer = WHITE ? new THREE.Color(1, 1, 1) : wbKelvin(2700), neutral = WHITE ? new THREE.Color(1, 1, 1) : wbKelvin(3600);
 const lights = new THREE.Group(); lights.name = 'lights';
 scene.add(lights);
 
@@ -100,28 +112,30 @@ function buildLights() {
   const R = dims.room, FW = dims.featureWall;
 
   // Recessed ceiling downlights.
-  for (const d of dims.anchors.downlights) {
-    addSpot({ pos: [d.x, R.height - 0.02, d.z], target: [d.x, 0, d.z + 0.15], color: neutral,
-      intensity: 60, angle: THREE.MathUtils.degToRad(38), penumbra: 0.75, radius: 0.035 });
-  }
+  dims.anchors.downlights.forEach((d, i) => {
+    const front = d.z > 2;
+    addSpot({ pos: [d.x, R.height - 0.06, d.z], target: [d.x, 0, d.z - (front ? 0.6 : 0)], color: neutral,
+      intensity: LIGHT.down * (front ? 1.3 : 1), angle: THREE.MathUtils.degToRad(front ? 55 : 42),
+      penumbra: 0.85, radius: 0.04 });
+  });
 
   // Cove wash along the top of the feature wall (faces down, grazes the wood).
   addRect({ pos: [0, FW.coveY - 0.01, FW.panelDepth + 0.05], rot: [-Math.PI / 2, 0, 0],
-    w: R.width - 0.02, h: 0.06, color: warmer, intensity: 40 });
+    w: R.width - 0.02, h: 0.06, color: warmer, intensity: LIGHT.cove });
 
   // Vertical LED reveals (face +z).
   for (const x of FW.ledStripsX) {
     const h = FW.ledStripTop - FW.ledStripBottom;
     addRect({ pos: [x, FW.ledStripBottom + h / 2, FW.panelDepth + 0.006], rot: [0, 0, 0],
-      w: 0.012, h, color: warmer, intensity: 30 });
+      w: 0.012, h, color: warmer, intensity: LIGHT.strip });
   }
 
   // Brass wall sconce: soft downlight onto the painting + uplight.
   const sc = dims.anchors.sconce;
   addSpot({ pos: [sc.wallX + 0.16, sc.y - 0.02, sc.z], target: [sc.wallX + 0.05, sc.y - 1.2, sc.z],
-    color: warm, intensity: 14, angle: THREE.MathUtils.degToRad(50), penumbra: 0.9, radius: 0.04 });
+    color: warm, intensity: LIGHT.sconce, angle: THREE.MathUtils.degToRad(40), penumbra: 1, radius: 0.04 });
   addSpot({ pos: [sc.wallX + 0.16, sc.y + 0.04, sc.z], target: [sc.wallX + 0.05, R.height, sc.z],
-    color: warm, intensity: 5, angle: THREE.MathUtils.degToRad(55), penumbra: 1, radius: 0.04, shadow: false });
+    color: warm, intensity: LIGHT.sconce * 0.15, angle: THREE.MathUtils.degToRad(45), penumbra: 1, radius: 0.04, shadow: false });
 
   // Very soft bounce fill from the camera side (stands in for light from the door/corridor).
   const fill = new THREE.HemisphereLight(0xfff0e0, 0x6b5440, MODE === 'final' ? 0.0 : 0.15);
@@ -144,6 +158,17 @@ async function loadParts() {
       console.error(`part ${name} failed`, e);
     }
   }
+  // Scale emissives so LEDs read warm/bright but not blown out.
+  const seen = new Set();
+  scene.traverse((o) => {
+    const ms = o.isMesh ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+    for (const m of ms) if (m && m.emissiveIntensity && !seen.has(m)) {
+      seen.add(m); m.emissiveIntensity *= LIGHT.emissive;
+      // white-balance emissive colors too
+      m.emissive.r /= WB.r; m.emissive.g /= WB.g; m.emissive.b /= WB.b;
+      const mx = Math.max(m.emissive.r, m.emissive.g, m.emissive.b); if (mx > 0) m.emissive.multiplyScalar(1 / mx);
+    }
+  });
   // Default shadows on for every mesh (parts can opt out by setting userData.noShadow)
   scene.traverse((o) => {
     if (o.isMesh && !o.userData.noShadow) { o.castShadow = true; o.receiveShadow = true; }
@@ -210,7 +235,7 @@ async function main() {
   pt.minSamples = 0;
   pt.renderDelay = 0;
   pt.fadeDuration = 0;
-  pt.bounces = +(params.get('bounces') || 8);
+  pt.bounces = +(params.get('bounces') || 5);
   pt.filterGlossyFactor = 0.5;
   pt.multipleImportanceSampling = true;
   pt.tiles.set(+(params.get('tiles') || 2), +(params.get('tiles') || 2));

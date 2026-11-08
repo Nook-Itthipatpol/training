@@ -256,7 +256,7 @@ export function kelvin(k) {
   if (t <= 66) { r = 255; g = 99.47 * Math.log(t) - 161.12; b = t <= 19 ? 0 : 138.52 * Math.log(t - 10) - 305.04; }
   else { r = 329.7 * Math.pow(t - 60, -0.1332); g = 288.12 * Math.pow(t - 60, -0.0755); b = 255; }
   const c = (x) => Math.min(255, Math.max(0, x)) / 255;
-  return new THREE.Color(c(r), c(g), c(b)).convertSRGBToLinear();
+  return new THREE.Color().setRGB(c(r), c(g), c(b), THREE.SRGBColorSpace);
 }
 
 // Rounded box helper with bevel (meters). Parts use this a lot.
