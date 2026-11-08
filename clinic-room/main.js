@@ -239,7 +239,8 @@ async function main() {
   pt.filterGlossyFactor = 0.5;
   pt.multipleImportanceSampling = true;
   pt.tiles.set(+(params.get('tiles') || 2), +(params.get('tiles') || 2));
-  pt.textureSize.set(2048, 2048);
+  const ts = +(params.get('texSize') || 1024); // all textures are packed into one array; keep small for Mac/Safari GPU limits
+  pt.textureSize.set(ts, ts);
   pt.setScene(scene, camera);
 
   const texPass = new TexturePass(pt.target.texture);
