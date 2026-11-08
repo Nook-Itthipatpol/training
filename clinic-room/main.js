@@ -238,7 +238,11 @@ async function main() {
   pt.bounces = +(params.get('bounces') || 5);
   pt.filterGlossyFactor = 0.5;
   pt.multipleImportanceSampling = true;
-  pt.tiles.set(+(params.get('tiles') || 2), +(params.get('tiles') || 2));
+  // GPU share: render the image in small tiles, one tile per step, then rest so the computer stays usable.
+  // ?gpu=0.3 (gentle) .. 1 (full speed). Default 0.4.
+  const GPU = Math.min(1, Math.max(0.05, +(params.get('gpu') || 0.4)));
+  const TILES = +(params.get('tiles') || (GPU >= 1 ? 2 : 4));
+  pt.tiles.set(TILES, TILES);
   const ts = +(params.get('texSize') || 1024); // all textures are packed into one array; keep small for Mac/Safari GPU limits
   pt.textureSize.set(ts, ts);
   pt.setScene(scene, camera);
@@ -246,8 +250,14 @@ async function main() {
   const texPass = new TexturePass(pt.target.texture);
   const composer = makeComposer(texPass, params.get('denoise') !== '0');
   const t0 = performance.now();
+  const gl = renderer.getContext();
+  const px = new Uint8Array(4);
+  let shown = -1;
   const tick = () => {
-    for (let i = 0; i < 4; i++) pt.renderSample();
+    const ts = performance.now();
+    pt.renderSample();
+    if (GPU < 1) gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px); // forces GPU sync so we can time the tile
+    const busy = performance.now() - ts;
     const s = Math.floor(pt.samples);
     status(`sampling ${s}/${SAMPLES} (${((performance.now() - t0) / 1000).toFixed(0)}s)`);
     if (s >= SAMPLES) {
@@ -258,8 +268,10 @@ async function main() {
       return;
     }
     // Show progress occasionally.
-    if (s % 32 === 0) { texPass.map = pt.target.texture; composer.render(); }
-    requestAnimationFrame(tick);
+    if (s % 16 === 0 && s !== shown) { shown = s; texPass.map = pt.target.texture; composer.render(); }
+    // Rest proportionally: at gpu=0.4 we idle 1.5x as long as we worked.
+    if (GPU < 1) setTimeout(() => requestAnimationFrame(tick), busy * (1 / GPU - 1));
+    else requestAnimationFrame(tick);
   };
   tick();
 }
