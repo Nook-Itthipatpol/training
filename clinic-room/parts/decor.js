@@ -626,7 +626,7 @@ export async function build(ctx) {
         const ang = pw(0.7, 1.15);
         const d = T.clone().multiplyScalar(Math.cos(ang)).addScaledVector(out, Math.sin(ang));
         d.y += pw(-0.1, 0.16) + (opts.upward || 0);
-        const len = pw(0.052, 0.072) * (0.8 + 0.3 * (1 - Math.abs(tt - 0.8)));
+        const len = pw(0.06, 0.08) * (0.8 + 0.3 * (1 - Math.abs(tt - 0.8)));
         addLeaf(p.clone().addScaledVector(out, 0.003), d, len);
       }
       // terminal leaf
@@ -688,7 +688,7 @@ export async function build(ctx) {
         const edge = Math.pow(Math.abs(u - 0.5) * 2, 2);
         const shade = fbm(u, v, { period: 4, seed: 3, octaves: 3 });
         if (topSide) {
-          const base = [96, 118, 82], silver = [150, 166, 138];
+          const base = [110, 132, 92], silver = [168, 182, 152];
           const t = Math.min(1, 0.25 + edge * 0.15 + shade * 0.4);
           return [base[0] + (silver[0] - base[0]) * t + mid * 40, base[1] + (silver[1] - base[1]) * t + mid * 35, base[2] + (silver[2] - base[2]) * t + mid * 25];
         }

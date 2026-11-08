@@ -97,6 +97,7 @@ export async function build(ctx) {
     ...ls, roughness: 0.78, clearcoat: 0.22, clearcoatRoughness: 0.38,
     sheen: 0.35, sheenRoughness: 0.55, sheenColor: new THREE.Color(0xe6d3b4),
   });
+  leatherBed.normalScale.set(0.55, 0.55);
   const seamMat = PM({ color: 0x8f7a5c, roughness: 0.7 });
 
   // plinth (recessed) 7 cm high
@@ -149,7 +150,7 @@ export async function build(ctx) {
       p.setY(i, y + 0.007 * wgt);
     }
     g.translate(bx, padY, padZ);
-    worldUV(g, 0.32);
+    worldUV(g, 0.26);
     mesh(g, leatherBed);
   }
   // piping seam around the pad (mid-height) and a headrest-hinge seam on top
@@ -169,7 +170,7 @@ export async function build(ctx) {
 
   // headrest pillow (soft bolster/wedge) at the right end
   {
-    const pw = 0.42, ph = 0.10, pd = 0.30;
+    const pw = 0.42, ph = 0.115, pd = 0.30;
     const g = new RoundedBoxGeometry(pw, ph, pd, 14, 0.045);
     const p = g.attributes.position;
     for (let i = 0; i < p.count; i++) {
@@ -177,11 +178,11 @@ export async function build(ctx) {
       const nx = x / (pw / 2), nz = z / (pd / 2);
       const e = Math.min(1, (nx * nx + nz * nz) / 1.6);
       let yy = y * (1 - 0.55 * e * e);
-      yy += Math.sign(y) * 0.012 * (1 - nx * nx) * (1 - nz * nz);   // pillowy middle
+      yy += Math.sign(y) * 0.02 * (1 - nx * nx) * (1 - nz * nz);   // pillowy middle
       p.setY(i, yy);
     }
     g.computeVertexNormals();
-    worldUV(g, 0.3);
+    worldUV(g, 0.26);
     const pil = new THREE.Group();
     const m = mesh(g, leatherBed, 0, 0, 0, pil);
     // piping around the seam line
@@ -201,11 +202,11 @@ export async function build(ctx) {
   const walnut = mats.walnut;
   const frontT2 = 0.018;
 
-  rbox(vw, cabTop - cabBot, vd - frontT2, 0.004, vcx, (cabBot + cabTop) / 2, vBack + (vd - frontT2) / 2, walnut, { tile: 0.6, grain: 'x' });
+  rbox(vw, cabTop - cabBot, vd - frontT2, 0.004, vcx, (cabBot + cabTop) / 2, vBack + (vd - frontT2) / 2, walnut, { tile: 1.5, grain: 'x' });
   rbox(vw - 0.002, cabTop - cabBot - 0.002, 0.004, 0.001, vcx, (cabBot + cabTop) / 2, vFront - frontT2, gapDark, { seg: 1 });
   // drawer front (single), 4 mm gaps
   const dfw = vw - 0.008, dfh = cabTop - cabBot - 0.008;
-  rbox(dfw, dfh, frontT2, 0.003, vcx, (cabBot + cabTop) / 2, vFront - frontT2 / 2, walnut, { tile: 0.6, grain: 'x', seg: 3 });
+  rbox(dfw, dfh, frontT2, 0.003, vcx, (cabBot + cabTop) / 2, vFront - frontT2 / 2, walnut, { tile: 1.5, grain: 'x', seg: 3 });
   // brushed brass bar pull
   {
     const brass = mats.brushedBrass;
